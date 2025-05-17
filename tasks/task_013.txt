@@ -1,0 +1,11 @@
+# Task ID: 13
+# Title: Implement Document Attachment
+# Status: pending
+# Dependencies: 7, 8
+# Priority: medium
+# Description: Enable attaching documents to credit applications.
+# Details:
+Extend CreditApplication model to support document attachments via generic relations. Update forms and views to allow document upload and retrieval.
+
+# Test Strategy:
+Test document attachment, retrieval, and validation.

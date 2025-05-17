@@ -1,0 +1,11 @@
+# Task ID: 15
+# Title: Implement Reporting and Metrics
+# Status: pending
+# Dependencies: 7, 10
+# Priority: medium
+# Description: Develop reporting features for workflow metrics.
+# Details:
+Add backend endpoints for metrics (approval time, request volume, etc.). Display metrics on dashboard.
+
+# Test Strategy:
+Test metric calculation, endpoint response, and dashboard display.

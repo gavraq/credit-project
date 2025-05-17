@@ -1,0 +1,11 @@
+# Task ID: 6
+# Title: Implement Workflow Engine Core
+# Status: pending
+# Dependencies: 2, 4
+# Priority: high
+# Description: Develop core workflow engine for managing state transitions and audit trails.
+# Details:
+Create Django app for workflow_engine. Implement models for WorkflowDefinition, State, Transition, WorkflowInstance, StateLog. Add logic for state transitions and audit logging.
+
+# Test Strategy:
+Test workflow creation, state transitions, and audit trail logging.

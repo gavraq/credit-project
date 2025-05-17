@@ -1,0 +1,680 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Setup Project Repository",
+      "description": "Initialize a new Git repository for the project, including README, .gitignore, basic project structure, and UV project initialization.",
+      "status": "pending",
+      "dependencies": [],
+      "priority": "high",
+      "details": "Create a new repository on GitHub/GitLab. Add initial files: README.md, .gitignore (Python, Node, React), and a basic project structure (backend, frontend, docs). Initialize the Python backend using UV: run `uv init` in the backend directory to set up UV project files. UV will create the necessary structure including pyproject.toml, .python-version, README.md, and main.py. Ensure the .gitignore file includes entries for Python virtual environments. Document the project structure in the README, including instructions for using UV commands like `uv run` and `uv sync`. If migrating from an existing Python project, use `uv pip install -e .` to install dependencies from pyproject.toml. Set the appropriate Python version in the .python-version file (3.9 or higher) to ensure compatibility.",
+      "testStrategy": "Verify repository is accessible, files are present, and structure matches project requirements. Confirm that UV initialization files (pyproject.toml, .python-version, main.py) exist in the backend directory. Test that running `uv run main.py` works without errors. Verify that the Python version specified in .python-version is installed and being used correctly. Ensure the project structure follows the architecture document specifications and that all necessary dependencies can be installed using `uv sync`.",
+      "subtasks": [
+        {
+          "id": 1.1,
+          "title": "Create repository and basic structure",
+          "description": "Set up Git repository with initial files and directory structure",
+          "status": "pending"
+        },
+        {
+          "id": 1.2,
+          "title": "Initialize UV project",
+          "description": "Set up the Python backend using UV initialization",
+          "status": "pending"
+        },
+        {
+          "id": 1.3,
+          "title": "Configure Python version",
+          "description": "Set the appropriate Python version (3.9+) in .python-version file",
+          "status": "pending"
+        },
+        {
+          "id": 1.4,
+          "title": "Document UV usage",
+          "description": "Add comprehensive documentation on UV commands and workflow in README",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Configure Backend Environment",
+      "description": "Set up Django and Django REST Framework (DRF) backend with PostgreSQL database.",
+      "status": "pending",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "details": "Install Python, Django, DRF, and PostgreSQL. Configure settings.py for database connection, environment variables, and initial apps (users, workflow_engine, credit_applications, documents, core). Ensure proper PostgreSQL database configuration with appropriate user permissions and connection parameters to optimize database operations.",
+      "testStrategy": "Run Django development server, verify database connection, and check for successful migrations. Test database connection using the configured PostgreSQL credentials and verify that Django can properly interact with the database.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Database Documentation",
+          "description": "Create comprehensive database documentation",
+          "details": "1. Entity relationship diagrams\n2. Data model documentation\n3. Migration guide\n4. Optimization guide\n5. Backup/restore procedures\n6. Performance tuning guide",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 2
+        },
+        {
+          "id": 2,
+          "title": "PostgreSQL Configuration",
+          "description": "Set up PostgreSQL database with proper user permissions",
+          "details": "1. Create PostgreSQL database for the project\n2. Create database user with secure password\n3. Configure connection parameters for optimal performance\n4. Update Django settings.py with proper database configuration using psycopg2 adapter",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 2
+        },
+        {
+          "id": 3,
+          "title": "Database Schema Implementation",
+          "description": "Implement database schema based on documentation",
+          "details": "1. Reference entity relationship diagrams from Database Documentation\n2. Implement key relationships between entities\n3. Create Django models that reflect the documented schema\n4. Ensure proper foreign key relationships between models\n5. Implement indexes for performance optimization",
+          "status": "pending",
+          "dependencies": [
+            1
+          ],
+          "parentTaskId": 2
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Configure Frontend Environment",
+      "description": "Set up React and Material-UI frontend project.",
+      "details": "Initialize a new React project using create-react-app. Install Material-UI and configure basic routing and theme.",
+      "testStrategy": "Start development server, verify React app loads, and Material-UI components render.",
+      "priority": "high",
+      "dependencies": [
+        1
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 4,
+      "title": "Design Database Schema",
+      "description": "Define and implement database models for all core entities, referencing the Transition State Model and including detailed state definitions.",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "details": "Create Django models for User, Department, Role, Permission, WorkflowDefinition, State, Transition, WorkflowInstance, StateLog, CreditApplication, Counterparty, LimitRequest, Document, DocumentType. Use generic relations for flexible attachments. Ensure the schema references the Transition State Model explicitly, and provide detailed definitions for each state, including metadata, allowed transitions, and validation rules. Follow Django model best practices for field ordering, naming, and relationships[1][5].",
+      "testStrategy": "Run migrations, verify tables are created, and test CRUD operations via Django shell. Additionally, validate that state definitions are comprehensive and that transitions between states are correctly enforced in the database schema.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "User and Authentication Models",
+          "description": "Design and implement user and authentication related models",
+          "details": "1. User Model:\n   - Custom User model extending AbstractUser\n   - Additional fields: employee_id, phone_number\n   - Role-based permissions\n   - Profile information\n2. Role Model:\n   - Role hierarchy\n   - Permission mapping\n   - Role-based access control\n3. Group Model:\n   - User group management\n   - Group permissions\n   - Group membership\n4. Session Model:\n   - Session tracking\n   - Session security\n   - Session management\n5. Token Model:\n   - JWT token management\n   - Token refresh\n   - Token validation\n6. Audit Trail:\n   - User activity logging\n   - Permission changes\n   - Login/logout tracking",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 4
+        },
+        {
+          "id": 2,
+          "title": "Credit Request Models",
+          "description": "Design and implement models for credit requests and related entities",
+          "details": "1. CreditRequest Model:\n   - Request number (auto-generated)\n   - Request status\n   - Request type\n   - Counterparty information\n   - Limit details\n   - Revenue information\n   - Document references\n2. Limit Model:\n   - Limit types (Trading, Nostro, Loan)\n   - Limit amounts\n   - Currency\n   - Maturity dates\n   - Conditions\n3. Counterparty Model:\n   - Basic information\n   - Credit ratings\n   - Risk classification\n   - Relationship details\n4. Document Model:\n   - Document types\n   - File storage\n   - Version control\n   - Access permissions\n5. Audit Trail:\n   - Request history\n   - Status changes\n   - User actions\n6. Workflow State:\n   - Current state\n   - Previous states\n   - Transition logs",
+          "status": "pending",
+          "dependencies": [
+            2
+          ],
+          "parentTaskId": 4
+        },
+        {
+          "id": 3,
+          "title": "Workflow Engine Models",
+          "description": "Design and implement models for workflow engine and state management",
+          "details": "1. Workflow Model:\n   - Workflow definition\n   - State transitions\n   - Business rules\n   - Event triggers\n2. State Model:\n   - State types\n   - State transitions\n   - State validation\n   - State metadata\n   - Detailed state definitions (name, description, metadata, allowed transitions, validation rules)\n3. Transition Model:\n   - Transition rules\n   - Transition conditions\n   - Transition actions\n   - Transition logs\n   - Explicit reference to Transition State Model for managing state changes\n4. Event Model:\n   - Event types\n   - Event triggers\n   - Event handlers\n   - Event logs\n5. Business Rule Model:\n   - Rule definitions\n   - Rule conditions\n   - Rule actions\n   - Rule validation\n6. Audit Trail:\n   - Workflow history\n   - State changes\n   - Transition logs\n   - Rule execution",
+          "status": "pending",
+          "dependencies": [
+            2
+          ],
+          "parentTaskId": 4
+        },
+        {
+          "id": 4,
+          "title": "Define Detailed State Definitions and Transition State Model References",
+          "description": "Expand on state definitions and ensure all workflow and credit request models reference the Transition State Model.",
+          "details": "1. For each state in the workflow, define:\n   - Name\n   - Description\n   - Metadata (e.g., timestamps, responsible roles)\n   - Allowed transitions (with references to Transition State Model)\n   - Validation rules for entering/exiting the state\n2. Update all relevant models (Workflow, WorkflowInstance, CreditRequest, etc.) to reference the Transition State Model for state management.\n3. Document the state lifecycle and transition logic in the schema.",
+          "status": "pending",
+          "dependencies": [
+            3
+          ],
+          "parentTaskId": 4
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Implement User Authentication",
+      "description": "Set up JWT-based authentication and role-based permissions.",
+      "details": "Integrate Django REST Framework Simple JWT. Implement custom permissions for User, Role, and Permission models. Secure API endpoints.",
+      "testStrategy": "Test login, token generation, and role-based access to endpoints.",
+      "priority": "high",
+      "dependencies": [
+        2,
+        4
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 6,
+      "title": "Implement Workflow Engine Core",
+      "description": "Develop core workflow engine for managing state transitions and audit trails.",
+      "details": "Create Django app for workflow_engine. Implement models for WorkflowDefinition, State, Transition, WorkflowInstance, StateLog. Add logic for state transitions and audit logging.",
+      "testStrategy": "Test workflow creation, state transitions, and audit trail logging.",
+      "priority": "high",
+      "dependencies": [
+        2,
+        4
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 7,
+      "title": "Implement Credit Application Module",
+      "description": "Develop module for managing credit limit requests and related processes.",
+      "details": "Create Django app for credit_applications. Implement models for CreditApplication, Counterparty, LimitRequest. Add views and serializers for CRUD operations.",
+      "testStrategy": "Test creation, submission, and retrieval of credit applications.",
+      "priority": "high",
+      "dependencies": [
+        2,
+        4,
+        6
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Project Configuration",
+          "description": "Configure React project with essential dependencies",
+          "details": "1. Project Setup:\n   - Create React app with TypeScript\n   - Configure ESLint and Prettier\n   - Set up Husky for pre-commit hooks\n2. Dependencies:\n   - Material-UI\n   - React Router\n   - Redux Toolkit\n   - Axios\n   - Formik\n   - Yup\n3. Configuration:\n   - Environment variables\n   - API configuration\n   - Theme configuration\n   - Build configuration",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 7
+        },
+        {
+          "id": 2,
+          "title": "Theme Configuration",
+          "description": "Set up Material-UI theme with custom color scheme and typography [Updated: 5/16/2025]",
+          "details": "1. Color Scheme:\n   - Primary: ICBC Red (#e31937)\n   - Secondary: Standard Bank Blue (#0c4da2)\n   - Neutral colors\n   - Error, warning, success colors\n2. Typography:\n   - Font families\n   - Font sizes\n   - Line heights\n   - Letter spacing\n3. Components:\n   - Button styles\n   - Card styles\n   - Form styles\n   - Table styles\n4. Custom Components:\n   - Status indicators\n   - Progress indicators\n   - Document upload\n   - Form validation\n5. Responsive Design:\n   - Breakpoints\n   - Grid system\n   - Layout components\n<info added on 2025-05-16T17:34:41.619Z>\n1. Color Scheme:\n   - Primary: ICBC Red (#e31937)\n   - Secondary: Standard Bank Blue (#0c4da2)\n   - Neutral colors: Light gray (#f5f5f5), Medium gray (#e0e0e0), Dark gray (#616161)\n   - Error: Red (#d32f2f)\n   - Warning: Amber (#ffa000)\n   - Success: Green (#43a047)\n2. Typography:\n   - Font families: 'Roboto', 'Arial', sans-serif\n   - Font sizes: Body 16px, Headings (h1: 32px, h2: 24px, h3: 20px, h4: 18px)\n   - Line heights: 1.5 for body, 1.2 for headings\n   - Letter spacing: 0.5px for body, 1px for headings\n3. Components:\n   - Button styles: Primary (ICBC Red), Secondary (Standard Bank Blue), Disabled (Medium gray), Hover/focus states with 10% lighter/darker variants\n   - Card styles: White background, subtle shadow, rounded corners (8px), border (1px, #e0e0e0)\n   - Form styles: Input fields with light gray background, 2px border on focus (Standard Bank Blue), error states (Red border)\n   - Table styles: Alternating row colors (Light gray/White), header (Standard Bank Blue, white text), cell padding (16px)\n4. Custom Components:\n   - Status indicators: Success (Green), Warning (Amber), Error (Red), Info (Standard Bank Blue), with icon and text\n   - Progress indicators: Linear (Standard Bank Blue), Circular (ICBC Red), with percentage labels\n   - Document upload: Card-style container, drag-and-drop area, file list with status indicators\n   - Form validation: Error messages below fields, inline icons, real-time validation\n5. Responsive Design:\n   - Breakpoints: xs (0px), sm (600px), md (900px), lg (1200px), xl (1536px)\n   - Grid system: 12-column, responsive gutters, auto-layout for forms and tables\n   - Layout components: AppBar (ICBC Red), Sidebar (White, border right), Main content (White, padding 24px), Footer (Dark gray, white text)\n\n<update timestamp=\"2025-05-16T17:34:32Z\">\nTheme configuration updated to align with Credit Workflow Design Brief. All color and typography values are now specified for consistency and brand alignment. Component and custom component styles are detailed for implementation. Responsive design guidelines ensure the theme adapts to all device sizes.\n</update>\n</info added on 2025-05-16T17:34:41.619Z>",
+          "status": "pending",
+          "dependencies": [
+            "7.1"
+          ],
+          "parentTaskId": 7
+        },
+        {
+          "id": 3,
+          "title": "Form Components",
+          "description": "Implement reusable form components and validation",
+          "details": "1. Base Form Components:\n   - FormContainer\n   - FormSection\n   - FormField\n   - FormValidation\n2. Input Components:\n   - TextInput\n   - NumberInput\n   - DateInput\n   - SelectInput\n   - Checkbox\n   - Radio\n3. Custom Components:\n   - DocumentUpload\n   - StatusSelector\n   - ProgressIndicator\n   - ErrorBoundary\n4. Validation:\n   - Formik integration\n   - Yup schemas\n   - Custom validators\n   - Error handling\n5. UI Patterns:\n   - Loading states\n   - Error states\n   - Success states\n   - Disabled states",
+          "status": "pending",
+          "dependencies": [
+            "7.2"
+          ],
+          "parentTaskId": 7
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Implement Document Management",
+      "description": "Develop module for document upload, storage, and retrieval.",
+      "details": "Create Django app for documents. Implement models for Document, DocumentType. Add file upload logic with size and extension validation. Use local storage for dev, cloud for prod.",
+      "testStrategy": "Test file upload, retrieval, and validation rules.",
+      "priority": "high",
+      "dependencies": [
+        2,
+        4
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 9,
+      "title": "Implement User Roles and Permissions",
+      "description": "Assign and enforce user roles and permissions across the system.",
+      "details": "Map roles (Credit Analyst, Relationship Manager, Legal Reviewer, Credit Approver, Committee Approver, Business Sponsor, System Admin) to permissions. Implement role-based field visibility and options.",
+      "testStrategy": "Test role assignment, permission enforcement, and field visibility.",
+      "priority": "high",
+      "dependencies": [
+        2,
+        4,
+        5
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 10,
+      "title": "Design and Implement Dashboard UI",
+      "description": "Develop the Request Tracking Dashboard as specified in PRD section 4.2.1, focusing on status tracking, reporting, and interactive data visualization for workflow requests.",
+      "status": "pending",
+      "dependencies": [
+        3,
+        7
+      ],
+      "priority": "medium",
+      "details": "Implement a React-based Request Tracking Dashboard per PRD section 4.2.1. The dashboard should provide:\n\n- Request Status Overview: Display current status distribution of all tracked requests using interactive charts (bar, pie, line).\n- Request Timeline Visualization: Visualize the lifecycle and progression of requests over time.\n- Pending Actions Widget: Highlight outstanding actions for users.\n- Recent Activity Feed: Show the latest updates and changes to requests.\n- Performance Metrics Charts: Present key metrics such as average processing time, volume by status, and bottleneck identification.\n- Search and Filter Interface: Enable advanced filtering by request type, status, date range, and assignee.\n\n**Technical Requirements:**\n- Use React for component-based architecture and state management[2][1].\n- Leverage Tailwind CSS for styling and responsive design[3][4].\n- Integrate high-performance, reusable dashboard components for charts, tables, and widgets[3][5].\n- Optimize for large data sets with lazy loading, pagination, and data caching strategies.\n- Ensure real-time updates for request status changes and activity feeds.\n- Provide drill-down capability from summary views to detailed request information.\n- Support export functionality for reports and data.\n- Implement role-based access and authentication for dashboard features.\n- Ensure accessibility (WCAG compliance) and mobile responsiveness.\n\n**Integration Points:**\n- Connect to backend API endpoints for request and metrics data.\n- Integrate with notification system for alerts and pending actions.\n- Link to detailed form views for each request type.\n\n**Design Reference:**\n- Follow best practices for dashboard layout, visual hierarchy, and usability as outlined in PRD 4.2.1 and modern React dashboard guides[2][3][5].\n- Use consistent color coding for status indicators and clear navigation between dashboard sections.",
+      "testStrategy": "Test that the Request Tracking Dashboard renders all widgets and charts correctly, updates in real time on status changes, and displays accurate metrics. Validate performance with large data sets using simulated API responses. Verify advanced filtering, search, and export features. Test responsive design across device sizes and accessibility compliance. Confirm integration with backend APIs and notification system. Ensure role-based access controls restrict features appropriately.",
+      "subtasks": [
+        {
+          "id": 8,
+          "title": "Request Tracking Dashboard Implementation",
+          "description": "Design and implement the main Request Tracking Dashboard as per PRD section 4.2.1",
+          "details": "1. Dashboard Components:\n   - Request Status Overview\n   - Request Timeline Visualization\n   - Pending Actions Widget\n   - Recent Activity Feed\n   - Performance Metrics Charts\n   - Search and Filter Interface\n\n2. Data Visualization:\n   - Interactive bar charts for request volume by status\n   - Line charts for request processing time trends\n   - Status distribution pie charts\n   - Timeline visualization for request lifecycle\n\n3. Dashboard Features:\n   - Real-time updates of request status changes\n   - Drill-down capability from summary to detailed views\n   - Advanced filtering by request type, status, date range, and assignee\n   - Export functionality for reports and data\n   - Customizable dashboard layouts for different user roles\n\n4. Performance Considerations:\n   - Implement lazy loading for large data sets\n   - Use pagination for request tables\n   - Optimize chart rendering for performance\n   - Implement data caching strategies\n\n5. UI/UX Design:\n   - Responsive layout that works on all device sizes\n   - Clear visual hierarchy with important information prominent\n   - Consistent color coding for status indicators\n   - Accessible design following WCAG guidelines\n   - Intuitive navigation between dashboard sections\n\n6. Integration Points:\n   - Connect to API endpoints for request data\n   - Integrate with notification system for alerts\n   - Link to detailed form views for each request type\n   - Implement user authentication and role-based access",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 10
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Design and Implement Digital Forms",
+      "description": "Develop individual digital forms for each workflow described in PRD section 4.1, ensuring that every form matches the exact requirements and naming from the PRD. The forms must comprehensively cover the entire credit workflow process, including all submission, review, approval, modification, and configuration steps as specified.",
+      "status": "pending",
+      "dependencies": [
+        3,
+        7,
+        9
+      ],
+      "priority": "medium",
+      "details": "For each form explicitly listed in PRD section 4.1, create a dedicated React form component with fields, validation, and workflow logic matching the PRD. Implement form submission, review, and approval flows as separate forms where required, using the exact form names and purposes from the PRD. Integrate each form with backend APIs. Ensure role-based field visibility and access per form, according to workflow requirements. Use controlled components for forms requiring real-time validation, complex state management, or dynamic field logic, and consider uncontrolled components for simple, static forms to optimize performance. Display errors clearly next to relevant fields and ensure all forms are accessible. Leverage libraries like React Hook Form or Formik for complex validation and state management where appropriate. All forms must be traceable to a specific PRD 4.1 requirement. Consider using modern React form practices including useState for simple forms and React Hook Form for more complex implementations to ensure optimal performance and maintainability.",
+      "testStrategy": "Test each form for correct submission, validation, and role-based field visibility. Verify that each workflow and form from PRD section 4.1 is covered by a dedicated React form component, with API integration functioning as expected. Test form performance under various conditions, comparing controlled and uncontrolled implementations where applicable. Ensure accessibility standards are met and user feedback for errors is clear and helpful. Validate that all credit workflow processes are properly implemented according to the PRD specifications, and that every PRD 4.1 form is present and functional. Include tests for form submission handling, including proper preventDefault() implementation and validation before submission.",
+      "subtasks": [
+        {
+          "id": 111,
+          "title": "Identify and Document Forms from PRD 4.1",
+          "description": "Review PRD section 4.1 and create a comprehensive mapping document listing all required forms, using the exact form names and purposes from the PRD. Include their fields, roles, workflows, and relationships. Ensure complete coverage of the entire credit workflow process as specified in the PRD.",
+          "status": "pending"
+        },
+        {
+          "id": 112,
+          "title": "Implement Credit Limit Request Submission Form",
+          "description": "Develop the React form for credit limit request submission, ensuring field validation and API integration. Implement as a controlled component to enable real-time validation of credit request parameters. Match the form fields and logic exactly to PRD 4.1.",
+          "status": "pending"
+        },
+        {
+          "id": 113,
+          "title": "Implement Credit Limit Review Form",
+          "description": "Develop the React form for reviewing credit limit requests, with role-based field visibility and approval actions. Include all review criteria and fields specified in PRD section 4.1. Ensure the form matches the PRD's naming and workflow.",
+          "status": "pending"
+        },
+        {
+          "id": 114,
+          "title": "Implement Credit Limit Approval Form",
+          "description": "Develop the React form for approving or rejecting credit limit requests, integrating with backend APIs and enforcing role-based access. Ensure all approval workflow steps and fields from PRD 4.1 are implemented, matching the PRD's form structure.",
+          "status": "pending"
+        },
+        {
+          "id": 115,
+          "title": "Test All Forms for Workflow Coverage and Validation",
+          "description": "Test each form for correct workflow coverage, submission, validation, and role-based field visibility as per PRD 4.1. Verify that the entire credit workflow process is covered without gaps and that all PRD 4.1 forms are present.",
+          "status": "pending"
+        },
+        {
+          "id": 116,
+          "title": "Implement Credit History Review Form",
+          "description": "Develop the React form for reviewing customer credit history as part of the credit workflow process, with appropriate data visualization and filtering options. Ensure the form matches the PRD 4.1 specification.",
+          "status": "pending"
+        },
+        {
+          "id": 117,
+          "title": "Implement Credit Terms Configuration Form",
+          "description": "Create a form for configuring credit terms and conditions that will be applied to approved credit limits, ensuring proper validation and business rule enforcement. Match the form fields and workflow to PRD 4.1.",
+          "status": "pending"
+        },
+        {
+          "id": 118,
+          "title": "Implement Credit Limit Modification Request Form",
+          "description": "Develop a form for requesting modifications to existing credit limits, including justification fields and supporting document uploads. Ensure the form structure and fields match PRD 4.1.",
+          "status": "pending"
+        },
+        {
+          "id": 119,
+          "title": "Optimize Form Performance",
+          "description": "Review all implemented forms and optimize performance by applying appropriate form handling strategies (controlled vs. uncontrolled components) based on form complexity and requirements. Use controlled components for forms requiring complex validation and state management, and consider uncontrolled components for simpler forms. Ensure all forms match the PRD 4.1 requirements.",
+          "status": "pending"
+        },
+        {
+          "id": 120,
+          "title": "Verify Complete PRD 4.1 Coverage",
+          "description": "Conduct a comprehensive review to ensure all forms specified in PRD section 4.1 have been implemented correctly. Create a traceability matrix mapping each PRD 4.1 requirement to the corresponding form implementation, using exact form names from the PRD.",
+          "status": "pending"
+        },
+        {
+          "id": 121,
+          "title": "Document Form Implementation Decisions",
+          "description": "Create documentation explaining the rationale for using controlled vs. uncontrolled components for each form, and any form libraries utilized. Include performance considerations, validation strategies, and ensure documentation references the exact PRD 4.1 form names.",
+          "status": "pending"
+        },
+        {
+          "id": 122,
+          "title": "Implement Form Submission Handling",
+          "description": "Ensure all forms properly handle submission events with preventDefault() to avoid page reloads, and implement appropriate validation before submission. Follow React best practices for form submission as outlined in the React documentation.",
+          "status": "pending"
+        },
+        {
+          "id": 123,
+          "title": "Evaluate and Implement Form Libraries",
+          "description": "Evaluate React Hook Form and other modern form libraries for complex forms in the credit workflow. Implement the chosen library for forms requiring complex validation and state management, ensuring the implementation aligns with the exact requirements in PRD 4.1.",
+          "status": "pending"
+        },
+        {
+          "id": 124,
+          "title": "Create Form Error Handling Components",
+          "description": "Develop reusable error handling components that can be used across all credit workflow forms to display validation errors clearly next to relevant fields. Ensure these components support the exact validation requirements specified in PRD 4.1.",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Implement Priority Management",
+      "description": "Add priority handling for credit limit requests.",
+      "details": "Extend CreditApplication model with priority field. Update forms and dashboard to display and filter by priority.",
+      "testStrategy": "Test priority assignment, filtering, and display.",
+      "priority": "medium",
+      "dependencies": [
+        7,
+        10
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 13,
+      "title": "Implement Document Attachment",
+      "description": "Enable attaching documents to credit applications.",
+      "details": "Extend CreditApplication model to support document attachments via generic relations. Update forms and views to allow document upload and retrieval.",
+      "testStrategy": "Test document attachment, retrieval, and validation.",
+      "priority": "medium",
+      "dependencies": [
+        7,
+        8
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 14,
+      "title": "Implement State Transitions and Audit Trails",
+      "description": "Add logic for workflow state transitions and audit logging.",
+      "details": "Implement logic for moving between states (draft, in-progress, submitted, rejected). Log all state changes and user actions.",
+      "testStrategy": "Test state transitions, audit trail logging, and access to logs.",
+      "priority": "medium",
+      "dependencies": [
+        6,
+        7
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 15,
+      "title": "Implement Reporting and Metrics",
+      "description": "Develop reporting features for workflow metrics.",
+      "details": "Add backend endpoints for metrics (approval time, request volume, etc.). Display metrics on dashboard.",
+      "testStrategy": "Test metric calculation, endpoint response, and dashboard display.",
+      "priority": "medium",
+      "dependencies": [
+        7,
+        10
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 16,
+      "title": "Implement Notification System",
+      "description": "Add notifications for workflow state changes.",
+      "details": "Implement backend logic to send notifications (email, in-app) on state changes. Add frontend notification UI.",
+      "testStrategy": "Test notification delivery and UI updates.",
+      "priority": "low",
+      "dependencies": [
+        6,
+        7,
+        10
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 17,
+      "title": "Implement Security and Compliance Features",
+      "description": "Add security best practices and compliance features.",
+      "details": "Implement HTTPS, CSRF protection, input validation, and audit logging. Ensure compliance with data protection standards.",
+      "testStrategy": "Test security features, audit logs, and compliance checks.",
+      "priority": "high",
+      "dependencies": [
+        2,
+        5,
+        6
+      ],
+      "status": "pending",
+      "subtasks": []
+    },
+    {
+      "id": 18,
+      "title": "Implement Automated Testing",
+      "description": "Set up automated unit, integration, and end-to-end tests.",
+      "details": "Write pytest tests for backend, Jest/React Testing Library for frontend. Configure CI pipeline for automated testing.",
+      "testStrategy": "Run automated tests and verify coverage.",
+      "priority": "medium",
+      "dependencies": [
+        2,
+        3
+      ],
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Unit Tests - Backend Core",
+          "description": "Create comprehensive unit tests for backend core functionality",
+          "details": "1. Test models:\n   - User, Role, Permission\n   - Workflow models\n   - Credit application models\n   - Document models\n2. Test services:\n   - User authentication\n   - Workflow management\n   - Document handling\n   - Business logic\n3. Test utilities:\n   - File processing\n   - Validation\n   - Helper functions\n4. Test database operations\n5. Test error handling\n6. Add test coverage metrics",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 18
+        },
+        {
+          "id": 2,
+          "title": "Integration Tests - Workflow Engine",
+          "description": "Create integration tests for workflow engine functionality",
+          "details": "1. Test state transitions\n   - Valid transitions\n   - Invalid transitions\n   - State validation\n   - Transition conditions\n2. Test workflow instances\n   - Creation\n   - State progression\n   - History tracking\n   - Audit logging\n3. Test document workflows\n   - Upload\n   - Association\n   - Versioning\n   - Validation\n4. Test user permissions\n   - Role-based access\n   - State-specific permissions\n   - Transition permissions\n5. Test error scenarios\n   - Invalid states\n   - Permission denied\n   - Invalid transitions\n6. Add test coverage metrics",
+          "status": "pending",
+          "dependencies": [
+            "18.1"
+          ],
+          "parentTaskId": 18
+        },
+        {
+          "id": 3,
+          "title": "Frontend Unit Tests",
+          "description": "Create unit tests for React components and frontend logic",
+          "details": "1. Test components:\n   - Forms\n   - Tables\n   - Charts\n   - Navigation\n   - UI elements\n2. Test hooks:\n   - Custom hooks\n   - State management\n   - API integration\n3. Test utilities:\n   - Form validation\n   - Data processing\n   - Date handling\n4. Test state management\n5. Test error handling\n6. Add test coverage metrics",
+          "status": "pending",
+          "dependencies": [
+            "18.2"
+          ],
+          "parentTaskId": 18
+        },
+        {
+          "id": 4,
+          "title": "End-to-End Tests",
+          "description": "Create comprehensive end-to-end tests for complete application flows",
+          "details": "1. Test user flows:\n   - Login/logout\n   - Role assignment\n   - Document upload\n   - Workflow progression\n2. Test credit application flows:\n   - Application creation\n   - Document submission\n   - Review process\n   - Approval/rejection\n3. Test edge cases:\n   - Invalid inputs\n   - Permission denied\n   - Network failures\n   - Server errors\n4. Test performance:\n   - Load testing\n   - Response times\n   - Memory usage\n5. Test security:\n   - Authentication\n   - Authorization\n   - Data protection\n6. Add test coverage metrics",
+          "status": "pending",
+          "dependencies": [
+            "18.3"
+          ],
+          "parentTaskId": 18
+        },
+        {
+          "id": 5,
+          "title": "Test Infrastructure Setup",
+          "description": "Set up testing infrastructure and tools [Updated: 5/15/2025]",
+          "details": "1. Set up testing environment:\n   - Test database\n   - Mock services\n   - Test data fixtures\n2. Configure testing tools:\n   - Backend: pytest, factory-boy\n   - Frontend: Jest, React Testing Library\n   - E2E: Cypress\n3. Set up CI testing:\n   - Test automation\n   - Coverage reporting\n   - Test parallelization\n4. Configure test data management:\n   - Test factories\n   - Test fixtures\n   - Data cleanup\n5. Set up test reporting:\n   - Coverage reports\n   - Performance metrics\n   - Test results\n6. Document testing setup\n<info added on 2025-05-15T21:40:37.484Z>\n1. Set up testing environment:\n   - Test database\n   - Mock services\n   - Test data fixtures\n2. Configure testing tools:\n   - Backend: pytest, factory-boy\n   - Frontend: Jest, React Testing Library\n   - E2E: Cypress\n3. Set up CI testing:\n   - Test automation\n   - Coverage reporting\n   - Test parallelization\n4. Configure test data management:\n   - Test factories\n   - Test fixtures\n   - Data cleanup\n5. Set up test reporting:\n   - Coverage reports: Integrate coverage tools (e.g., pytest-cov, Jest coverage) to generate and visualize code coverage reports in CI pipelines.\n   - Performance metrics: Configure tools to capture and report performance metrics (e.g., Cypress Dashboard, custom performance reporters).\n   - Test results: Automate the generation and distribution of test result summaries (e.g., JUnit XML, Allure reports) for each test run, ensuring results are accessible to stakeholders.\n   - Centralized reporting: Set up a centralized dashboard or reporting tool (e.g., Allure, SonarQube, or CI-native dashboards) to aggregate and display test results, coverage, and performance metrics.\n6. Document testing setup: Provide clear documentation on how to access and interpret test reports, including links to dashboards and instructions for troubleshooting failed tests.\n\n<update timestamp=\"2025-05-15T21:40:31Z\">\nTest reporting integration now includes automated generation of coverage and performance reports, centralized dashboards for result aggregation, and documentation for report access and interpretation. This ensures stakeholders have real-time visibility into test outcomes and facilitates data-driven decision-making.\n</update>\n</info added on 2025-05-15T21:40:37.484Z>",
+          "status": "pending",
+          "dependencies": [
+            "18.4"
+          ],
+          "parentTaskId": 18
+        },
+        {
+          "id": 6,
+          "title": "Test Report Generation",
+          "description": "Generate comprehensive test reports in markdown format",
+          "details": "1. Test Report Structure:\n   - Test Overview\n   - Test Environment\n   - Test Results Summary\n   - Detailed Test Results\n   - Performance Metrics\n   - Coverage Report\n2. Report Generation:\n   - Create markdown template\n   - Automate report generation\n   - Include test metadata\n   - Add test execution time\n   - Include test environment details\n3. Report Sections:\n   - Test Summary\n   - Failed Tests\n   - Performance Metrics\n   - Coverage Details\n   - Environment Info\n   - Test Data Summary\n4. Report Formatting:\n   - Use markdown tables\n   - Add code blocks for test output\n   - Include charts (using markdown or embedded images)\n   - Add timestamps\n   - Include test configuration\n5. Report Storage:\n   - Save to dedicated directory\n   - Version control\n   - Archive old reports\n   - Clean up old reports\n6. Documentation:\n   - Document report format\n   - Add report generation instructions\n   - Include sample report\n   - Add troubleshooting guide",
+          "status": "pending",
+          "dependencies": [
+            "18.5"
+          ],
+          "parentTaskId": 18
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Prepare for Deployment",
+      "description": "Configure basic deployment scripts and environments for a simple local server setup.",
+      "status": "pending",
+      "dependencies": [
+        2,
+        3,
+        8
+      ],
+      "priority": "medium",
+      "details": "Set up a minimal local server configuration and basic deployment scripts for backend and frontend. Configure local file storage for development and staging environments. Focus on essential local deployment best practices, removing complex deployment configurations and cloud integrations.",
+      "testStrategy": "Test deployment scripts and verify the app runs in the local staging environment. Implement simple automated verification to ensure basic functionality.",
+      "subtasks": [
+        {
+          "id": 10,
+          "title": "Local Server Configuration",
+          "description": "Set up local server environment for deployment",
+          "details": "1. Configure server environment:\n   - Install required system packages\n   - Set up Python environment with UV package manager\n   - Configure Node.js environment\n   - Set up database server (PostgreSQL/MySQL)\n   - Install and configure Redis\n2. Create directory structure for application deployment\n3. Configure file permissions and ownership\n4. Set up environment variables for local server\n5. Configure service management (systemd/supervisor)\n6. Document server setup process\n7. Implement local cache for improved performance\n8. Monitor CPU and memory usage during deployment",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 19
+        },
+        {
+          "id": 2,
+          "title": "CI/CD Pipeline Setup",
+          "description": "Configure continuous integration and deployment pipeline [Updated: 5/15/2025]",
+          "details": "1. Set up Git repository\n2. Configure CI/CD provider\n3. Create pipeline stages:\n   - Build\n   - Test\n   - Security scan\n   - Deploy\n4. Add deployment environments:\n   - Development\n   - Staging\n   - Production\n5. Implement automated testing\n6. Add deployment verification\n<info added on 2025-05-15T21:33:21.093Z>\n1. Set up Git repository\n2. Configure CI/CD provider\n3. Create pipeline stages:\n   - Build\n   - Test\n   - Security scan\n   - Deploy\n4. Add deployment environments:\n   - Development\n   - Staging\n   - Production\n5. Implement automated testing\n6. Add deployment verification\n7. Configure JWT authentication for pipeline jobs and external integrations:\n   - Generate and securely store JWT signing keys\n   - Set up OIDC (OpenID Connect) token configuration for secure authentication with cloud providers and services\n   - Use the CI/CD provider's built-in JWT/OIDC token support (e.g., GitLab's id_token keyword or CI_JOB_JWT_V2)\n   - Limit JWT access to prevent token exposure in pipeline jobs\n   - Configure bound audience and required claims for each integration\n8. Set up secure file storage for pipeline artifacts and secrets:\n   - Use encrypted storage for sensitive files and credentials\n   - Configure access controls for pipeline artifacts\n   - Automate artifact cleanup after deployment\n9. Document JWT and file storage configuration for audit and compliance\n</info added on 2025-05-15T21:33:21.093Z>",
+          "status": "pending",
+          "dependencies": [
+            "19.10"
+          ],
+          "parentTaskId": 19
+        },
+        {
+          "id": 3,
+          "title": "Deployment Scripts",
+          "description": "Create automated deployment scripts [Updated: 5/15/2025] [Updated: 5/15/2025]",
+          "details": "1. Create deployment configuration:\n   - Environment variables (including support for multiple environments and file-based sources; key vault sources are excluded for local-only focus)\n   - Database settings (with support for different connection strategies and secrets management, using local configuration files only)\n   - Static files (with local storage as the only backend; Azure Blob and S3 support removed)\n2. Create deployment script:\n   - Build containers (with support for custom image registries and tags, but only using local Docker daemon and local image builds)\n   - Run migrations (with rollback capability and environment-specific migration scripts, using local database connections)\n   - Collect static files (using local directory as the only storage strategy)\n   - Start services (with health checks and environment-specific service configurations, all running on the local host)\n3. Create rollback script:\n   - Revert database migrations if needed (using local database connections)\n   - Restore previous static files from local backup directory\n   - Rollback container images to previous versions from local Docker image cache\n4. Add deployment verification:\n   - Automated smoke tests for each service (running locally)\n   - Verification of static file availability in the local directory\n   - Database connectivity and schema validation (using local database connections)\n5. Document deployment process:\n   - Include steps for local file storage strategy only\n   - Document environment-specific settings and overrides for local deployment\n   - Provide troubleshooting steps for common local storage and configuration issues\n6. Add error handling:\n   - Log and alert on deployment failures (with logs stored locally)\n   - Graceful handling of missing or misconfigured local storage backends\n   - Automated cleanup of temporary local resources on failure\n\n<info added on 2025-05-15T21:37:45.808Z>\nUpdated deployment scripts to focus exclusively on local storage. All cloud storage backends (Azure Blob, S3) and remote configuration sources (key vaults) are removed. Deployment, rollback, and verification processes now use only local directories, local Docker images, and local database connections. Documentation and error handling updated to reflect local-only deployment context.\n</info added on 2025-05-15T21:37:45.808Z>\n</info added on 2025-05-15T21:37:54.850Z>",
+          "status": "pending",
+          "dependencies": [
+            "19.2"
+          ],
+          "parentTaskId": 19
+        },
+        {
+          "id": 11,
+          "title": "Local Deployment Scripts",
+          "description": "Create automated deployment scripts for local server",
+          "details": "1. Create deployment configuration for local server:\n   - Environment variables file setup\n   - Database connection settings\n   - Static file directory configuration\n2. Create deployment script for local server:\n   - Install application dependencies using UV package manager\n   - Run database migrations\n   - Collect and organize static files\n   - Configure and start application services\n3. Create rollback script for local deployment\n4. Add deployment verification for local server\n5. Document local deployment process\n6. Add error handling and logging for local deployment\n7. Implement staging environment deployment:\n   - Create a separate staging branch for deployment\n   - Configure automatic deployment to staging on commits\n   - Set up quality assurance testing workflow",
+          "status": "pending",
+          "dependencies": [
+            "19.3"
+          ],
+          "parentTaskId": 19
+        },
+        {
+          "id": 12,
+          "title": "Local Storage Configuration",
+          "description": "Configure local file storage for application data",
+          "details": "1. Set up local file storage structure:\n   - Create directory hierarchy for different data types\n   - Configure permissions and ownership\n   - Set up backup directories\n2. Implement file storage access methods:\n   - Create utility functions for file operations\n   - Set up path configurations\n   - Implement file validation and security checks\n3. Configure static file serving:\n   - Set up web server (Nginx/Apache) for static file delivery\n   - Configure caching and compression\n   - Set up proper MIME types\n4. Document local storage configuration\n5. Implement storage monitoring and cleanup scripts\n6. Configure local cache for high-performance read-only content\n7. Implement CPU and memory monitoring to prevent deployment issues",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 19
+        },
+        {
+          "id": 6,
+          "title": "Monitoring and Logging Setup",
+          "description": "Configure monitoring and logging for production [Updated: 5/15/2025]",
+          "details": "1. Set up logging:\n   - Application logs\n   - Error logs\n   - Access logs\n2. Configure monitoring:\n   - Application health\n   - Performance metrics\n   - Resource usage\n3. Add alerting:\n   - Error notifications\n   - Performance alerts\n   - System alerts\n4. Implement log rotation\n5. Add monitoring dashboard\n6. Document monitoring setup\n<info added on 2025-05-15T21:38:11.023Z>\n7. Update Backup and Restore System to use only local storage:\n   - Configure backup jobs to store all backup files on local drives only, not cloud or external storage\n   - Specify the local drive and folder path for backup storage (e.g., D:\\Backups or a dedicated local folder)\n   - Set retention policy for local backups (e.g., keep backups for 7 days, automatically remove oldest files)\n   - Ensure backup jobs are scheduled and tested to confirm local storage is used exclusively\n   - Document the local storage configuration and update backup procedures accordingly\n</update>\n</info added on 2025-05-15T21:38:11.023Z>",
+          "status": "pending",
+          "dependencies": [
+            "19.12"
+          ],
+          "parentTaskId": 19
+        },
+        {
+          "id": 7,
+          "title": "Security Hardening",
+          "description": "Implement security measures for production deployment",
+          "details": "1. Configure security settings:\n   - HTTPS\n   - CORS\n   - Rate limiting\n   - XSS protection\n2. Implement authentication:\n   - JWT\n   - Session management\n   - Password policies\n3. Add security headers\n4. Configure firewall rules\n5. Implement auditing\n6. Document security procedures",
+          "status": "pending",
+          "dependencies": [
+            "19.6"
+          ],
+          "parentTaskId": 19
+        },
+        {
+          "id": 8,
+          "title": "Performance Optimization",
+          "description": "Optimize application for production performance",
+          "details": "1. Implement caching:\n   - Database queries\n   - API responses\n   - Static files\n2. Optimize database:\n   - Indexes\n   - Query optimization\n   - Connection pooling\n3. Configure load balancing\n4. Add CDN support\n5. Implement compression\n6. Document performance guidelines",
+          "status": "pending",
+          "dependencies": [
+            "19.7"
+          ],
+          "parentTaskId": 19
+        },
+        {
+          "id": 9,
+          "title": "Documentation and Guides",
+          "description": "Create comprehensive deployment documentation",
+          "details": "1. Deployment guide:\n   - Prerequisites\n   - Installation\n   - Configuration\n2. Operations guide:\n   - Monitoring\n   - Maintenance\n   - Troubleshooting\n3. Security guide:\n   - Access control\n   - Data protection\n   - Compliance\n4. Performance guide:\n   - Optimization\n   - Scaling\n   - Tuning\n5. Disaster recovery guide:\n   - Backup procedures\n   - Recovery procedures\n   - Emergency contacts\n6. Version control guide",
+          "status": "pending",
+          "dependencies": [
+            "19.8"
+          ],
+          "parentTaskId": 19
+        },
+        {
+          "id": 13,
+          "title": "Local Server Setup",
+          "description": "Configure local server environment for development and staging [Updated: 5/15/2025]",
+          "details": "1. Set up local development environment:\n   - Python virtual environment (using UV or venv, isolated per project)\n   - Node.js environment\n   - PostgreSQL database\n   - Redis cache\n2. Configure local settings:\n   - development.py\n   - staging.py\n   - Local file storage configuration (use only local storage, no cloud or external storage services)\n3. Set up local development server:\n   - Django development server\n   - React development server\n   - Cross-origin configuration\n4. Add local environment variables:\n   - Database settings\n   - JWT secret\n   - Storage paths (pointing to local directories only)\n   - Debug settings\n5. Create local deployment script:\n   - Database setup\n   - Static file collection (to local storage only)\n   - Server startup\n   - Service verification\n\n<update timestamp=\"2025-05-15T21:37:35Z\">\nAll file storage and static asset handling must be configured to use only local storage. This includes ensuring that Django's MEDIA_ROOT and STATIC_ROOT settings, as well as any custom file handling logic, are set to local directories. No cloud storage providers or external file services should be referenced in the configuration. This ensures all development and staging environments are fully self-contained and do not require external dependencies for file storage.\n</update>\n</info added on 2025-05-15T21:37:41.150Z>",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 19
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Document System Architecture and APIs",
+      "description": "Create comprehensive documentation for system architecture and APIs.",
+      "details": "Write API docs (Swagger/OpenAPI), architecture diagrams, and user guides.",
+      "testStrategy": "Review documentation for accuracy and completeness.",
+      "priority": "low",
+      "dependencies": [
+        2,
+        3,
+        7
+      ],
+      "status": "pending",
+      "subtasks": []
+    }
+  ]
+}

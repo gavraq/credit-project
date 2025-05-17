@@ -1,0 +1,11 @@
+# Task ID: 12
+# Title: Implement Priority Management
+# Status: pending
+# Dependencies: 7, 10
+# Priority: medium
+# Description: Add priority handling for credit limit requests.
+# Details:
+Extend CreditApplication model with priority field. Update forms and dashboard to display and filter by priority.
+
+# Test Strategy:
+Test priority assignment, filtering, and display.

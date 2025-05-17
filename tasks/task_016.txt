@@ -1,0 +1,11 @@
+# Task ID: 16
+# Title: Implement Notification System
+# Status: pending
+# Dependencies: 6, 7, 10
+# Priority: low
+# Description: Add notifications for workflow state changes.
+# Details:
+Implement backend logic to send notifications (email, in-app) on state changes. Add frontend notification UI.
+
+# Test Strategy:
+Test notification delivery and UI updates.

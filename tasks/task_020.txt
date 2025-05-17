@@ -1,0 +1,11 @@
+# Task ID: 20
+# Title: Document System Architecture and APIs
+# Status: pending
+# Dependencies: 2, 3, 7
+# Priority: low
+# Description: Create comprehensive documentation for system architecture and APIs.
+# Details:
+Write API docs (Swagger/OpenAPI), architecture diagrams, and user guides.
+
+# Test Strategy:
+Review documentation for accuracy and completeness.

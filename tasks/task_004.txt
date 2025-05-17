@@ -1,0 +1,130 @@
+# Task ID: 4
+# Title: Design Database Schema
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Define and implement database models for all core entities, referencing the Transition State Model and including detailed state definitions.
+# Details:
+Create Django models for User, Department, Role, Permission, WorkflowDefinition, State, Transition, WorkflowInstance, StateLog, CreditApplication, Counterparty, LimitRequest, Document, DocumentType. Use generic relations for flexible attachments. Ensure the schema references the Transition State Model explicitly, and provide detailed definitions for each state, including metadata, allowed transitions, and validation rules. Follow Django model best practices for field ordering, naming, and relationships[1][5].
+
+# Test Strategy:
+Run migrations, verify tables are created, and test CRUD operations via Django shell. Additionally, validate that state definitions are comprehensive and that transitions between states are correctly enforced in the database schema.
+
+# Subtasks:
+## 1. User and Authentication Models [pending]
+### Dependencies: None
+### Description: Design and implement user and authentication related models
+### Details:
+1. User Model:
+   - Custom User model extending AbstractUser
+   - Additional fields: employee_id, phone_number
+   - Role-based permissions
+   - Profile information
+2. Role Model:
+   - Role hierarchy
+   - Permission mapping
+   - Role-based access control
+3. Group Model:
+   - User group management
+   - Group permissions
+   - Group membership
+4. Session Model:
+   - Session tracking
+   - Session security
+   - Session management
+5. Token Model:
+   - JWT token management
+   - Token refresh
+   - Token validation
+6. Audit Trail:
+   - User activity logging
+   - Permission changes
+   - Login/logout tracking
+
+## 2. Credit Request Models [pending]
+### Dependencies: 4.2
+### Description: Design and implement models for credit requests and related entities
+### Details:
+1. CreditRequest Model:
+   - Request number (auto-generated)
+   - Request status
+   - Request type
+   - Counterparty information
+   - Limit details
+   - Revenue information
+   - Document references
+2. Limit Model:
+   - Limit types (Trading, Nostro, Loan)
+   - Limit amounts
+   - Currency
+   - Maturity dates
+   - Conditions
+3. Counterparty Model:
+   - Basic information
+   - Credit ratings
+   - Risk classification
+   - Relationship details
+4. Document Model:
+   - Document types
+   - File storage
+   - Version control
+   - Access permissions
+5. Audit Trail:
+   - Request history
+   - Status changes
+   - User actions
+6. Workflow State:
+   - Current state
+   - Previous states
+   - Transition logs
+
+## 3. Workflow Engine Models [pending]
+### Dependencies: 4.2
+### Description: Design and implement models for workflow engine and state management
+### Details:
+1. Workflow Model:
+   - Workflow definition
+   - State transitions
+   - Business rules
+   - Event triggers
+2. State Model:
+   - State types
+   - State transitions
+   - State validation
+   - State metadata
+   - Detailed state definitions (name, description, metadata, allowed transitions, validation rules)
+3. Transition Model:
+   - Transition rules
+   - Transition conditions
+   - Transition actions
+   - Transition logs
+   - Explicit reference to Transition State Model for managing state changes
+4. Event Model:
+   - Event types
+   - Event triggers
+   - Event handlers
+   - Event logs
+5. Business Rule Model:
+   - Rule definitions
+   - Rule conditions
+   - Rule actions
+   - Rule validation
+6. Audit Trail:
+   - Workflow history
+   - State changes
+   - Transition logs
+   - Rule execution
+
+## 4. Define Detailed State Definitions and Transition State Model References [pending]
+### Dependencies: 4.3
+### Description: Expand on state definitions and ensure all workflow and credit request models reference the Transition State Model.
+### Details:
+1. For each state in the workflow, define:
+   - Name
+   - Description
+   - Metadata (e.g., timestamps, responsible roles)
+   - Allowed transitions (with references to Transition State Model)
+   - Validation rules for entering/exiting the state
+2. Update all relevant models (Workflow, WorkflowInstance, CreditRequest, etc.) to reference the Transition State Model for state management.
+3. Document the state lifecycle and transition logic in the schema.
+

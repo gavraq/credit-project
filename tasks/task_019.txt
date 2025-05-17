@@ -1,0 +1,88 @@
+# Task ID: 19
+# Title: Local Development and Deployment Setup
+# Status: pending
+# Dependencies: 2, 3, 8
+# Priority: medium
+# Description: Set up a local development environment with Django backend and React frontend, following the architecture document.
+# Details:
+Configure a local development environment that matches the architecture document's specifications, including Django backend with PostgreSQL and React frontend. Focus on setting up the environment with UV for Python package management and proper project structure.
+
+# Test Strategy:
+Verify the local setup by:
+1. Starting both Django and React development servers
+2. Testing API endpoints with Postman
+3. Verifying database connectivity
+4. Testing file uploads to local storage
+5. Ensuring proper CORS configuration
+
+# Subtasks:
+## 191. Set Up Python Backend Environment [pending]
+### Dependencies: None
+### Description: Configure the Django backend with UV package management
+### Details:
+- Set up Python virtual environment using UV
+- Install backend dependencies from pyproject.toml
+- Configure PostgreSQL database connection
+- Set up environment variables for development
+- Initialize Django project structure as per architecture
+
+## 192. Configure Frontend Development [pending]
+### Dependencies: 191
+### Description: Set up React frontend with required dependencies
+### Details:
+- Initialize React application with TypeScript
+- Configure API client with JWT authentication
+- Set up routing and basic layout
+- Configure environment variables for development
+- Set up proxy to Django backend
+
+## 193. Configure Local File Storage [pending]
+### Dependencies: 191
+### Description: Set up local file storage for development
+### Details:
+- Configure Django's MEDIA_ROOT and STATIC_ROOT
+- Create necessary directories for document storage
+- Implement local file upload handling
+- Add .gitignore rules for local files
+- Document file storage structure
+
+## 194. Database Setup and Migrations [pending]
+### Dependencies: 191
+### Description: Initialize and configure PostgreSQL database
+### Details:
+- Create development database
+- Run initial migrations
+- Set up test data fixtures
+- Document database schema
+- Configure database connection pooling
+
+## 195. Development Server Configuration [pending]
+### Dependencies: 191, 192, 193, 194
+### Description: Configure development servers
+### Details:
+- Set up Django development server
+- Configure React development server
+- Enable hot-reloading
+- Set up CORS configuration
+- Configure logging for development
+
+## 196. Development Scripts [pending]
+### Dependencies: 191, 192
+### Description: Create useful development scripts
+### Details:
+- start-dev.sh: Start both frontend and backend
+- setup-db.sh: Reset and seed database
+- run-tests.sh: Run test suites
+- reset-dev.sh: Reset development environment
+- Document usage in README
+
+## 197. Documentation [pending]
+### Dependencies: 191, 192, 193, 194, 195, 196
+### Description: Document local development setup
+### Details:
+- Setup instructions
+- Environment variables reference
+- API documentation
+- Common development tasks
+- Troubleshooting guide
+

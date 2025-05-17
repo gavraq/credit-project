@@ -1,0 +1,127 @@
+# Task ID: 7
+# Title: Implement Credit Application Module
+# Status: pending
+# Dependencies: 2, 4, 6
+# Priority: high
+# Description: Develop module for managing credit limit requests and related processes.
+# Details:
+Create Django app for credit_applications. Implement models for CreditApplication, Counterparty, LimitRequest. Add views and serializers for CRUD operations.
+
+# Test Strategy:
+Test creation, submission, and retrieval of credit applications.
+
+# Subtasks:
+## 1. Project Configuration [pending]
+### Dependencies: None
+### Description: Configure React project with essential dependencies
+### Details:
+1. Project Setup:
+   - Create React app with TypeScript
+   - Configure ESLint and Prettier
+   - Set up Husky for pre-commit hooks
+2. Dependencies:
+   - Material-UI
+   - React Router
+   - Redux Toolkit
+   - Axios
+   - Formik
+   - Yup
+3. Configuration:
+   - Environment variables
+   - API configuration
+   - Theme configuration
+   - Build configuration
+
+## 2. Theme Configuration [pending]
+### Dependencies: 7.1
+### Description: Set up Material-UI theme with custom color scheme and typography [Updated: 5/16/2025]
+### Details:
+1. Color Scheme:
+   - Primary: ICBC Red (#e31937)
+   - Secondary: Standard Bank Blue (#0c4da2)
+   - Neutral colors
+   - Error, warning, success colors
+2. Typography:
+   - Font families
+   - Font sizes
+   - Line heights
+   - Letter spacing
+3. Components:
+   - Button styles
+   - Card styles
+   - Form styles
+   - Table styles
+4. Custom Components:
+   - Status indicators
+   - Progress indicators
+   - Document upload
+   - Form validation
+5. Responsive Design:
+   - Breakpoints
+   - Grid system
+   - Layout components
+<info added on 2025-05-16T17:34:41.619Z>
+1. Color Scheme:
+   - Primary: ICBC Red (#e31937)
+   - Secondary: Standard Bank Blue (#0c4da2)
+   - Neutral colors: Light gray (#f5f5f5), Medium gray (#e0e0e0), Dark gray (#616161)
+   - Error: Red (#d32f2f)
+   - Warning: Amber (#ffa000)
+   - Success: Green (#43a047)
+2. Typography:
+   - Font families: 'Roboto', 'Arial', sans-serif
+   - Font sizes: Body 16px, Headings (h1: 32px, h2: 24px, h3: 20px, h4: 18px)
+   - Line heights: 1.5 for body, 1.2 for headings
+   - Letter spacing: 0.5px for body, 1px for headings
+3. Components:
+   - Button styles: Primary (ICBC Red), Secondary (Standard Bank Blue), Disabled (Medium gray), Hover/focus states with 10% lighter/darker variants
+   - Card styles: White background, subtle shadow, rounded corners (8px), border (1px, #e0e0e0)
+   - Form styles: Input fields with light gray background, 2px border on focus (Standard Bank Blue), error states (Red border)
+   - Table styles: Alternating row colors (Light gray/White), header (Standard Bank Blue, white text), cell padding (16px)
+4. Custom Components:
+   - Status indicators: Success (Green), Warning (Amber), Error (Red), Info (Standard Bank Blue), with icon and text
+   - Progress indicators: Linear (Standard Bank Blue), Circular (ICBC Red), with percentage labels
+   - Document upload: Card-style container, drag-and-drop area, file list with status indicators
+   - Form validation: Error messages below fields, inline icons, real-time validation
+5. Responsive Design:
+   - Breakpoints: xs (0px), sm (600px), md (900px), lg (1200px), xl (1536px)
+   - Grid system: 12-column, responsive gutters, auto-layout for forms and tables
+   - Layout components: AppBar (ICBC Red), Sidebar (White, border right), Main content (White, padding 24px), Footer (Dark gray, white text)
+
+<update timestamp="2025-05-16T17:34:32Z">
+Theme configuration updated to align with Credit Workflow Design Brief. All color and typography values are now specified for consistency and brand alignment. Component and custom component styles are detailed for implementation. Responsive design guidelines ensure the theme adapts to all device sizes.
+</update>
+</info added on 2025-05-16T17:34:41.619Z>
+
+## 3. Form Components [pending]
+### Dependencies: 7.2
+### Description: Implement reusable form components and validation
+### Details:
+1. Base Form Components:
+   - FormContainer
+   - FormSection
+   - FormField
+   - FormValidation
+2. Input Components:
+   - TextInput
+   - NumberInput
+   - DateInput
+   - SelectInput
+   - Checkbox
+   - Radio
+3. Custom Components:
+   - DocumentUpload
+   - StatusSelector
+   - ProgressIndicator
+   - ErrorBoundary
+4. Validation:
+   - Formik integration
+   - Yup schemas
+   - Custom validators
+   - Error handling
+5. UI Patterns:
+   - Loading states
+   - Error states
+   - Success states
+   - Disabled states
+

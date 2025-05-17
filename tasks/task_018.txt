@@ -1,0 +1,210 @@
+# Task ID: 18
+# Title: Implement Automated Testing
+# Status: pending
+# Dependencies: 2, 3
+# Priority: medium
+# Description: Set up automated unit, integration, and end-to-end tests.
+# Details:
+Write pytest tests for backend, Jest/React Testing Library for frontend. Configure CI pipeline for automated testing.
+
+# Test Strategy:
+Run automated tests and verify coverage.
+
+# Subtasks:
+## 1. Unit Tests - Backend Core [pending]
+### Dependencies: None
+### Description: Create comprehensive unit tests for backend core functionality
+### Details:
+1. Test models:
+   - User, Role, Permission
+   - Workflow models
+   - Credit application models
+   - Document models
+2. Test services:
+   - User authentication
+   - Workflow management
+   - Document handling
+   - Business logic
+3. Test utilities:
+   - File processing
+   - Validation
+   - Helper functions
+4. Test database operations
+5. Test error handling
+6. Add test coverage metrics
+
+## 2. Integration Tests - Workflow Engine [pending]
+### Dependencies: 18.1
+### Description: Create integration tests for workflow engine functionality
+### Details:
+1. Test state transitions
+   - Valid transitions
+   - Invalid transitions
+   - State validation
+   - Transition conditions
+2. Test workflow instances
+   - Creation
+   - State progression
+   - History tracking
+   - Audit logging
+3. Test document workflows
+   - Upload
+   - Association
+   - Versioning
+   - Validation
+4. Test user permissions
+   - Role-based access
+   - State-specific permissions
+   - Transition permissions
+5. Test error scenarios
+   - Invalid states
+   - Permission denied
+   - Invalid transitions
+6. Add test coverage metrics
+
+## 3. Frontend Unit Tests [pending]
+### Dependencies: 18.2
+### Description: Create unit tests for React components and frontend logic
+### Details:
+1. Test components:
+   - Forms
+   - Tables
+   - Charts
+   - Navigation
+   - UI elements
+2. Test hooks:
+   - Custom hooks
+   - State management
+   - API integration
+3. Test utilities:
+   - Form validation
+   - Data processing
+   - Date handling
+4. Test state management
+5. Test error handling
+6. Add test coverage metrics
+
+## 4. End-to-End Tests [pending]
+### Dependencies: 18.3
+### Description: Create comprehensive end-to-end tests for complete application flows
+### Details:
+1. Test user flows:
+   - Login/logout
+   - Role assignment
+   - Document upload
+   - Workflow progression
+2. Test credit application flows:
+   - Application creation
+   - Document submission
+   - Review process
+   - Approval/rejection
+3. Test edge cases:
+   - Invalid inputs
+   - Permission denied
+   - Network failures
+   - Server errors
+4. Test performance:
+   - Load testing
+   - Response times
+   - Memory usage
+5. Test security:
+   - Authentication
+   - Authorization
+   - Data protection
+6. Add test coverage metrics
+
+## 5. Test Infrastructure Setup [pending]
+### Dependencies: 18.4
+### Description: Set up testing infrastructure and tools [Updated: 5/15/2025]
+### Details:
+1. Set up testing environment:
+   - Test database
+   - Mock services
+   - Test data fixtures
+2. Configure testing tools:
+   - Backend: pytest, factory-boy
+   - Frontend: Jest, React Testing Library
+   - E2E: Cypress
+3. Set up CI testing:
+   - Test automation
+   - Coverage reporting
+   - Test parallelization
+4. Configure test data management:
+   - Test factories
+   - Test fixtures
+   - Data cleanup
+5. Set up test reporting:
+   - Coverage reports
+   - Performance metrics
+   - Test results
+6. Document testing setup
+<info added on 2025-05-15T21:40:37.484Z>
+1. Set up testing environment:
+   - Test database
+   - Mock services
+   - Test data fixtures
+2. Configure testing tools:
+   - Backend: pytest, factory-boy
+   - Frontend: Jest, React Testing Library
+   - E2E: Cypress
+3. Set up CI testing:
+   - Test automation
+   - Coverage reporting
+   - Test parallelization
+4. Configure test data management:
+   - Test factories
+   - Test fixtures
+   - Data cleanup
+5. Set up test reporting:
+   - Coverage reports: Integrate coverage tools (e.g., pytest-cov, Jest coverage) to generate and visualize code coverage reports in CI pipelines.
+   - Performance metrics: Configure tools to capture and report performance metrics (e.g., Cypress Dashboard, custom performance reporters).
+   - Test results: Automate the generation and distribution of test result summaries (e.g., JUnit XML, Allure reports) for each test run, ensuring results are accessible to stakeholders.
+   - Centralized reporting: Set up a centralized dashboard or reporting tool (e.g., Allure, SonarQube, or CI-native dashboards) to aggregate and display test results, coverage, and performance metrics.
+6. Document testing setup: Provide clear documentation on how to access and interpret test reports, including links to dashboards and instructions for troubleshooting failed tests.
+
+<update timestamp="2025-05-15T21:40:31Z">
+Test reporting integration now includes automated generation of coverage and performance reports, centralized dashboards for result aggregation, and documentation for report access and interpretation. This ensures stakeholders have real-time visibility into test outcomes and facilitates data-driven decision-making.
+</update>
+</info added on 2025-05-15T21:40:37.484Z>
+
+## 6. Test Report Generation [pending]
+### Dependencies: 18.5
+### Description: Generate comprehensive test reports in markdown format
+### Details:
+1. Test Report Structure:
+   - Test Overview
+   - Test Environment
+   - Test Results Summary
+   - Detailed Test Results
+   - Performance Metrics
+   - Coverage Report
+2. Report Generation:
+   - Create markdown template
+   - Automate report generation
+   - Include test metadata
+   - Add test execution time
+   - Include test environment details
+3. Report Sections:
+   - Test Summary
+   - Failed Tests
+   - Performance Metrics
+   - Coverage Details
+   - Environment Info
+   - Test Data Summary
+4. Report Formatting:
+   - Use markdown tables
+   - Add code blocks for test output
+   - Include charts (using markdown or embedded images)
+   - Add timestamps
+   - Include test configuration
+5. Report Storage:
+   - Save to dedicated directory
+   - Version control
+   - Archive old reports
+   - Clean up old reports
+6. Documentation:
+   - Document report format
+   - Add report generation instructions
+   - Include sample report
+   - Add troubleshooting guide
+

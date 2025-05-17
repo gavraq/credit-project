@@ -1,0 +1,11 @@
+# Task ID: 14
+# Title: Implement State Transitions and Audit Trails
+# Status: pending
+# Dependencies: 6, 7
+# Priority: medium
+# Description: Add logic for workflow state transitions and audit logging.
+# Details:
+Implement logic for moving between states (draft, in-progress, submitted, rejected). Log all state changes and user actions.
+
+# Test Strategy:
+Test state transitions, audit trail logging, and access to logs.
