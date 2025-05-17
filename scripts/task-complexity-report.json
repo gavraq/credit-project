@@ -1,0 +1,171 @@
+{
+  "meta": {
+    "generatedAt": "2025-05-15T21:22:13.885Z",
+    "tasksAnalyzed": 20,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Project Setup and Environment Configuration",
+      "complexityScore": 6,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Break down each setup step (repository, virtual environment, dependencies, settings, apps, Docker, linting, README) into individual subtasks with clear acceptance criteria.",
+      "reasoning": "This task covers multiple foundational activities, each with its own configuration and verification steps. While not algorithmically complex, the breadth and integration of tools and environments increase its overall complexity."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Database Schema Design and Implementation",
+      "complexityScore": 8,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Expand into subtasks for each model, relationships, migrations, fixtures, and generic relations, ensuring each entity and cross-app relation is addressed separately.",
+      "reasoning": "Designing a normalized schema across several domains, implementing migrations, and ensuring testability introduces significant architectural and technical complexity."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "User Authentication and Authorization System",
+      "complexityScore": 8,
+      "recommendedSubtasks": 9,
+      "expansionPrompt": "List subtasks for JWT setup, custom user model, each endpoint, permission classes, middleware, registration, and profile management, with separate items for backend and test coverage.",
+      "reasoning": "Security, extensibility, and correctness are critical. The need for custom roles, permissions, and robust authentication flows increases both technical and testing complexity."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Workflow Engine Core Implementation",
+      "complexityScore": 9,
+      "recommendedSubtasks": 12,
+      "expansionPrompt": "Decompose into subtasks for workflow definition, state machine logic, validation, audit logging, service layer, API endpoints, hooks, and comprehensive testing.",
+      "reasoning": "Implementing a generic, auditable workflow engine with extensible state machines and hooks is highly complex, requiring careful design and rigorous testing."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Credit Application Core Features",
+      "complexityScore": 8,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Expand into subtasks for each CRUD operation, business logic, counterparty management, limit requests, validation, status tracking, and history retrieval.",
+      "reasoning": "This task involves multiple business entities, complex validation, and integration with workflow and status tracking, making it both broad and deep in complexity."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Document Management System",
+      "complexityScore": 7,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Break down into subtasks for storage backends, API endpoints, type validation, storage paths, versioning, service layer, generic relations, and search/filtering.",
+      "reasoning": "Handling file storage, validation, versioning, and entity associations adds moderate complexity, especially with support for multiple backends and document types."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Workflow Sub-process Implementation",
+      "complexityScore": 9,
+      "recommendedSubtasks": 12,
+      "expansionPrompt": "List subtasks for each sub-process, their states and transitions, parent-child relationships, state propagation, and comprehensive test scenarios.",
+      "reasoning": "Coordinating multiple interdependent workflow sub-processes with state propagation and validation is architecturally and technically challenging."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Frontend Setup and Authentication UI",
+      "complexityScore": 6,
+      "recommendedSubtasks": 9,
+      "expansionPrompt": "Expand into subtasks for React setup, Material-UI, routing, authentication UI, protected routes, JWT management, profile UI, state management, and role-based rendering.",
+      "reasoning": "While mostly standard, integrating authentication, state management, and role-based UI adds moderate complexity to the frontend setup."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Dashboard Implementation",
+      "complexityScore": 7,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Break down into subtasks for layout, widgets, API integration, visualizations, filters, role-based views, reporting, export, and auto-update features.",
+      "reasoning": "Building a dynamic, role-aware dashboard with real-time updates and reporting requires careful UI and backend integration."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Digital Forms for Submissions and Approvals",
+      "complexityScore": 8,
+      "recommendedSubtasks": 11,
+      "expansionPrompt": "List subtasks for form components, validation, dynamic generation, role-based visibility, submission, multi-step flows, approval, persistence, and version tracking.",
+      "reasoning": "Dynamic, role-based forms with validation, multi-step flows, and versioning are complex to design and test, especially with workflow integration."
+    },
+    {
+      "taskId": 11,
+      "taskTitle": "Document Upload and Management UI",
+      "complexityScore": 7,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Expand into subtasks for upload component, type validation, list/grid views, preview, version history, search/filter, association UI, download, and metadata editing.",
+      "reasoning": "The UI must handle various document operations, validations, and associations, requiring robust component design and integration."
+    },
+    {
+      "taskId": 12,
+      "taskTitle": "Workflow Management UI",
+      "complexityScore": 8,
+      "recommendedSubtasks": 11,
+      "expansionPrompt": "Break down into subtasks for visualization, state transition UI, history/audit trail, approval/rejection, assignment, comments, summary, comparison, and template management.",
+      "reasoning": "Managing complex workflow states, transitions, and visualizations in the UI, with audit and assignment features, is a significant frontend challenge."
+    },
+    {
+      "taskId": 13,
+      "taskTitle": "Priority Management for Requests",
+      "complexityScore": 6,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "List subtasks for model extension, API endpoints, calculation logic, UI components, sorting/filtering, notifications, escalation, and reporting.",
+      "reasoning": "While the business logic is non-trivial, the scope is focused and can be modularized, keeping complexity moderate."
+    },
+    {
+      "taskId": 14,
+      "taskTitle": "Reporting and Analytics Features",
+      "complexityScore": 8,
+      "recommendedSubtasks": 11,
+      "expansionPrompt": "Expand into subtasks for data aggregation, API endpoints, report/chart UI, filtering, export, scheduling, custom builder, metrics, and trend analysis.",
+      "reasoning": "Aggregating data, building flexible reporting, and supporting exports and customizations require significant backend and frontend coordination."
+    },
+    {
+      "taskId": 15,
+      "taskTitle": "API Integration Layer",
+      "complexityScore": 7,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Break down into subtasks for gateway setup, versioning, external auth, rate limiting, documentation, webhooks, config management, error handling, and integration testing.",
+      "reasoning": "Designing a robust, secure, and extensible API layer for future integrations involves multiple cross-cutting concerns and non-functional requirements."
+    },
+    {
+      "taskId": 16,
+      "taskTitle": "Notification System",
+      "complexityScore": 7,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "List subtasks for models/schema, generation service, API endpoints, email delivery, in-app UI, preferences, templates, real-time (WebSockets), and history/archiving.",
+      "reasoning": "Supporting multiple notification channels, real-time delivery, and user preferences adds moderate complexity across backend and frontend."
+    },
+    {
+      "taskId": 17,
+      "taskTitle": "System Administration UI",
+      "complexityScore": 7,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Expand into subtasks for user management, role/permission management, department/org structure, settings, workflow/document type management, audit logs, health monitoring, and backup/restore.",
+      "reasoning": "Admin UIs require careful handling of permissions, data integrity, and operational features, spanning multiple domains."
+    },
+    {
+      "taskId": 18,
+      "taskTitle": "Testing and Quality Assurance",
+      "complexityScore": 9,
+      "recommendedSubtasks": 12,
+      "expansionPrompt": "Break down into subtasks for unit, integration, end-to-end, performance, security testing, CI pipeline, test data, coverage, and documentation.",
+      "reasoning": "Comprehensive testing across all layers, including automation and CI, is highly complex and critical for system reliability."
+    },
+    {
+      "taskId": 19,
+      "taskTitle": "Deployment and DevOps Setup",
+      "complexityScore": 8,
+      "recommendedSubtasks": 11,
+      "expansionPrompt": "List subtasks for Docker config, CI/CD, deployment scripts, migration automation, backup/restore, monitoring, scaling, security hardening, and documentation.",
+      "reasoning": "Setting up robust, automated deployment and operational processes involves many moving parts and cross-team coordination."
+    },
+    {
+      "taskId": 20,
+      "taskTitle": "Documentation and User Guides",
+      "complexityScore": 7,
+      "recommendedSubtasks": 10,
+      "expansionPrompt": "Expand into subtasks for technical docs, API docs, user manuals, in-app help, training materials, knowledge base, video tutorials, versioning, and release notes.",
+      "reasoning": "Comprehensive documentation for multiple audiences and formats, with versioning and training, requires significant planning and coordination."
+    }
+  ]
+}

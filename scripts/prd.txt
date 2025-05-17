@@ -1,0 +1,73 @@
+Credit Risk Workflow Tool - Project Requirements
+
+1. Executive Summary:
+- Develop a workflow management tool for credit limit approvals, tracking requests from initiation through approval stages.
+- Improve visibility, efficiency, and reduce processing time.
+
+2. Business Objectives:
+- Streamline workflow, provide transparency, reduce approval time, improve coordination, centralize documentation, generate metrics, and plan for future system integrations and AI enhancements.
+
+3. Core Features (Version 1):
+- Workflow tracking for credit limit requests
+- Digital forms for submissions and approvals
+- Dashboard for status tracking and reporting
+- Document storage and retrieval
+- Priority management for requests
+
+4. User Roles:
+- Credit Analyst: Reviews and analyzes requests
+- Relationship Manager: Submits requests
+- Legal Reviewer: Reviews legal docs
+- Credit Approver: Approves limits
+- Committee Approver: For high-risk approvals
+- Business Sponsor: Senior stakeholder
+- System Administrator: Manages settings and access
+
+5. Workflow Management:
+- Parent process: Credit Paper (approval/rejection)
+- Sub-processes: Credit Request, Credit Review, Business Sponsorship, Questionnaire, Legal Review, Credit Analysis, Compilation, Approval
+- Each sub-process has draft, in-progress, submitted, and sometimes rejected states
+- State transitions and audit trails required
+
+6. Architecture:
+- Backend: Django, DRF, PostgreSQL
+- Frontend: React, Material-UI
+- Modular Django apps: users, workflow_engine, credit_applications, documents, core
+- Service layer for business logic
+- Role-based permissions, JWT auth
+- File storage: local (dev), cloud (prod)
+
+7. Database/Entities:
+- User, Department, Role, Permission
+- WorkflowDefinition, State, Transition, WorkflowInstance, StateLog
+- CreditApplication, Counterparty, LimitRequest, Document, DocumentType
+- Generic relations for flexible attachment of workflows and documents
+
+8. Document Management:
+- Attach documents to applications via ContentType
+- Define document types, allowed extensions, size limits
+- Unique storage paths, preserve filenames
+
+9. Design & UI:
+- Dashboard, digital forms, reporting, clear status indicators
+- Role-based field visibility and options
+- Color palette and typography as per design brief
+
+10. Constraints:
+- Open-source preference, 2-3 requests/week expected
+
+11. Future Enhancements:
+- Integration with external systems
+- Advanced analytics, automated doc generation, AI-assisted data entry, notification system
+
+12. Project Timeline:
+- Development: 2 months (timely delivery preferred)
+
+13. Non-Functional:
+- Security, performance, scalability, maintainability, test coverage, auditability
+
+14. Out of Scope (for v1):
+- Full external system integration, advanced analytics, AI features
+
+---
+This document is a synthesis of all planning documents and serves as the basis for project task generation.
