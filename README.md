@@ -28,21 +28,26 @@ This project is designed to manage and track credit-related operations using a m
 
 ## UV Usage & Workflow
 
-This project uses [UV](https://github.com/astral-sh/uv) for Python dependency management and fast installs.
+This project uses [UV](https://github.com/astral-sh/uv) for Python dependency and environment management. All Python onboarding, dependency installation, and environment updates should use uv commands and the `pyproject.toml`/`uv.lock` files. Do not use pip, requirements.txt, or poetry unless explicitly required.
 
 ### Common Commands
 
-- **Install dependencies**
+- **Create and activate a virtual environment**
   ```sh
-  uv pip install -r requirements.txt
+  uv venv
+  source .venv/bin/activate
   ```
-- **Add a dependency**
+- **Install all dependencies (from lock file)**
   ```sh
-  uv pip install <package-name>
+  uv pip install -r pyproject.toml
   ```
-- **Update dependencies**
+- **Add a new dependency**
   ```sh
-  uv pip install --upgrade <package-name>
+  uv add <package-name>
+  ```
+- **Update the lock file after editing pyproject.toml**
+  ```sh
+  uv pip compile pyproject.toml
   ```
 - **Run scripts**
   ```sh
