@@ -5,10 +5,11 @@ This project is designed to manage and track credit-related operations using a m
 ## Project Structure
 
 - `.gitignore` – Specifies files and directories to be ignored by Git
-- `scripts/` – Contains scripts for setup, PRD, and automation
+- `frontend/` – React + Material-UI frontend application (created in Task 3)
 - `tasks/` – Task Master task definitions and progress tracking
-- `UI-examples/` – Frontend/UI example components
-- `.env.example` – Example environment configuration
+- `Documentation/` – Documentation for each project task and setup phase
+- `scripts/` – Scripts for setup, PRD parsing, and automation
+- `.env.example` – Example environment configuration for backend
 
 ## Getting Started
 
