@@ -12,12 +12,15 @@ import Typography from '@mui/material/Typography';
 
 
 
+import RequestTrackingDashboard from './components/RequestTrackingDashboard';
+
+import TopNavBar from './components/TopNavBar';
+
 function Dashboard() {
   return (
     <div className="App">
-      <Typography variant="h4" gutterBottom>Welcome to the Credit Application Frontend</Typography>
-      <LogoutButton />
-      {/* Main app content goes here */}
+      <TopNavBar LogoutButton={LogoutButton} />
+      <RequestTrackingDashboard />
     </div>
   );
 }

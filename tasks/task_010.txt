@@ -5,25 +5,48 @@
 # Priority: medium
 # Description: Develop the Request Tracking Dashboard as specified in PRD section 4.2.1, focusing on status tracking, reporting, and interactive data visualization for workflow requests.
 # Details:
-Implement a React-based Request Tracking Dashboard per PRD section 4.2.1. The dashboard should provide:
+Implement a React-based Request Tracking Dashboard using Material-UI for all styling, theming, and responsive design. The dashboard must provide interactive, real-time, and role-based features as outlined below.
 
-- Request Status Overview: Display current status distribution of all tracked requests using interactive charts (bar, pie, line).
-- Request Timeline Visualization: Visualize the lifecycle and progression of requests over time.
-- Pending Actions Widget: Highlight outstanding actions for users.
-- Recent Activity Feed: Show the latest updates and changes to requests.
-- Performance Metrics Charts: Present key metrics such as average processing time, volume by status, and bottleneck identification.
-- Search and Filter Interface: Enable advanced filtering by request type, status, date range, and assignee.
+**Note:** Reference the example components in the `UI-examples` folder when building relevant dashboard screens and widgets.
 
-**Technical Requirements:**
-- Use React for component-based architecture and state management[2][1].
-- Leverage Tailwind CSS for styling and responsive design[3][4].
-- Integrate high-performance, reusable dashboard components for charts, tables, and widgets[3][5].
-- Optimize for large data sets with lazy loading, pagination, and data caching strategies.
-- Ensure real-time updates for request status changes and activity feeds.
-- Provide drill-down capability from summary views to detailed request information.
-- Support export functionality for reports and data.
-- Implement role-based access and authentication for dashboard features.
-- Ensure accessibility (WCAG compliance) and mobile responsiveness.
+**Implementation Plan:**
+
+## 1. Design & Planning
+- Review PRD section 4.2.1 for dashboard requirements and data needs.
+- Sketch dashboard layout (main widgets, navigation, breakpoints).
+- Confirm backend API endpoints for requests, metrics, activity, notifications.
+
+## 2. Component Structure
+- Create a new Dashboard route/page in the React app.
+- Build modular Material-UI components:
+  - Status Overview (charts: bar, pie, line)
+  - Timeline Visualization
+  - Pending Actions Widget
+  - Activity Feed
+  - Performance Metrics
+  - Search & Filter controls
+
+## 3. State Management & Data Integration
+- Use Redux Toolkit for dashboard state (loading, error, data slices).
+- Extend Axios API service for new endpoints as needed.
+- Implement selectors for filtered/sorted data.
+
+## 4. Performance & Real-Time Features
+- Implement lazy loading and pagination (MUI DataGrid/Table).
+- Use caching strategies (Redux, React Query, or local state as appropriate).
+- Set up polling or WebSocket integration for real-time updates.
+
+## 5. Advanced Features
+- Drill-down navigation from summary widgets to detailed request views.
+- Export functionality (CSV/XLSX/PDF as appropriate).
+- Role-based access: restrict features using existing authentication/authorization logic.
+- Integrate with notification system for alerts and pending actions.
+
+## 6. UI/UX, Accessibility, and Testing
+- Use Material-UI’s responsive grid and theming for all components.
+- Follow WCAG guidelines for accessibility.
+- Test with large data sets and across device sizes.
+- Write unit/integration tests for dashboard logic and components.
 
 **Integration Points:**
 - Connect to backend API endpoints for request and metrics data.
@@ -31,54 +54,34 @@ Implement a React-based Request Tracking Dashboard per PRD section 4.2.1. The da
 - Link to detailed form views for each request type.
 
 **Design Reference:**
-- Follow best practices for dashboard layout, visual hierarchy, and usability as outlined in PRD 4.2.1 and modern React dashboard guides[2][3][5].
+- Follow best practices for dashboard layout, visual hierarchy, and usability as outlined in PRD 4.2.1 and modern React dashboard guides.
 - Use consistent color coding for status indicators and clear navigation between dashboard sections.
 
 # Test Strategy:
 Test that the Request Tracking Dashboard renders all widgets and charts correctly, updates in real time on status changes, and displays accurate metrics. Validate performance with large data sets using simulated API responses. Verify advanced filtering, search, and export features. Test responsive design across device sizes and accessibility compliance. Confirm integration with backend APIs and notification system. Ensure role-based access controls restrict features appropriately.
 
 # Subtasks:
-## 8. Request Tracking Dashboard Implementation [pending]
+## 10.1 Design & Planning [pending]
 ### Dependencies: None
-### Description: Design and implement the main Request Tracking Dashboard as per PRD section 4.2.1
-### Details:
-1. Dashboard Components:
-   - Request Status Overview
-   - Request Timeline Visualization
-   - Pending Actions Widget
-   - Recent Activity Feed
-   - Performance Metrics Charts
-   - Search and Filter Interface
+### Description: Review PRD 4.2.1, sketch dashboard layout, and confirm API/data requirements.
 
-2. Data Visualization:
-   - Interactive bar charts for request volume by status
-   - Line charts for request processing time trends
-   - Status distribution pie charts
-   - Timeline visualization for request lifecycle
+## 10.2 Component Structure [pending]
+### Dependencies: 10.1
+### Description: Build modular Material-UI dashboard components (status overview, timeline, widgets, metrics, search/filter). Reference the `UI-examples` folder for implementation patterns and styling.
 
-3. Dashboard Features:
-   - Real-time updates of request status changes
-   - Drill-down capability from summary to detailed views
-   - Advanced filtering by request type, status, date range, and assignee
-   - Export functionality for reports and data
-   - Customizable dashboard layouts for different user roles
+## 10.3 State Management & Data Integration [pending]
+### Dependencies: 10.2
+### Description: Implement Redux slices, selectors, and Axios API integration for dashboard data.
 
-4. Performance Considerations:
-   - Implement lazy loading for large data sets
-   - Use pagination for request tables
-   - Optimize chart rendering for performance
-   - Implement data caching strategies
+## 10.4 Performance & Real-Time Features [pending]
+### Dependencies: 10.3
+### Description: Add lazy loading, pagination, caching, and real-time updates (polling or WebSockets).
 
-5. UI/UX Design:
-   - Responsive layout that works on all device sizes
-   - Clear visual hierarchy with important information prominent
-   - Consistent color coding for status indicators
-   - Accessible design following WCAG guidelines
-   - Intuitive navigation between dashboard sections
+## 10.5 Advanced Features [pending]
+### Dependencies: 10.4
+### Description: Implement drill-down navigation, export, role-based access, and notification integration.
 
-6. Integration Points:
-   - Connect to API endpoints for request data
-   - Integrate with notification system for alerts
-   - Link to detailed form views for each request type
-   - Implement user authentication and role-based access
+## 10.6 UI/UX, Accessibility, and Testing [pending]
+### Dependencies: 10.5
+### Description: Ensure responsive layout, accessibility, and comprehensive testing for all dashboard features.
 

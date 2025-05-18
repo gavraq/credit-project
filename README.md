@@ -38,6 +38,15 @@ This project is designed to manage and track credit-related operations using a m
      ```
    - Frontend startup instructions are in the `frontend/` folder (see relevant README or documentation).
 
+## Dashboard UI (Task 10)
+
+- The Request Tracking Dashboard is implemented as a React + Material-UI application in the `frontend/` directory.
+- Features a standardized top navigation bar, summary cards, filter/search controls, and a requests table.
+- The dashboard is the main interface for tracking credit workflow requests and statuses.
+- Files impacted: `frontend/src/components/TopNavBar.js`, `frontend/src/components/RequestTrackingDashboard.js`, `frontend/src/App.js`.
+- Advanced features (charts, timeline, activity feed, API integration, pagination, and real-time updates) are planned and partially scaffolded.
+- See `Documentation/Task_10_Documentation.md` for a detailed summary of the implementation, impacted files, and next steps.
+
 ## Documentation
 
 - The `Documentation/` folder contains detailed documentation for each major project task and milestone.
@@ -47,6 +56,7 @@ This project is designed to manage and track credit-related operations using a m
 - See `Task_7_Documentation.md` for a comprehensive record of frontend implementation: React setup, theming, authentication, protected routing, API integration, and CORS configuration. All impacted files and code locations are listed for onboarding and auditing.
 - See `Task_8_Documentation.md` for full details on the Document Management module: Django app, models, API, validation, local storage, and thorough tests. All affected files, endpoints, and validation rules are documented for onboarding and auditing.
 - See `Project_Sequencing.md` for a review of project task order, dependencies, architectural notes, and PRD alignment.
+- See `Task_10_Documentation.md` for details on the Dashboard UI implementation, impacted files, and future plans.
 
 ## Features Implemented
 
