@@ -5,9 +5,11 @@ This project is designed to manage and track credit-related operations using a m
 ## Project Structure
 
 - `.gitignore` – Specifies files and directories to be ignored by Git
+- `backend/` – Django backend application (core logic, models, API, admin)
 - `frontend/` – React + Material-UI frontend application (created in Task 3)
 - `tasks/` – Task Master task definitions and progress tracking
 - `Documentation/` – Documentation for each project task and setup phase
+- `requirements/` – PRD, schema, and requirements documentation
 - `scripts/` – Scripts for setup, PRD parsing, and automation
 - `.env.example` – Example environment configuration for backend
 
@@ -25,7 +27,29 @@ This project is designed to manage and track credit-related operations using a m
    - Copy `.env.example` to `.env` and update as needed
 
 4. **Run the application**
-   - Backend and frontend startup instructions will be added as the project evolves
+   - To start the backend (Django):
+     ```sh
+     uv venv .venv
+     source .venv/bin/activate
+     uv pip install -r pyproject.toml
+     python manage.py migrate
+     python manage.py runserver
+     ```
+   - Frontend startup instructions are in the `frontend/` folder (see relevant README or documentation).
+
+## Documentation
+
+- The `Documentation/` folder contains detailed documentation for each major project task and milestone.
+- See `Task_4_Documentation.md` for user/auth models and schema.
+- See `Task_5_Documentation.md` for authentication and permissions implementation.
+- See `Project_Sequencing.md` for a review of project task order, dependencies, and PRD alignment.
+
+## Features Implemented
+
+- User authentication with JWT (Simple JWT)
+- Role-based permissions and enforcement
+- Admin UI for user, role, and permission management
+- Task-based project management and documentation
 
 ## UV Usage & Workflow
 
