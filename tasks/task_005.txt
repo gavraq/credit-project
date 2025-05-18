@@ -1,6 +1,6 @@
 # Task ID: 5
 # Title: Implement User Authentication
-# Status: pending
+# Status: done
 # Dependencies: 2, 4
 # Priority: high
 # Description: Set up JWT-based authentication and role-based permissions.

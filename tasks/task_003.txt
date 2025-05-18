@@ -1,6 +1,6 @@
 # Task ID: 3
 # Title: Configure Frontend Environment
-# Status: pending
+# Status: done
 # Dependencies: 1
 # Priority: high
 # Description: Set up React and Material-UI frontend project.

@@ -1,35 +1,103 @@
 # Task ID: 4
 # Title: Design Database Schema
-# Status: pending
+# Status: in progress
 # Dependencies: 2
 # Priority: high
-# Description: Define and implement database models for all core entities, referencing the Transition State Model and including detailed state definitions.
+
+# Description:
+Define and implement Django models for all core entities, referencing the Transition State Model and PRD. Include detailed state definitions, metadata, allowed transitions, and validation rules for each workflow and sub-process. Ensure the schema is extensible for future integration and analytics.
+
 # Details:
-Create Django models for User, Department, Role, Permission, WorkflowDefinition, State, Transition, WorkflowInstance, StateLog, CreditApplication, Counterparty, LimitRequest, Document, DocumentType. Use generic relations for flexible attachments. Ensure the schema references the Transition State Model explicitly, and provide detailed definitions for each state, including metadata, allowed transitions, and validation rules. Follow Django model best practices for field ordering, naming, and relationships[1][5].
+Create Django models for:
+- User, Department, Role, Permission, Group, Session, Token (authentication and access control)
+- WorkflowDefinition, State, Transition, WorkflowInstance, StateLog (workflow engine)
+- CreditApplication, Counterparty, LimitRequest, DocumentType, Document (domain models)
+- CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm, CreditAnalysisForm (sub-process/form models)
+
+Use generic relations (GenericForeignKey) for flexible attachments (e.g., Document, WorkflowInstance).
+Ensure each state and transition has metadata fields for allowed actions, roles, validation rules, and UI hints.
+Design for extensibility (future integrations, analytics, notifications).
 
 # Test Strategy:
-Run migrations, verify tables are created, and test CRUD operations via Django shell. Additionally, validate that state definitions are comprehensive and that transitions between states are correctly enforced in the database schema.
+- Run migrations and verify all tables are created. (complete)
+- Test CRUD operations via Django shell and admin. (outstanding)
+- Validate that state definitions are comprehensive and transitions are enforced. (complete)
+- Attach documents to various entities and sub-processes and verify via admin/shell. (complete)
 
 # Subtasks:
-## 1. User and Authentication Models [pending]
+
+## 1. User and Authentication Models [complete]
+### Task ID: 4.1
+### Status: complete
 ### Dependencies: None
+### Priority: high
 ### Description: Design and implement user and authentication related models
 ### Details:
-1. User Model:
-   - Custom User model extending AbstractUser
-   - Additional fields: employee_id, phone_number
-   - Role-based permissions
-   - Profile information
-2. Role Model:
-   - Role hierarchy
-   - Permission mapping
-   - Role-based access control
-3. Group Model:
-   - User group management
-   - Group permissions
-   - Group membership
-4. Session Model:
-   - Session tracking
+- User Model (custom, extends AbstractUser): employee_id, phone_number, role-based permissions, profile info — **Complete**
+- Role Model: role hierarchy, permission mapping, role-based access control — **Complete**
+- Department Model: user grouping/organization — **Complete**
+- Permission Model: resource/action permissions — **Complete**
+- Group Model: user group management, group permissions, group membership (extend Django’s built-in if needed) — *Not yet explicitly extended or customized (using Django built-in)*
+- Session Model: session tracking, security, management (extend if needed) — *Not yet explicitly extended or customized (using Django built-in)*
+- Token Model: for API/auth (if required) — *Not yet implemented*
+
+**Note:**
+- All required custom models (User, Role, Department, Permission) are implemented, migrated, and admin-registered.
+- Group and Session currently use Django’s built-in models; extension/customization can be addressed if needed.
+- Token model for API/auth is not yet implemented and will be added if required by future tasks.
+
+## 2. Workflow Engine Models [complete]
+### Task ID: 4.2
+### Status: complete
+### Dependencies: 4.1
+### Priority: high
+### Description: Implement core workflow engine models
+### Details:
+- WorkflowDefinition, State (with metadata), Transition (with metadata), WorkflowInstance (generic), StateLog
+- Each sub-process/form has its own workflow instance
+- States and transitions must include metadata for allowed actions, roles, validation, and UI hints
+
+## 3. Domain Models [complete]
+### Task ID: 4.3
+### Status: complete
+### Dependencies: 4.2
+### Priority: high
+### Description: Implement credit application and related domain models
+### Details:
+- CreditApplication, Counterparty, LimitRequest, DocumentType, Document
+- Document uses GenericForeignKey for flexible attachment to any entity or sub-process
+
+## 4. Sub-Process/Form Models [complete]
+### Task ID: 4.4
+### Status: complete
+### Dependencies: 4.3
+### Priority: high
+### Description: Implement models for each workflow sub-process/form
+### Details:
+- CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm, CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm
+- Each linked to parent application and with its own workflow instance
+- Ensure all forms/sub-processes described in PRD (v3).md are implemented. Cross-check PRD for any additional forms required by future workflow phases.
+
+## 5. Testing and Validation [in progress]
+### Task ID: 4.5
+### Status: in progress
+### Dependencies: 4.1, 4.2, 4.3, 4.4
+### Priority: high
+### Description: Test and validate schema implementation
+### Details:
+- Run migrations, verify tables (complete)
+- Test CRUD (outstanding)
+- Validate state/transition logic (complete)
+- Document attachment (complete)
+
+# Outstanding Work:
+- Write and execute tests for CRUD operations on all models and workflows.
+- Further develop and test audit trail and event logging (StateLog, transition logs, user actions).
+
+# References:
+- Transition State Model (requirements folder)
+- PRD (v3).md (requirements folder)
+- Entity Relationship Diagram (requirements folder)
    - Session security
    - Session management
 5. Token Model:
@@ -41,7 +109,7 @@ Run migrations, verify tables are created, and test CRUD operations via Django s
    - Permission changes
    - Login/logout tracking
 
-## 2. Credit Request Models [pending]
+## 2. Credit Request Models [complete]
 ### Dependencies: 4.2
 ### Description: Design and implement models for credit requests and related entities
 ### Details:
@@ -78,7 +146,7 @@ Run migrations, verify tables are created, and test CRUD operations via Django s
    - Previous states
    - Transition logs
 
-## 3. Workflow Engine Models [pending]
+## 3. Workflow Engine Models [complete]
 ### Dependencies: 4.2
 ### Description: Design and implement models for workflow engine and state management
 ### Details:

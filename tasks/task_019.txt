@@ -1,88 +1,276 @@
 # Task ID: 19
-# Title: Local Development and Deployment Setup
+# Title: Prepare for Deployment
 # Status: pending
 # Dependencies: 2, 3, 8
 # Priority: medium
-# Description: Set up a local development environment with Django backend and React frontend, following the architecture document.
+# Description: Configure basic deployment scripts and environments for a simple local server setup.
 # Details:
-Configure a local development environment that matches the architecture document's specifications, including Django backend with PostgreSQL and React frontend. Focus on setting up the environment with UV for Python package management and proper project structure.
+Set up a minimal local server configuration and basic deployment scripts for backend and frontend. Configure local file storage for development and staging environments. Focus on essential local deployment best practices, removing complex deployment configurations and cloud integrations.
 
 # Test Strategy:
-Verify the local setup by:
-1. Starting both Django and React development servers
-2. Testing API endpoints with Postman
-3. Verifying database connectivity
-4. Testing file uploads to local storage
-5. Ensuring proper CORS configuration
+Test deployment scripts and verify the app runs in the local staging environment. Implement simple automated verification to ensure basic functionality.
 
 # Subtasks:
-## 191. Set Up Python Backend Environment [pending]
+## 10. Local Server Configuration [pending]
 ### Dependencies: None
-### Description: Configure the Django backend with UV package management
+### Description: Set up local server environment for deployment
 ### Details:
-- Set up Python virtual environment using UV
-- Install backend dependencies from pyproject.toml
-- Configure PostgreSQL database connection
-- Set up environment variables for development
-- Initialize Django project structure as per architecture
+1. Configure server environment:
+   - Install required system packages
+   - Set up Python environment with UV package manager
+   - Configure Node.js environment
+   - Set up database server (PostgreSQL/MySQL)
+   - Install and configure Redis
+2. Create directory structure for application deployment
+3. Configure file permissions and ownership
+4. Set up environment variables for local server
+5. Configure service management (systemd/supervisor)
+6. Document server setup process
+7. Implement local cache for improved performance
+8. Monitor CPU and memory usage during deployment
 
-## 192. Configure Frontend Development [pending]
-### Dependencies: 191
-### Description: Set up React frontend with required dependencies
+## 2. CI/CD Pipeline Setup [pending]
+### Dependencies: 19.10
+### Description: Configure continuous integration and deployment pipeline [Updated: 5/15/2025]
 ### Details:
-- Initialize React application with TypeScript
-- Configure API client with JWT authentication
-- Set up routing and basic layout
-- Configure environment variables for development
-- Set up proxy to Django backend
+1. Set up Git repository
+2. Configure CI/CD provider
+3. Create pipeline stages:
+   - Build
+   - Test
+   - Security scan
+   - Deploy
+4. Add deployment environments:
+   - Development
+   - Staging
+   - Production
+5. Implement automated testing
+6. Add deployment verification
+<info added on 2025-05-15T21:33:21.093Z>
+1. Set up Git repository
+2. Configure CI/CD provider
+3. Create pipeline stages:
+   - Build
+   - Test
+   - Security scan
+   - Deploy
+4. Add deployment environments:
+   - Development
+   - Staging
+   - Production
+5. Implement automated testing
+6. Add deployment verification
+7. Configure JWT authentication for pipeline jobs and external integrations:
+   - Generate and securely store JWT signing keys
+   - Set up OIDC (OpenID Connect) token configuration for secure authentication with cloud providers and services
+   - Use the CI/CD provider's built-in JWT/OIDC token support (e.g., GitLab's id_token keyword or CI_JOB_JWT_V2)
+   - Limit JWT access to prevent token exposure in pipeline jobs
+   - Configure bound audience and required claims for each integration
+8. Set up secure file storage for pipeline artifacts and secrets:
+   - Use encrypted storage for sensitive files and credentials
+   - Configure access controls for pipeline artifacts
+   - Automate artifact cleanup after deployment
+9. Document JWT and file storage configuration for audit and compliance
+</info added on 2025-05-15T21:33:21.093Z>
 
-## 193. Configure Local File Storage [pending]
-### Dependencies: 191
-### Description: Set up local file storage for development
+## 3. Deployment Scripts [pending]
+### Dependencies: 19.2
+### Description: Create automated deployment scripts [Updated: 5/15/2025] [Updated: 5/15/2025]
 ### Details:
-- Configure Django's MEDIA_ROOT and STATIC_ROOT
-- Create necessary directories for document storage
-- Implement local file upload handling
-- Add .gitignore rules for local files
-- Document file storage structure
+1. Create deployment configuration:
+   - Environment variables (including support for multiple environments and file-based sources; key vault sources are excluded for local-only focus)
+   - Database settings (with support for different connection strategies and secrets management, using local configuration files only)
+   - Static files (with local storage as the only backend; Azure Blob and S3 support removed)
+2. Create deployment script:
+   - Build containers (with support for custom image registries and tags, but only using local Docker daemon and local image builds)
+   - Run migrations (with rollback capability and environment-specific migration scripts, using local database connections)
+   - Collect static files (using local directory as the only storage strategy)
+   - Start services (with health checks and environment-specific service configurations, all running on the local host)
+3. Create rollback script:
+   - Revert database migrations if needed (using local database connections)
+   - Restore previous static files from local backup directory
+   - Rollback container images to previous versions from local Docker image cache
+4. Add deployment verification:
+   - Automated smoke tests for each service (running locally)
+   - Verification of static file availability in the local directory
+   - Database connectivity and schema validation (using local database connections)
+5. Document deployment process:
+   - Include steps for local file storage strategy only
+   - Document environment-specific settings and overrides for local deployment
+   - Provide troubleshooting steps for common local storage and configuration issues
+6. Add error handling:
+   - Log and alert on deployment failures (with logs stored locally)
+   - Graceful handling of missing or misconfigured local storage backends
+   - Automated cleanup of temporary local resources on failure
 
-## 194. Database Setup and Migrations [pending]
-### Dependencies: 191
-### Description: Initialize and configure PostgreSQL database
-### Details:
-- Create development database
-- Run initial migrations
-- Set up test data fixtures
-- Document database schema
-- Configure database connection pooling
+<info added on 2025-05-15T21:37:45.808Z>
+Updated deployment scripts to focus exclusively on local storage. All cloud storage backends (Azure Blob, S3) and remote configuration sources (key vaults) are removed. Deployment, rollback, and verification processes now use only local directories, local Docker images, and local database connections. Documentation and error handling updated to reflect local-only deployment context.
+</info added on 2025-05-15T21:37:45.808Z>
+</info added on 2025-05-15T21:37:54.850Z>
 
-## 195. Development Server Configuration [pending]
-### Dependencies: 191, 192, 193, 194
-### Description: Configure development servers
+## 11. Local Deployment Scripts [pending]
+### Dependencies: 19.3
+### Description: Create automated deployment scripts for local server
 ### Details:
-- Set up Django development server
-- Configure React development server
-- Enable hot-reloading
-- Set up CORS configuration
-- Configure logging for development
+1. Create deployment configuration for local server:
+   - Environment variables file setup
+   - Database connection settings
+   - Static file directory configuration
+2. Create deployment script for local server:
+   - Install application dependencies using UV package manager
+   - Run database migrations
+   - Collect and organize static files
+   - Configure and start application services
+3. Create rollback script for local deployment
+4. Add deployment verification for local server
+5. Document local deployment process
+6. Add error handling and logging for local deployment
+7. Implement staging environment deployment:
+   - Create a separate staging branch for deployment
+   - Configure automatic deployment to staging on commits
+   - Set up quality assurance testing workflow
 
-## 196. Development Scripts [pending]
-### Dependencies: 191, 192
-### Description: Create useful development scripts
+## 12. Local Storage Configuration [pending]
+### Dependencies: None
+### Description: Configure local file storage for application data
 ### Details:
-- start-dev.sh: Start both frontend and backend
-- setup-db.sh: Reset and seed database
-- run-tests.sh: Run test suites
-- reset-dev.sh: Reset development environment
-- Document usage in README
+1. Set up local file storage structure:
+   - Create directory hierarchy for different data types
+   - Configure permissions and ownership
+   - Set up backup directories
+2. Implement file storage access methods:
+   - Create utility functions for file operations
+   - Set up path configurations
+   - Implement file validation and security checks
+3. Configure static file serving:
+   - Set up web server (Nginx/Apache) for static file delivery
+   - Configure caching and compression
+   - Set up proper MIME types
+4. Document local storage configuration
+5. Implement storage monitoring and cleanup scripts
+6. Configure local cache for high-performance read-only content
+7. Implement CPU and memory monitoring to prevent deployment issues
 
-## 197. Documentation [pending]
-### Dependencies: 191, 192, 193, 194, 195, 196
-### Description: Document local development setup
+## 6. Monitoring and Logging Setup [pending]
+### Dependencies: 19.12
+### Description: Configure monitoring and logging for production [Updated: 5/15/2025]
 ### Details:
-- Setup instructions
-- Environment variables reference
-- API documentation
-- Common development tasks
-- Troubleshooting guide
+1. Set up logging:
+   - Application logs
+   - Error logs
+   - Access logs
+2. Configure monitoring:
+   - Application health
+   - Performance metrics
+   - Resource usage
+3. Add alerting:
+   - Error notifications
+   - Performance alerts
+   - System alerts
+4. Implement log rotation
+5. Add monitoring dashboard
+6. Document monitoring setup
+<info added on 2025-05-15T21:38:11.023Z>
+7. Update Backup and Restore System to use only local storage:
+   - Configure backup jobs to store all backup files on local drives only, not cloud or external storage
+   - Specify the local drive and folder path for backup storage (e.g., D:\Backups or a dedicated local folder)
+   - Set retention policy for local backups (e.g., keep backups for 7 days, automatically remove oldest files)
+   - Ensure backup jobs are scheduled and tested to confirm local storage is used exclusively
+   - Document the local storage configuration and update backup procedures accordingly
+</update>
+</info added on 2025-05-15T21:38:11.023Z>
+
+## 7. Security Hardening [pending]
+### Dependencies: 19.6
+### Description: Implement security measures for production deployment
+### Details:
+1. Configure security settings:
+   - HTTPS
+   - CORS
+   - Rate limiting
+   - XSS protection
+2. Implement authentication:
+   - JWT
+   - Session management
+   - Password policies
+3. Add security headers
+4. Configure firewall rules
+5. Implement auditing
+6. Document security procedures
+
+## 8. Performance Optimization [pending]
+### Dependencies: 19.7
+### Description: Optimize application for production performance
+### Details:
+1. Implement caching:
+   - Database queries
+   - API responses
+   - Static files
+2. Optimize database:
+   - Indexes
+   - Query optimization
+   - Connection pooling
+3. Configure load balancing
+4. Add CDN support
+5. Implement compression
+6. Document performance guidelines
+
+## 9. Documentation and Guides [pending]
+### Dependencies: 19.8
+### Description: Create comprehensive deployment documentation
+### Details:
+1. Deployment guide:
+   - Prerequisites
+   - Installation
+   - Configuration
+2. Operations guide:
+   - Monitoring
+   - Maintenance
+   - Troubleshooting
+3. Security guide:
+   - Access control
+   - Data protection
+   - Compliance
+4. Performance guide:
+   - Optimization
+   - Scaling
+   - Tuning
+5. Disaster recovery guide:
+   - Backup procedures
+   - Recovery procedures
+   - Emergency contacts
+6. Version control guide
+
+## 13. Local Server Setup [pending]
+### Dependencies: None
+### Description: Configure local server environment for development and staging [Updated: 5/15/2025]
+### Details:
+1. Set up local development environment:
+   - Python virtual environment (using UV or venv, isolated per project)
+   - Node.js environment
+   - PostgreSQL database
+   - Redis cache
+2. Configure local settings:
+   - development.py
+   - staging.py
+   - Local file storage configuration (use only local storage, no cloud or external storage services)
+3. Set up local development server:
+   - Django development server
+   - React development server
+   - Cross-origin configuration
+4. Add local environment variables:
+   - Database settings
+   - JWT secret
+   - Storage paths (pointing to local directories only)
+   - Debug settings
+5. Create local deployment script:
+   - Database setup
+   - Static file collection (to local storage only)
+   - Server startup
+   - Service verification
+
+<update timestamp="2025-05-15T21:37:35Z">
+All file storage and static asset handling must be configured to use only local storage. This includes ensuring that Django's MEDIA_ROOT and STATIC_ROOT settings, as well as any custom file handling logic, are set to local directories. No cloud storage providers or external file services should be referenced in the configuration. This ensures all development and staging environments are fully self-contained and do not require external dependencies for file storage.
+</update>
+</info added on 2025-05-15T21:37:41.150Z>
 

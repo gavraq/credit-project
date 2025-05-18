@@ -1,6 +1,8 @@
 # Task ID: 9
 # Title: Implement User Roles and Permissions
-# Status: pending
+# Status: redundant
+# Note: This task is redundant. User roles, permissions, and enforcement were fully implemented as part of Task 4 (Database Schema) and Task 5 (User Authentication). Please refer to those tasks and their documentation for details.
+# However, the field visibility and dynamic options aspect (showing/hiding fields or options based on user role) has not yet been implemented in the API or frontend. This remains an area for future work if required.
 # Dependencies: 2, 4, 5
 # Priority: high
 # Description: Assign and enforce user roles and permissions across the system.

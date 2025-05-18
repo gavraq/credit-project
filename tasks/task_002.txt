@@ -11,7 +11,7 @@ Install Python, Django, DRF, and PostgreSQL. Configure settings.py for database 
 Run Django development server, verify database connection, and check for successful migrations. Test database connection using the configured PostgreSQL credentials and verify that Django can properly interact with the database.
 
 # Subtasks:
-## 1. Database Documentation [pending]
+## 1. Database Documentation [done]
 ### Dependencies: None
 ### Description: Create comprehensive database documentation
 ### Details:
@@ -22,7 +22,7 @@ Run Django development server, verify database connection, and check for success
 5. Backup/restore procedures
 6. Performance tuning guide
 
-## 2. PostgreSQL Configuration [pending]
+## 2. PostgreSQL Configuration [done]
 ### Dependencies: None
 ### Description: Set up PostgreSQL database with proper user permissions
 ### Details:
