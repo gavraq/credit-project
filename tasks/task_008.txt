@@ -5,7 +5,7 @@
 # Priority: high
 # Description: Develop module for document upload, storage, and retrieval.
 # Details:
-Create Django app for documents. Implement models for Document, DocumentType. Add file upload logic with size and extension validation. Use local storage for dev, cloud for prod.
+Create Django app for documents. Implement models for Document and DocumentType. Add file upload logic with size and extension validation. Use local storage only for all environments (no cloud storage required).
 
 # Test Strategy:
 Test file upload, retrieval, and validation rules.

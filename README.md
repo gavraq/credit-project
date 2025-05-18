@@ -45,6 +45,7 @@ This project is designed to manage and track credit-related operations using a m
 - See `Task_5_Documentation.md` for authentication and permissions implementation.
 - See `Task_6_Documentation.md` for workflow engine, API endpoints, and audit logging.
 - See `Task_7_Documentation.md` for a comprehensive record of frontend implementation: React setup, theming, authentication, protected routing, API integration, and CORS configuration. All impacted files and code locations are listed for onboarding and auditing.
+- See `Task_8_Documentation.md` for full details on the Document Management module: Django app, models, API, validation, local storage, and thorough tests. All affected files, endpoints, and validation rules are documented for onboarding and auditing.
 - See `Project_Sequencing.md` for a review of project task order, dependencies, architectural notes, and PRD alignment.
 
 ## Features Implemented
@@ -58,6 +59,13 @@ This project is designed to manage and track credit-related operations using a m
 - DRF API endpoints for workflow transitions and audit logs
 - Admin UI for user, role, and permission management
 - Task-based project management and documentation
+- **Document Management module** (Task 8):
+  - Django app for document upload, storage, and retrieval
+  - Models: `DocumentType`, `Document` (with file validation)
+  - API endpoints for upload, listing, retrieval, and download (JWT-protected)
+  - Local storage only, no cloud logic
+  - Thorough unit and API tests for validation and permissions
+  - See `Task_8_Documentation.md` for details, affected files, and onboarding
 
 ## Architectural Note
 

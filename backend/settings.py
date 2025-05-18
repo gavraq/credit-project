@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'backend.users',
     'workflow_engine',
     'credit_applications',
+    'documents',
     'rest_framework',
     'rest_framework_simplejwt',
 ]

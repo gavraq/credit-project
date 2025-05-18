@@ -31,4 +31,5 @@ urlpatterns = [
     path('api/workflow-instances/<uuid:pk>/transition/', WorkflowInstanceTransitionView.as_view(), name='workflow_instance_transition'),
     path('api/workflow-instances/<uuid:pk>/logs/', WorkflowInstanceLogListView.as_view(), name='workflow_instance_logs'),
     path('api/credit/', include('credit_applications.urls')),
+    path('api/documents/', include('documents.urls')),
 ]
