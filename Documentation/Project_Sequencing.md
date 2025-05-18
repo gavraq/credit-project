@@ -1,10 +1,54 @@
-# Project Task Sequencing and Review (Tasks 6–15)
+# Project Task Sequencing and Review (Tasks 2–15)
 
-This document summarizes and reviews the sequencing, dependencies, and content of project tasks 6 through 15 for the credit workflow management system. It highlights redundancy, logical order, and alignment with the PRD (v3).md.
+This document summarizes and reviews the sequencing, dependencies, and content of project tasks 2 through 15 for the credit workflow management system. It highlights redundancy, logical order, architectural notes, and alignment with the PRD (v3).md.
 
 ---
 
 ## Task-by-Task Review
+
+### Task 2: Configure Backend Environment
+- **Summary:** Set up Django, DRF, and PostgreSQL. Configure settings, apps, and initial migrations.
+- **Dependencies:** 1
+- **Status:** Foundational. Must be completed before any backend or model work.
+- **PRD Alignment:** Yes
+- **Level of Detail:** Sufficient
+
+---
+
+### Task 3: Configure Frontend Environment
+- **Summary:** Set up React and Material-UI frontend project.
+- **Dependencies:** 1
+- **Status:** Complete. Provides the base for frontend development.
+- **PRD Alignment:** Yes
+- **Level of Detail:** Sufficient
+
+---
+
+### Task 4: Design Database Schema & Workflow Engine
+- **Summary:** Define and implement all core, workflow, and domain models. Initial workflow engine models were implemented in the `users` app, then migrated to the dedicated `workflow_engine` app for modularity and maintainability (see Architectural Note below).
+- **Dependencies:** 2
+- **Status:** Complete, with architectural update.
+- **PRD Alignment:** Yes
+- **Level of Detail:** High
+
+---
+
+### Task 5: Implement User Authentication
+- **Summary:** Set up JWT authentication and role-based permissions using DRF Simple JWT. Secure API endpoints.
+- **Dependencies:** 2, 4
+- **Status:** Complete
+- **PRD Alignment:** Yes
+- **Level of Detail:** Sufficient
+
+---
+
+### Task 6: Implement Workflow Engine Core
+- **Summary:** Build the backend engine for state transitions and audit trails. All workflow logic now resides in the `workflow_engine` app.
+- **Dependencies:** 2, 4
+- **Status:** Complete, foundational for all workflow-dependent modules.
+- **PRD Alignment:** Yes
+- **Level of Detail:** Sufficient
+
 
 ### Task 6: Implement Workflow Engine Core
 - **Summary:** Build the backend engine for state transitions and audit trails.
@@ -92,10 +136,16 @@ This document summarizes and reviews the sequencing, dependencies, and content o
 
 ---
 
+## Architectural Note: Workflow Engine Model Migration
+
+During iterative development, workflow engine models were initially implemented in the `users` app (Task 4). As the architecture matured, these models were migrated to the dedicated `workflow_engine` app to improve modularity and maintainability. The original models in `users` were removed to avoid duplication and system check errors. All workflow logic now resides in the `workflow_engine` app. This change is reflected in the dependencies and sequencing above.
+
+---
+
 ## General Observations
 
-- **Order:** The order is logical: core engine → credit module → document management → dashboards → forms → enhancements.
-- **Level of Detail:** Each task provides enough detail for implementation and testing, with PRD references where necessary.
+- **Order:** The order is logical: backend and frontend setup → database schema and workflow engine → authentication → core engine → credit module → document management → dashboards → forms → enhancements.
+- **Level of Detail:** Each task now provides enough detail for implementation and testing, with PRD references where necessary.
 - **Redundancy:** No redundancy detected except Task 9 (now marked as such). All other tasks are distinct and necessary.
 - **Field Visibility:** Role-based field visibility is mentioned in forms and dashboard tasks, but not yet implemented (as noted in Task 9). This is correct—these are best handled at the form/frontend level.
 

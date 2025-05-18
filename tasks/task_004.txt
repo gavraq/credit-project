@@ -11,6 +11,9 @@ Define and implement Django models for all core entities, referencing the Transi
 Create Django models for:
 - User, Department, Role, Permission, Group, Session, Token (authentication and access control)
 - WorkflowDefinition, State, Transition, WorkflowInstance, StateLog (workflow engine)
+
+# Architectural Note:
+# During iterative development, workflow engine models were initially implemented in the users app as part of Task 4. As the architecture matured, these models were migrated to the dedicated workflow_engine app to improve modularity and maintainability. The original models in users were removed to avoid duplication and system check errors. All workflow logic now resides in the workflow_engine app, and this change is reflected in project sequencing and dependencies.
 - CreditApplication, Counterparty, LimitRequest, DocumentType, Document (domain models)
 - CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm, CreditAnalysisForm (sub-process/form models)
 

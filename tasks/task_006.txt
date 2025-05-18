@@ -5,7 +5,72 @@
 # Priority: high
 # Description: Develop core workflow engine for managing state transitions and audit trails.
 # Details:
-Create Django app for workflow_engine. Implement models for WorkflowDefinition, State, Transition, WorkflowInstance, StateLog. Add logic for state transitions and audit logging.
+Develop the core workflow engine logic for managing state transitions and audit trails, ensuring robust permission checks, atomicity, and extensibility. Integrate with existing models and authentication system.
+
+# Subtasks:
+
+## 1. Review Workflow Models
+### Task ID: 6.1
+### Status: complete
+### Dependencies: 4.2
+### Priority: high
+### Description: Review and validate WorkflowDefinition, State, Transition, WorkflowInstance, and StateLog models for completeness and correctness.
+### Details:
+- Confirm all required fields, relationships, and constraints are present.
+- Ensure models are admin-registered and migrated.
+
+**Note:** Model readiness was confirmed in the workflow model review (see project log/assistant review for details).
+
+## 2. Implement Transition Logic
+### Task ID: 6.2
+### Status: pending
+### Dependencies: 6.1
+### Priority: high
+### Description: Implement core logic for performing and validating workflow state transitions.
+### Details:
+- Add a method/service to WorkflowInstance for handling transitions.
+- Validate allowed transitions and enforce workflow rules.
+- Integrate atomic transactions for state changes.
+
+## 3. Integrate Permission Checks
+### Task ID: 6.3
+### Status: pending
+### Dependencies: 6.2
+### Priority: high
+### Description: Enforce role-based permissions for state transitions.
+### Details:
+- Check user roles against Transition.allowed_roles before allowing transitions.
+- Reuse existing permission logic where possible.
+
+## 4. Implement Audit Logging
+### Task ID: 6.4
+### Status: pending
+### Dependencies: 6.2
+### Priority: high
+### Description: Ensure all state transitions are logged in StateLog.
+### Details:
+- Log user, timestamp, from/to states, transition, and metadata for each transition.
+- Include comments and system context as needed.
+
+## 5. Expose API Endpoints (if required)
+### Task ID: 6.5
+### Status: pending
+### Dependencies: 6.2, 6.3, 6.4
+### Priority: medium
+### Description: Provide API endpoints for triggering transitions and viewing audit logs.
+### Details:
+- Add DRF views/serializers for transition actions and audit history.
+- Enforce permission checks at the API layer.
+
+## 6. Testing & Validation
+### Task ID: 6.6
+### Status: pending
+### Dependencies: 6.2, 6.3, 6.4, 6.5
+### Priority: high
+### Description: Write and run tests for all workflow engine functionality.
+### Details:
+- Unit and integration tests for transition logic, permissions, and audit logging.
+- Test valid/invalid transitions, permission enforcement, and audit trail completeness.
 
 # Test Strategy:
 Test workflow creation, state transitions, and audit trail logging.

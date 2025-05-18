@@ -55,6 +55,12 @@ This document summarizes the implementation work completed for **Task 4: Design 
   - Models use JSONField for flexible metadata.
   - Designed for future analytics, notifications, and integration.
 
+---
+
+### Architectural Note: Workflow Engine Model Migration
+
+During iterative development, workflow engine models were initially implemented in the `users` app as part of Task 4. As the architecture matured, these models were migrated to the dedicated `workflow_engine` app to improve modularity and maintainability. The original models in `users` were removed to avoid duplication and system check errors. All workflow logic now resides in the `workflow_engine` app, and this change is reflected in the project sequencing and dependencies.
+
 ### Management Commands Executed
 - (If not already present) Create the Django app for workflow engine:
   ```sh
