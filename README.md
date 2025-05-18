@@ -6,6 +6,7 @@ This project is designed to manage and track credit-related operations using a m
 
 - `.gitignore` – Specifies files and directories to be ignored by Git
 - `backend/` – Django backend application (core logic, models, API, admin)
+    - All workflow engine logic and models are now centralized in `workflow_engine/` for maintainability and a single source of truth.
 - `frontend/` – React + Material-UI frontend application (created in Task 3)
 - `tasks/` – Task Master task definitions and progress tracking
 - `Documentation/` – Documentation for each project task and setup phase
@@ -40,16 +41,23 @@ This project is designed to manage and track credit-related operations using a m
 ## Documentation
 
 - The `Documentation/` folder contains detailed documentation for each major project task and milestone.
-- See `Task_4_Documentation.md` for user/auth models and schema.
+- See `Task_4_Documentation.md` for user/auth models, schema, and workflow model migration notes.
 - See `Task_5_Documentation.md` for authentication and permissions implementation.
-- See `Project_Sequencing.md` for a review of project task order, dependencies, and PRD alignment.
+- See `Task_6_Documentation.md` for workflow engine, API endpoints, and audit logging.
+- See `Project_Sequencing.md` for a review of project task order, dependencies, architectural notes, and PRD alignment.
 
 ## Features Implemented
 
 - User authentication with JWT (Simple JWT)
 - Role-based permissions and enforcement
+- Workflow engine with state transitions and audit logging (centralized in `workflow_engine`)
+- DRF API endpoints for workflow transitions and audit logs
 - Admin UI for user, role, and permission management
 - Task-based project management and documentation
+
+## Architectural Note
+
+During iterative development, workflow engine models were initially implemented in the `users` app. As the architecture matured, these models were migrated to the dedicated `workflow_engine` app to improve modularity and maintainability. The original models in `users` were removed to avoid duplication and system check errors. All workflow logic now resides in the `workflow_engine` app, and this is reflected in the project documentation and sequencing.
 
 ## UV Usage & Workflow
 
