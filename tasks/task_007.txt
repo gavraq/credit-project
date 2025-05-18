@@ -11,9 +11,57 @@ Create Django app for credit_applications. Implement models for CreditApplicatio
 Test creation, submission, and retrieval of credit applications.
 
 # Subtasks:
-## 1. Project Configuration [pending]
-### Dependencies: None
-### Description: Configure React project with essential dependencies
+
+## 1. Model Implementation [pending]
+### Dependencies: 2, 4, 6
+### Description: Implement and migrate Django models for the credit application domain.
+### Details:
+- Create models: CreditApplication, Counterparty, LimitRequest, LimitType.
+- Add all required fields and relationships.
+- Register models in Django admin.
+- Run and verify migrations.
+- Seed initial data for LimitType and Counterparty using data migrations.
+
+## 2. Serializers [pending]
+### Dependencies: 7.1
+### Description: Implement DRF serializers for all credit application models.
+### Details:
+- Create serializers for CreditApplication, Counterparty, LimitRequest, LimitType.
+- Ensure nested/related serialization as needed for API use.
+
+## 3. API Views and Endpoints [pending]
+### Dependencies: 7.2
+### Description: Create DRF viewsets and endpoints for CRUD operations.
+### Details:
+- Implement viewsets for all models.
+- Add URL routing for API endpoints.
+- Support list, create, retrieve, update, and delete operations as appropriate.
+
+## 4. Workflow Integration [pending]
+### Dependencies: 7.3, 6
+### Description: Integrate credit applications with the workflow engine for state management.
+### Details:
+- Link CreditApplication instances to workflow state.
+- Implement state transition logic and hooks.
+- Ensure transitions are tracked and auditable.
+
+## 5. Permissions & Audit Logging [pending]
+### Dependencies: 7.3
+### Description: Apply role-based permissions and audit logging to credit application APIs.
+### Details:
+- Enforce user roles and permissions on all endpoints.
+- Add audit logging for create/update/delete actions.
+
+## 6. Testing [pending]
+### Dependencies: 7.1–7.5
+### Description: Write and run tests for backend functionality.
+### Details:
+- Test model logic, API endpoints, and workflow transitions.
+- Cover edge cases and permission checks.
+
+## 7. React Project Configuration [pending]
+### Dependencies: 3
+### Description: Set up and configure the React frontend for credit applications.
 ### Details:
 1. Project Setup:
    - Create React app with TypeScript
@@ -30,6 +78,31 @@ Test creation, submission, and retrieval of credit applications.
    - Environment variables
    - API configuration
    - Theme configuration
+   - Build configuration
+
+## 8. Theme and UI Setup [pending]
+### Dependencies: 7.7
+### Description: Configure Material-UI theme and global UI settings.
+### Details:
+- Set up custom color scheme and typography.
+- Implement theme provider and global styles.
+
+## 9. API Integration [pending]
+### Dependencies: 7.7, 7.8
+### Description: Connect frontend to backend API endpoints.
+### Details:
+- Implement API service layer using Axios.
+- Integrate authentication and error handling.
+- Test connectivity with backend endpoints.
+
+## 10. UI for Credit Application [pending]
+### Dependencies: 7.9
+### Description: Build user interface for credit application workflows.
+### Details:
+- Create forms and views for creating, submitting, and viewing credit applications.
+- Integrate form validation with Formik and Yup.
+- Display workflow state and transitions in the UI.
+
    - Build configuration
 
 ## 2. Theme Configuration [pending]

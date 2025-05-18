@@ -44,12 +44,16 @@ This project is designed to manage and track credit-related operations using a m
 - See `Task_4_Documentation.md` for user/auth models, schema, and workflow model migration notes.
 - See `Task_5_Documentation.md` for authentication and permissions implementation.
 - See `Task_6_Documentation.md` for workflow engine, API endpoints, and audit logging.
+- See `Task_7_Documentation.md` for a comprehensive record of frontend implementation: React setup, theming, authentication, protected routing, API integration, and CORS configuration. All impacted files and code locations are listed for onboarding and auditing.
 - See `Project_Sequencing.md` for a review of project task order, dependencies, architectural notes, and PRD alignment.
 
 ## Features Implemented
 
 - User authentication with JWT (Simple JWT)
 - Role-based permissions and enforcement
+- Modern React frontend with Material-UI theming, Redux Toolkit, Axios API layer, and protected routing
+- End-to-end authentication flow (login, logout, protected dashboard) fully integrated with backend JWT
+- CORS configured for seamless local development
 - Workflow engine with state transitions and audit logging (centralized in `workflow_engine`)
 - DRF API endpoints for workflow transitions and audit logs
 - Admin UI for user, role, and permission management

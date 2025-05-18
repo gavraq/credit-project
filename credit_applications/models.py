@@ -7,32 +7,85 @@ from workflow_engine.models import WorkflowInstance
 class Counterparty(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    identifier = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True)
+    cif_number = models.CharField(max_length=100, unique=True)
+    legal_entity_identifier = models.CharField(max_length=100, blank=True)
+    registration_number = models.CharField(max_length=100, blank=True)
+    tax_id = models.CharField(max_length=100, blank=True)
+    entity_type = models.CharField(max_length=100, blank=True)
+    country_of_incorporation = models.CharField(max_length=100, blank=True)
+    industry_sector = models.CharField(max_length=100, blank=True)
+    industry_subsector = models.CharField(max_length=100, blank=True)
+    business_description = models.TextField(blank=True)
+    relationship_since = models.DateField(null=True, blank=True)
+    relationship_manager_id = models.UUIDField(null=True, blank=True)
+    annual_revenue = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    credit_rating = models.CharField(max_length=100, blank=True)
+    kyc_status = models.CharField(max_length=50, blank=True)
+    senior_contact = models.CharField(max_length=255, blank=True)
+    last_visit_date = models.DateField(null=True, blank=True)
+    adaptiv_id = models.CharField(max_length=100, blank=True)
+    crs_id = models.CharField(max_length=100, blank=True)
+    spreadpac_id = models.CharField(max_length=100, blank=True)
+    fitch_id = models.CharField(max_length=100, blank=True)
+    last_sync_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
 
 class CreditApplication(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    counterparty = models.ForeignKey(Counterparty, on_delete=models.CASCADE, related_name='applications')
     title = models.CharField(max_length=255)
+    counterparty = models.ForeignKey(Counterparty, on_delete=models.CASCADE, related_name='applications')
+    reference_number = models.CharField(max_length=100, blank=True)
+    amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
     description = models.TextField(blank=True)
+    applicant_name = models.CharField(max_length=255, blank=True)
+    applicant_email = models.EmailField(blank=True)
+    applicant_phone = models.CharField(max_length=50, blank=True)
+    created_by = models.UUIDField(null=True, blank=True)
+    assigned_to = models.UUIDField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expiry_date = models.DateField(null=True, blank=True)
+    purpose = models.TextField(blank=True)
+    decision_rationale = models.TextField(blank=True)
+    conditions = models.TextField(blank=True)
+    priority = models.CharField(max_length=20, choices=[('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High')], default='Medium')
+    rank = models.IntegerField(null=True, blank=True)
+    required_by_date = models.DateField(null=True, blank=True)
+    risk_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    risk_assessment_date = models.DateTimeField(null=True, blank=True)
+    risk_assessment_reference = models.CharField(max_length=100, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_applications')
 
     def __str__(self):
         return self.title
 
+class LimitType(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    code = models.SlugField(max_length=50, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
 class LimitRequest(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     credit_application = models.ForeignKey(CreditApplication, on_delete=models.CASCADE, related_name='limit_requests')
-    amount = models.DecimalField(max_digits=15, decimal_places=2)
-    currency = models.CharField(max_length=10)
-    rationale = models.TextField(blank=True)
+    limit_type = models.ForeignKey(LimitType, on_delete=models.PROTECT, null=True, blank=True)
+    existing_amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    existing_tenor = models.IntegerField(null=True, blank=True)
+    proposed_amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    proposed_tenor = models.IntegerField(null=True, blank=True)
+    comments = models.TextField(blank=True)
 
     def __str__(self):
-        return f"{self.amount} {self.currency} for {self.credit_application.title}"
+        return f"{self.limit_type.code} for {self.credit_application.title}"
 
 class DocumentType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

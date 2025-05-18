@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -30,4 +30,5 @@ urlpatterns = [
     path('api/hello/', ProtectedHelloView.as_view(), name='protected_hello'),
     path('api/workflow-instances/<uuid:pk>/transition/', WorkflowInstanceTransitionView.as_view(), name='workflow_instance_transition'),
     path('api/workflow-instances/<uuid:pk>/logs/', WorkflowInstanceLogListView.as_view(), name='workflow_instance_logs'),
+    path('api/credit/', include('credit_applications.urls')),
 ]

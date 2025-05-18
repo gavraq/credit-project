@@ -1,0 +1,10 @@
+{
+  "env": {"browser": true, "es2021": true},
+  "extends": ["react-app", "eslint:recommended", "plugin:react/recommended", "prettier"],
+  "plugins": ["react"],
+  "rules": {
+    "react/prop-types": 0,
+    "no-unused-vars": 1,
+    "no-console": 1
+  }
+}

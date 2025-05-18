@@ -7,14 +7,26 @@
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
+    "@reduxjs/toolkit": "^2.8.2",
+    "axios": "^1.9.0",
     "cra-template-pwa": "2.0.0",
+    "eslint": "^8.57.1",
+    "formik": "^2.4.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-redux": "^9.2.0",
     "react-router-dom": "^6.30.0",
     "react-scripts": "5.0.1",
-    "web-vitals": "^5.0.1"
+    "web-vitals": "^5.0.1",
+    "yup": "^1.6.1"
   },
   "scripts": {
+    "lint": "eslint src --ext .js,.jsx",
+    "format": "prettier --write src",
+    "prepare": "husky install",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -37,5 +49,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "eslint-config-prettier": "^10.1.5",
+    "husky": "^8.0.0"
   }
 }

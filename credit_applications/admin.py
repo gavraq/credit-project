@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Counterparty, CreditApplication, LimitRequest, DocumentType, Document,
+    Counterparty, CreditApplication, LimitRequest, LimitType, DocumentType, Document,
     CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm, CreditAnalysisForm,
     CreditCompilationForm, CreditApprovalForm
 )
@@ -8,6 +8,7 @@ from .models import (
 admin.site.register(Counterparty)
 admin.site.register(CreditApplication)
 admin.site.register(LimitRequest)
+admin.site.register(LimitType)
 admin.site.register(DocumentType)
 admin.site.register(Document)
 admin.site.register(CreditRequestForm)
