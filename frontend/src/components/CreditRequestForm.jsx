@@ -6,6 +6,12 @@ import React, { useState, useEffect } from 'react';
 
 const CreditRequestForm = () => {
   // ...existing state
+  const [dateFormStarted, setDateFormStarted] = useState(() => {
+    // Try to load from localStorage/sessionStorage if needed, or default to now
+    return new Date().toISOString().slice(0, 16); // 'YYYY-MM-DDTHH:mm'
+  });
+  const [dateFormCompleted, setDateFormCompleted] = useState('');
+  // ...existing state
   const [selectedGuarantor, setSelectedGuarantor] = useState('');
   const [guarantorCIF, setGuarantorCIF] = useState('');
   const [counterparties, setCounterparties] = useState([]);
@@ -18,6 +24,10 @@ const CreditRequestForm = () => {
   // Handles form submission
   const handleSubmit = (e) => {
     e.preventDefault();
+    // If form is being submitted for credit review, set completion date
+    if (!dateFormCompleted) {
+      setDateFormCompleted(new Date().toISOString().slice(0, 16));
+    }
     // TODO: Add form submission logic here
   };
 
@@ -297,6 +307,7 @@ const CreditRequestForm = () => {
         <div ref={sectionRefs[0]}></div>
         <FormSection title="Counterparty Information" description="Basic information about the credit request.">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+
             <FormField label="Request Title" placeholder="Enter a descriptive title for this request" required={true} />
             <FormField label="Request Number" placeholder="Auto-generated" value="CR-2025-0124" disabled={true} />
             {loadingCounterparties ? (
@@ -340,13 +351,11 @@ const CreditRequestForm = () => {
                 />
                 <FormField
                   label="Guarantor CIF number"
-                  placeholder="Enter guarantor identifier (if applicable)"
+                  placeholder="Enter guarantor identifier"
                   required={false}
                   value={guarantorCIF}
                   disabled={true}
                 />
-                <FormField label="Date form started" placeholder="Enter date form started" />
-                <FormField label="Date form completed" placeholder="Enter date form completed" />
               </>
             )}
           </div>
@@ -465,22 +474,44 @@ const CreditRequestForm = () => {
             >
               + Add Row
             </button>
-            <FormField label="Country Risk Limit availability" placeholder="Enter country risk limit availability" />
+            <FormField
+  label="Country Risk Limit availability"
+  type="select"
+  options={[
+    { value: 'yes', label: 'Yes' },
+    { value: 'no', label: 'No' }
+  ]}
+  placeholder="Select availability"
+/>
             <FormField label="Detailed comments on limits required" type="textarea" placeholder="Enter detailed comments on limits required" />
           </div>
         </FormSection>
         {/* 3. Relationship Information */}
         <div ref={sectionRefs[2]}></div>
         <FormSection title="Relationship Information" description="Information about the relationship.">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
-            <FormField label="Revenue last 12 months" placeholder="Enter revenue last 12 months" />
-            <FormField label="Projected revenue next 12 months" placeholder="Enter projected revenue next 12 months" />
-            <FormField label="Projected RoRWA/RoC" placeholder="Enter projected RoRWA/RoC" />
-            <FormField label="Relationship comments" type="textarea" placeholder="Enter relationship comments" />
-            <FormField label="KYC approval status" placeholder="Enter KYC approval status" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+  <FormField label="Revenue last 12 months" placeholder="Enter revenue last 12 months" />
+  <FormField label="Projected revenue next 12 months" placeholder="Enter projected revenue next 12 months" />
+  <FormField label="Projected RoRWA/RoC" placeholder="Enter projected RoRWA/RoC" />
+</div>
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+
+            
+            </div>
+<FormField
+  label="KYC approval status"
+  type="select"
+  options={[
+    { value: 'yes', label: 'Yes' },
+    { value: 'no', label: 'No' }
+  ]}
+  placeholder="Select KYC approval status"
+/>
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
             <FormField label="Most senior contact" placeholder="Enter most senior contact" />
-            <FormField label="Date of last client visit" placeholder="Enter date of last client visit" />
+            <FormField label="Date of last client visit" type="date" placeholder="Select date of last client visit" />
           </div>
+          <FormField label="Relationship comments" type="textarea" placeholder="Enter relationship comments" />
         </FormSection>
         {/* 4. Legal & Financial Documentation */}
         <div ref={sectionRefs[3]}></div>
@@ -496,15 +527,24 @@ const CreditRequestForm = () => {
         <div ref={sectionRefs[4]}></div>
         <FormSection title="Prioritisation & Business Sponsorship" description="Information about the prioritisation and business sponsorship.">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
-            <FormField label="Urgency indicator" placeholder="Enter urgency indicator" />
-            <FormField label="Required by date" placeholder="Enter required by date" />
-            <FormField label="Justification for high priority" type="textarea" placeholder="Enter justification for high priority" />
-            <FormField label="Senior business head sponsor" placeholder="Enter senior business head sponsor" />
-            <FormField label="Account Executive Name" placeholder="Enter account executive name" />
-            <FormField label="Relationship Manager Name" placeholder="Enter relationship manager name" />
-            <FormField label="Senior Business Sponsor Name" placeholder="Enter senior business sponsor name" />
-            <FormField label="Optional second Senior Business Sponsor Name" placeholder="Enter optional second senior business sponsor name" />
+            <FormField
+  label="Priority"
+  type="select"
+  options={[
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' }
+  ]}
+  placeholder="Select priority"
+/>
+            <FormField label="Required by date" type="date" placeholder="Select required by date" />
+            
+                        <FormField label="Account Executive" placeholder="Enter account executive" />
+            <FormField label="Relationship Manager" placeholder="Enter relationship manager" />
+            <FormField label="Senior Business Sponsor" placeholder="Enter senior business sponsor name" />
+            <FormField label="Optional second Senior Business Sponsor" placeholder="Enter optional second senior business sponsor name" />
           </div>
+          <FormField label="Justification for high priority" type="textarea" placeholder="Enter justification for high priority" />
         </FormSection>
         {/* 6. Document Uploads */}
         <FormSection title="Document Uploads" description="Upload supporting documents.">
