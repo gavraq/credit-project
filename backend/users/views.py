@@ -8,8 +8,10 @@ from workflow_engine.models import WorkflowInstance, StateLog
 from .serializers import (
     WorkflowInstanceSerializer,
     StateLogSerializer,
-    WorkflowTransitionSerializer
+    WorkflowTransitionSerializer,
+    UserListSerializer
 )
+from .models import User
 
 class WorkflowInstanceTransitionView(APIView):
     permission_classes = [IsAuthenticated, RolePermission]
@@ -37,4 +39,17 @@ class WorkflowInstanceLogListView(APIView):
         instance = get_object_or_404(WorkflowInstance, pk=pk)
         logs = StateLog.objects.filter(workflow_instance=instance).order_by('-performed_at')
         serializer = StateLogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+class UserListView(APIView):
+    permission_classes = [IsAuthenticated, RolePermission]
+
+    def get(self, request):
+        queryset = User.objects.all().select_related('role', 'department')
+        role = request.query_params.get('role')
+        if role:
+            # Normalize: allow underscores or spaces in role parameter
+            normalized_role = role.replace('_', ' ').strip()
+            queryset = queryset.filter(role__name__iexact=normalized_role)
+        serializer = UserListSerializer(queryset, many=True)
         return Response(serializer.data)

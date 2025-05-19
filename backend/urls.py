@@ -21,7 +21,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from backend.views import ProtectedHelloView
-from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView
+from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,4 +32,5 @@ urlpatterns = [
     path('api/workflow-instances/<uuid:pk>/logs/', WorkflowInstanceLogListView.as_view(), name='workflow_instance_logs'),
     path('api/credit/', include('credit_applications.urls')),
     path('api/documents/', include('documents.urls')),
+    path('api/users/', UserListView.as_view(), name='user-list'),
 ]

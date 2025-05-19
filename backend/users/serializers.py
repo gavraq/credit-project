@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from workflow_engine.models import WorkflowInstance, StateLog, Transition
+from .models import User
 
 class WorkflowInstanceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,6 +16,14 @@ class StateLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = StateLog
         fields = '__all__'
+
+class UserListSerializer(serializers.ModelSerializer):
+    role = serializers.StringRelatedField()
+    department = serializers.StringRelatedField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'department']
 
 class WorkflowTransitionSerializer(serializers.Serializer):
     transition_code = serializers.CharField()

@@ -20,6 +20,13 @@ const CreditRequestForm = () => {
   const [loadingCounterparties, setLoadingCounterparties] = useState(true);
   const [counterpartyError, setCounterpartyError] = useState(null);
 
+  // Business Sponsor Dropdown State
+  const [businessSponsors, setBusinessSponsors] = useState([]);
+  const [selectedBusinessSponsor, setSelectedBusinessSponsor] = useState('');
+  const [selectedSecondBusinessSponsor, setSelectedSecondBusinessSponsor] = useState('');
+  const [loadingBusinessSponsors, setLoadingBusinessSponsors] = useState(true);
+  const [businessSponsorError, setBusinessSponsorError] = useState(null);
+
   // Use the api.js service to fetch counterparties with JWT auth
   // Handles form submission
   const handleSubmit = (e) => {
@@ -49,6 +56,26 @@ const CreditRequestForm = () => {
     }
     fetchCounterparties();
   }, []);
+
+  // Fetch Business Sponsors
+  useEffect(() => {
+    async function fetchBusinessSponsors() {
+      setLoadingBusinessSponsors(true);
+      setBusinessSponsorError(null);
+      try {
+        const { get } = await import('../services/api');
+        const response = await get('/users/?role=business_sponsor');
+        setBusinessSponsors(response.data);
+      } catch (err) {
+        setBusinessSponsorError(err.message);
+        setBusinessSponsors([]);
+      } finally {
+        setLoadingBusinessSponsors(false);
+      }
+    }
+    fetchBusinessSponsors();
+  }, []);
+
   // Brand colors
   const colors = {
     icbcRed: '#e31937',
@@ -475,14 +502,14 @@ const CreditRequestForm = () => {
               + Add Row
             </button>
             <FormField
-  label="Country Risk Limit availability"
-  type="select"
-  options={[
-    { value: 'yes', label: 'Yes' },
-    { value: 'no', label: 'No' }
-  ]}
-  placeholder="Select availability"
-/>
+              label="Country Risk Limit availability"
+              type="select"
+              options={[
+                { value: 'yes', label: 'Yes' },
+                { value: 'no', label: 'No' }
+              ]}
+              placeholder="Select availability"
+            />
             <FormField label="Detailed comments on limits required" type="textarea" placeholder="Enter detailed comments on limits required" />
           </div>
         </FormSection>
@@ -490,24 +517,12 @@ const CreditRequestForm = () => {
         <div ref={sectionRefs[2]}></div>
         <FormSection title="Relationship Information" description="Information about the relationship.">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
-  <FormField label="Revenue last 12 months" placeholder="Enter revenue last 12 months" />
-  <FormField label="Projected revenue next 12 months" placeholder="Enter projected revenue next 12 months" />
-  <FormField label="Projected RoRWA/RoC" placeholder="Enter projected RoRWA/RoC" />
-</div>
-<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+            <FormField label="Revenue last 12 months" placeholder="Enter revenue last 12 months" />
+            <FormField label="Projected revenue next 12 months" placeholder="Enter projected revenue next 12 months" />
+            <FormField label="Projected RoRWA/RoC" placeholder="Enter projected RoRWA/RoC" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
 
-            
-            </div>
-<FormField
-  label="KYC approval status"
-  type="select"
-  options={[
-    { value: 'yes', label: 'Yes' },
-    { value: 'no', label: 'No' }
-  ]}
-  placeholder="Select KYC approval status"
-/>
-<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
             <FormField label="Most senior contact" placeholder="Enter most senior contact" />
             <FormField label="Date of last client visit" type="date" placeholder="Select date of last client visit" />
           </div>
@@ -528,21 +543,46 @@ const CreditRequestForm = () => {
         <FormSection title="Prioritisation & Business Sponsorship" description="Information about the prioritisation and business sponsorship.">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
             <FormField
-  label="Priority"
-  type="select"
-  options={[
-    { value: 'high', label: 'High' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'low', label: 'Low' }
-  ]}
-  placeholder="Select priority"
-/>
+              label="Priority"
+              type="select"
+              options={[
+                { value: 'high', label: 'High' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'low', label: 'Low' }
+              ]}
+              placeholder="Select priority"
+            />
             <FormField label="Required by date" type="date" placeholder="Select required by date" />
-            
-                        <FormField label="Account Executive" placeholder="Enter account executive" />
+
+            <FormField label="Account Executive" placeholder="Enter account executive" />
             <FormField label="Relationship Manager" placeholder="Enter relationship manager" />
-            <FormField label="Senior Business Sponsor" placeholder="Enter senior business sponsor name" />
-            <FormField label="Optional second Senior Business Sponsor" placeholder="Enter optional second senior business sponsor name" />
+            {/* Senior Business Sponsor Dropdown */}
+            {loadingBusinessSponsors ? (
+              <div style={{ gridColumn: '1 / span 2', color: '#888', fontSize: '0.95rem' }}>Loading business sponsors...</div>
+            ) : businessSponsorError ? (
+              <div style={{ gridColumn: '1 / span 2', color: 'red', fontSize: '0.95rem' }}>Error loading business sponsors: {businessSponsorError}</div>
+            ) : (
+              <>
+                <FormField
+                  label="Senior Business Sponsor"
+                  type="select"
+                  required={true}
+                  options={businessSponsors.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))}
+                  value={selectedBusinessSponsor}
+                  placeholder="Select senior business sponsor"
+                  onChange={e => setSelectedBusinessSponsor(e.target.value)}
+                />
+                <FormField
+                  label="Optional second Senior Business Sponsor"
+                  type="select"
+                  required={false}
+                  options={businessSponsors.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))}
+                  value={selectedSecondBusinessSponsor}
+                  placeholder="Select optional second sponsor"
+                  onChange={e => setSelectedSecondBusinessSponsor(e.target.value)}
+                />
+              </>
+            )}
           </div>
           <FormField label="Justification for high priority" type="textarea" placeholder="Enter justification for high priority" />
         </FormSection>
