@@ -3,33 +3,157 @@
 # Status: pending
 # Dependencies: 3, 7, 9
 # Priority: medium
-# Description: Develop individual digital forms for each workflow described in PRD section 4.1, ensuring that every form matches the exact requirements and naming from the PRD. The forms must comprehensively cover the entire credit workflow process, including all submission, review, approval, modification, and configuration steps as specified.
-# Details:
-For each form explicitly listed in PRD section 4.1, create a dedicated React form component with fields, validation, and workflow logic matching the PRD. Implement form submission, review, and approval flows as separate forms where required, using the exact form names and purposes from the PRD. Integrate each form with backend APIs. Ensure role-based field visibility and access per form, according to workflow requirements. Use controlled components for forms requiring real-time validation, complex state management, or dynamic field logic, and consider uncontrolled components for simple, static forms to optimize performance. Display errors clearly next to relevant fields and ensure all forms are accessible. Leverage libraries like React Hook Form or Formik for complex validation and state management where appropriate. All forms must be traceable to a specific PRD 4.1 requirement. Consider using modern React form practices including useState for simple forms and React Hook Form for more complex implementations to ensure optimal performance and maintainability.
+# Description: Implement digital forms for each workflow in PRD section 4.1, following the exact order and naming from the PRD. Adapt from provided UI-examples, converting from TypeScript to JavaScript, and ensure traceability to PRD requirements. Enforce role-based field logic, use modern React form practices (controlled/uncontrolled components as appropriate), and integrate with backend APIs. Each form must be fully validated, accessible, and documented. All forms and subtasks must reference the corresponding PRD 4.1 section explicitly.
+# Approach:
+- For each form in PRD 4.1, adapt the corresponding UI-example (tsx) to JavaScript (jsx/js).
+- Maintain exact PRD naming and sequence for all forms and components.
+- Implement role-based field visibility and workflow state logic per PRD.
+- Use React Hook Form or similar for complex validation, and controlled components for dynamic forms.
+- Ensure every form is linked to backend APIs for submission, draft, and update actions.
+- Write comprehensive tests for each form (submission, validation, role logic, accessibility).
+- Document implementation decisions, mapping each form and feature to its PRD 4.1 requirement.
 
 # Test Strategy:
-Test each form for correct submission, validation, and role-based field visibility. Verify that each workflow and form from PRD section 4.1 is covered by a dedicated React form component, with API integration functioning as expected. Test form performance under various conditions, comparing controlled and uncontrolled implementations where applicable. Ensure accessibility standards are met and user feedback for errors is clear and helpful. Validate that all credit workflow processes are properly implemented according to the PRD specifications, and that every PRD 4.1 form is present and functional. Include tests for form submission handling, including proper preventDefault() implementation and validation before submission.
+- Test each form for correct submission, validation, and role-based field visibility.
+- Verify that every workflow and form from PRD 4.1 is covered by a dedicated React component, with API integration functioning as expected.
+- Test form performance and accessibility.
+- Ensure all forms are traceable to a specific PRD 4.1 requirement.
 
 # Subtasks:
 ## 111. Identify and Document Forms from PRD 4.1 [pending]
 ### Dependencies: None
-### Description: Review PRD section 4.1 and create a comprehensive mapping document listing all required forms, using the exact form names and purposes from the PRD. Include their fields, roles, workflows, and relationships. Ensure complete coverage of the entire credit workflow process as specified in the PRD.
+### Description: Review PRD section 4.1 and create a comprehensive mapping document listing all required forms, using the exact form names and order from the PRD. Include their fields, roles, workflows, and relationships. Ensure complete coverage of the credit workflow process as specified.
 ### Details:
 
 
-## 112. Implement Credit Limit Request Submission Form [pending]
+## 112. Implement Credit Request Form [pending]
 ### Dependencies: None
-### Description: Develop the React form for credit limit request submission, ensuring field validation and API integration. Implement as a controlled component to enable real-time validation of credit request parameters. Match the form fields and logic exactly to PRD 4.1.
+### Description: Adapt the credit-request-form UI example to JavaScript. Implement the Credit Request Form as specified in PRD 4.1 Phase 1, ensuring all fields, validation, workflow logic, and API integration match the PRD. Enforce role-based field visibility and accessibility. Document all PRD references.
 ### Details:
+- Convert from TypeScript to JavaScript
+- Implement all PRD 4.1 fields (request number, counterparty info, limits, revenue, rationale, sponsorship, uploads, etc.)
+- Controlled component with real-time validation
+- Integrate with backend for draft/save/submit
+- Tests for validation, submission, and role logic
+- Document PRD traceability
 
-
-## 113. Implement Credit Limit Review Form [pending]
+## 113. Implement Credit Review Form [pending]
 ### Dependencies: None
-### Description: Develop the React form for reviewing credit limit requests, with role-based field visibility and approval actions. Include all review criteria and fields specified in PRD section 4.1. Ensure the form matches the PRD's naming and workflow.
+### Description: Adapt the credit-review-form UI example to JavaScript. Implement the Credit Review Form as specified in PRD 4.1 Phase 2, covering all review fields, validation, workflow logic, and API integration. Enforce role-based logic. Document PRD references.
 ### Details:
+- Convert from TypeScript to JavaScript
+- Implement all PRD 4.1 review fields
+- Controlled component with validation
+- Backend integration
+- Tests for all logic
+- Document PRD traceability
 
+## 114. Implement Business Sponsorship Form [pending]
+### Dependencies: None
+### Description: Adapt the business-sponsorship-form UI example to JavaScript. Implement the Business Sponsorship Form as specified in PRD 4.1 Phase 3, covering all sponsor fields, validation, workflow logic, and API integration. Enforce role-based logic. Document PRD references.
+### Details:
+- Convert from TypeScript to JavaScript
+- Implement all PRD 4.1 sponsorship fields
+- Controlled component with validation
+- Backend integration
+- Tests for all logic
+- Document PRD traceability
 
-## 114. Implement Credit Limit Approval Form [pending]
+## 115. Implement Credit Questionnaire Form [pending]
+### Dependencies: None
+### Description: Adapt the credit-questionnaire-form UI example to JavaScript. Implement the Credit Questionnaire Form as specified in PRD 4.1 Phase 4, ensuring all questionnaire fields, validation, workflow logic, and API integration. Enforce role-based logic. Document PRD references.
+### Details:
+- Convert from TypeScript to JavaScript
+- Implement all PRD 4.1 questionnaire fields
+- Controlled component with validation
+- Backend integration
+- Tests for all logic
+- Document PRD traceability
+
+## 116. Implement Legal Review Form [pending]
+### Dependencies: None
+### Description: Adapt the legal-review-form UI example to JavaScript. Implement the Legal Review Form as specified in PRD 4.1 Phase 4, covering all legal review fields, validation, workflow logic, and API integration. Enforce role-based logic. Document PRD references.
+### Details:
+- Convert from TypeScript to JavaScript
+- Implement all PRD 4.1 legal review fields
+- Controlled component with validation
+- Backend integration
+- Tests for all logic
+- Document PRD traceability
+
+## 117. Implement Credit Analysis Form [pending]
+### Dependencies: None
+### Description: Adapt the credit-analysis-form UI example to JavaScript. Implement the Credit Analysis Form as specified in PRD 4.1 Phase 4, covering all analysis fields, validation, workflow logic, and API integration. Enforce role-based logic. Document PRD references.
+### Details:
+- Convert from TypeScript to JavaScript
+- Implement all PRD 4.1 analysis fields
+- Controlled component with validation
+- Backend integration
+- Tests for all logic
+- Document PRD traceability
+
+## 118. Implement Credit Compilation Form [pending]
+### Dependencies: None
+### Description: Implement the Credit Compilation Form as specified in PRD 4.1 Phase 5, covering all compilation fields, validation, workflow logic, and API integration. Enforce role-based logic. Document PRD references.
+### Details:
+- Implement all PRD 4.1 compilation fields
+- Controlled component with validation
+- Backend integration
+- Tests for all logic
+- Document PRD traceability
+
+## 119. Implement Credit Approval Form [pending]
+### Dependencies: None
+### Description: Adapt the approval-form UI example to JavaScript. Implement the Credit Approval Form as specified in PRD 4.1 Phase 6, covering all approval fields, validation, workflow logic, and API integration. Enforce role-based logic. Document PRD references.
+### Details:
+- Convert from TypeScript to JavaScript
+- Implement all PRD 4.1 approval fields
+- Controlled component with validation
+- Backend integration
+- Tests for all logic
+- Document PRD traceability
+
+## 120. Verify Complete PRD 4.1 Coverage [pending]
+### Dependencies: None
+### Description: Conduct a comprehensive review to ensure all forms specified in PRD section 4.1 have been implemented correctly. Create a traceability matrix mapping each PRD 4.1 requirement to the corresponding form implementation, using exact form names from the PRD.
+### Details:
+- Review all forms and documentation
+- Create traceability matrix
+- Ensure no PRD 4.1 requirement is missed
+
+## 121. Document Form Implementation Decisions [pending]
+### Dependencies: None
+### Description: Document rationale for component structure, controlled/uncontrolled choices, validation strategies, and PRD traceability for each form.
+### Details:
+- Document for each form:
+  - Controlled/uncontrolled rationale
+  - Validation approach
+  - PRD mapping
+  - Library usage
+
+## 122. Implement Form Submission Handling [pending]
+### Dependencies: None
+### Description: Ensure all forms properly handle submission events, preventDefault, and validation before submission. Follow React best practices for form submission.
+### Details:
+- Implement robust submission handlers
+- Prevent page reloads
+- Validate before submission
+
+## 123. Evaluate and Implement Form Libraries [pending]
+### Dependencies: None
+### Description: Evaluate React Hook Form and other modern form libraries for complex forms. Use for forms requiring complex validation and state management, ensuring implementation aligns with PRD 4.1.
+### Details:
+- Evaluate and select form library
+- Implement in complex forms
+
+## 124. Create Form Error Handling Components [pending]
+### Dependencies: None
+### Description: Develop reusable error handling components for validation errors across all forms. Ensure support for PRD 4.1 validation requirements.
+### Details:
+- Error components for all forms
+- Clear error display
+- PRD-aligned validation
+
 ### Dependencies: None
 ### Description: Develop the React form for approving or rejecting credit limit requests, integrating with backend APIs and enforcing role-based access. Ensure all approval workflow steps and fields from PRD 4.1 are implemented, matching the PRD's form structure.
 ### Details:
