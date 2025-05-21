@@ -4,21 +4,10 @@ import {
 } from '@mui/material';
 import { Search as SearchIcon, Visibility, Edit as EditIcon } from '@mui/icons-material';
 
-// TODO: Replace with real API data and Redux integration
-const mockCreditRequests = [
-  {
-    id: 'CR-2025-0124',
-    title: 'ABC Corporation - Limit Increase',
-    counterparty: 'ABC Corporation',
-    status: 'pending',
-    submittedBy: 'Michael Chen',
-    rank: 1,
-    priority: 'High',
-    submittedDate: '2025-05-10',
-    requiredByDate: '2025-05-15'
-  },
-  // ... (other mock requests)
-];
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+// Fetch real credit requests from backend
+
 
 const statusColors = {
   draft: 'default',
@@ -35,13 +24,34 @@ const priorityColors = {
 };
 
 const RequestTrackingDashboard = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Filtered requests (replace with selector when using Redux)
-  const filteredRequests = mockCreditRequests.filter(r =>
-    (search === '' || r.title.toLowerCase().includes(search.toLowerCase())) &&
+  useEffect(() => {
+    async function fetchRequests() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { get } = await import('../services/api');
+        const response = await get('/credit/credit-applications/');
+        setRequests(response.data);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch requests');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRequests();
+  }, []);
+
+  // Filtered requests (by search and filters)
+  const filteredRequests = requests.filter(r =>
+    (search === '' || (r.title || '').toLowerCase().includes(search.toLowerCase())) &&
     (statusFilter === '' || r.status === statusFilter) &&
     (priorityFilter === '' || r.priority === priorityFilter)
   );
@@ -58,7 +68,7 @@ const RequestTrackingDashboard = () => {
             <Card>
               <CardContent>
                 <Typography variant="h6">Pending</Typography>
-                <Typography variant="h4">{mockCreditRequests.filter(r => r.status === 'pending').length}</Typography>
+                <Typography variant="h4">{requests.filter(r => r.status === 'pending').length}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -150,7 +160,7 @@ const RequestTrackingDashboard = () => {
                   <TableRow key={r.id}>
                     <TableCell>{r.id}</TableCell>
                     <TableCell>{r.title}</TableCell>
-                    <TableCell>{r.counterparty}</TableCell>
+                    <TableCell>{typeof r.counterparty === 'object' && r.counterparty !== null ? r.counterparty.name : r.counterparty || ''}</TableCell>
                     <TableCell>
                       <Chip label={r.status} color={statusColors[r.status] || 'default'} size="small" />
                     </TableCell>
@@ -165,7 +175,7 @@ const RequestTrackingDashboard = () => {
                       <IconButton size="small" color="primary">
                         <Visibility fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" color="secondary">
+                      <IconButton size="small" color="secondary" onClick={() => navigate(`/credit-requests/${r.id}/edit`)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </TableCell>

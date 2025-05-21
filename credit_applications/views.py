@@ -26,11 +26,15 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         # Import here to avoid circular import
         from workflow_engine.models import WorkflowDefinition, State, WorkflowInstance
         from django.contrib.contenttypes.models import ContentType
-        # Find the workflow definition for CreditApplication (parent process)
+        from .models import (
+            CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm,
+            CreditQuestionnaireForm, CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm
+        )
+        # Parent workflow for CreditApplication
         workflow_def = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
         initial_state = State.objects.get(workflow_definition=workflow_def, is_initial=True)
         credit_app = serializer.save()
-        # Create workflow instance and link
+        # Create parent workflow instance and link
         instance = WorkflowInstance.objects.create(
             workflow_definition=workflow_def,
             current_state=initial_state,
@@ -39,6 +43,35 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         )
         credit_app.workflow_instance = instance
         credit_app.save(update_fields=['workflow_instance'])
+
+        # Sub-process workflow codes (must match those in workflow_engine)
+        sub_workflows = [
+            ('CREDIT_REQUEST', CreditRequestForm, 'credit_request_forms'),
+            ('CREDIT_REVIEW', CreditReviewForm, 'credit_review_forms'),
+            ('BUSINESS_SPONSORSHIP', BusinessSponsorshipForm, 'business_sponsorship_forms'),
+            ('LEGAL_REVIEW', LegalReviewForm, 'legal_review_forms'),
+            ('CREDIT_QUESTIONNAIRE', CreditQuestionnaireForm, 'credit_questionnaire_forms'),
+            ('CREDIT_ANALYSIS', CreditAnalysisForm, 'credit_analysis_forms'),
+            ('CREDIT_COMPILATION', CreditCompilationForm, 'credit_compilation_forms'),
+            ('CREDIT_APPROVAL', CreditApprovalForm, 'credit_approval_forms'),
+        ]
+        for wf_code, model_cls, related_name in sub_workflows:
+            try:
+                sub_wf_def = WorkflowDefinition.objects.get(code=wf_code)
+                sub_initial_state = State.objects.get(workflow_definition=sub_wf_def, is_initial=True)
+                sub_obj = model_cls.objects.create(credit_application=credit_app)
+                sub_instance = WorkflowInstance.objects.create(
+                    workflow_definition=sub_wf_def,
+                    current_state=sub_initial_state,
+                    content_type=ContentType.objects.get_for_model(sub_obj),
+                    object_id=sub_obj.id
+                )
+                sub_obj.workflow_instance = sub_instance
+                sub_obj.save(update_fields=['workflow_instance'])
+            except (WorkflowDefinition.DoesNotExist, State.DoesNotExist) as e:
+                # Optionally: log or raise warning if a sub-process workflow is missing
+                continue
+
 
     @action(detail=True, methods=['post'], url_path='transition')
     def transition(self, request, pk=None):

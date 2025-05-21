@@ -3,9 +3,25 @@ from workflow_engine.models import WorkflowInstance, StateLog, Transition
 from .models import User
 
 class WorkflowInstanceSerializer(serializers.ModelSerializer):
+    allowed_transitions = serializers.SerializerMethodField()
+
     class Meta:
         model = WorkflowInstance
         fields = '__all__'
+
+    def get_allowed_transitions(self, obj):
+        user = self.context['request'].user
+        transitions = obj.get_allowed_transitions(user)
+        return [
+            {
+                'code': t.code,
+                'name': t.name,
+                'to_state': t.to_state.code,
+                'description': t.description,
+            }
+            for t in transitions
+        ]
+
 
 class StateLogSerializer(serializers.ModelSerializer):
     transition = serializers.StringRelatedField()

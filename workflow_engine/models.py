@@ -62,6 +62,20 @@ class WorkflowInstance(models.Model):
     def __str__(self):
         return f"Instance of {self.workflow_definition.code} at state {self.current_state.code}"
 
+    def get_allowed_transitions(self, user):
+        from_state = self.current_state
+        transitions = self.workflow_definition.transitions.filter(from_state=from_state)
+        user_role = getattr(user.role, "name", None)
+        allowed = []
+        for t in transitions:
+            if t.allowed_roles and user_role:
+                # Normalize role strings for comparison
+                allowed_roles_norm = [r.lower().replace(" ", "_") for r in t.allowed_roles]
+                user_role_norm = user_role.lower().replace(" ", "_")
+                if user_role_norm in allowed_roles_norm:
+                    allowed.append(t)
+        return allowed
+
 class StateLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.CASCADE, related_name='logs')
