@@ -179,11 +179,56 @@ credit_risk_workflow/
 │   └── docker-compose.yml
 │
 └── README.md
+
+## 4. Backend Design
+
+### 4.1 Data Model Architecture
+
+#### 4.1.1 Core Models Relationship
+
+The system uses a structured approach to separate core application data from form-specific data:
+
+```
+┌─────────────────────┐       ┌─────────────────────┐
+│  CreditApplication   │       │  CreditRequestForm   │
+├─────────────────────┤       ├─────────────────────┤
+│ - id (UUID)         │       │ - id (UUID)         │
+│ - reference_number  │       │ - credit_application│◄─┐
+│ - title             │       │ - guarantor_name    │  │
+│ - counterparty      │       │ - guarantor_cif     │  │
+│ - priority          │       │ - revenue_last_12m  │  │
+│ - required_by_date  │       │ - ...               │  │
+│ - description       │◄──────┼─────────────────────┘  │
+│ - applicant_name    │       │                        │
+│ - workflow_instance │       │  One-to-One            │
+└─────────────────────┘       │  Relationship          │
+                               └────────────────────────┘
 ```
 
-## 4. Backend Components
+**CreditApplication Model**:
+- Serves as the core entity that tracks the credit application through its lifecycle
+- Contains essential metadata like title, priority, and reference number
+- Links to the counterparty (client) and workflow instance
+- Maintains the high-level status of the application
+- Focuses on data needed across the entire application process
 
-### 4.1 Users App
+**CreditRequestForm Model**:
+- Connected to CreditApplication via a one-to-one relationship
+- Contains detailed form data specific to the initial credit request
+- Stores fields like financial data, guarantor information, and business justifications
+- Focuses on data collection specific to the credit request phase
+- Separates form-specific data from core application data
+
+**Benefits of this separation**:
+1. **Clear Separation of Concerns**: Core application data vs. form-specific data
+2. **Flexibility**: Different forms can be associated with the same application
+3. **Data Integrity**: Form data is preserved separately from application status
+4. **Workflow Integration**: CreditApplication connects to the workflow engine
+5. **Maintainability**: Easier to extend with new form fields without affecting core data
+
+This architecture allows for a modular approach where different forms (CreditRequestForm, BusinessSponsorshipForm, LegalReviewForm, etc.) can be associated with a single CreditApplication as it moves through the workflow.
+
+### 4.2 Users App
 
 The users app manages authentication, authorization, and user management.
 
