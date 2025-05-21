@@ -12,7 +12,7 @@ import { Menu, Notifications, AccountCircle, Add, Close } from '@mui/icons-mater
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
-import CreditRequestForm from './CreditRequestForm';
+import CreditRequestForm from './CreditRequestForm/index';
 
 const TopNavBar = ({ LogoutButton }) => {
   const [open, setOpen] = useState(false);

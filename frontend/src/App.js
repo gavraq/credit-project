@@ -15,7 +15,7 @@ import Typography from '@mui/material/Typography';
 import RequestTrackingDashboard from './components/RequestTrackingDashboard';
 
 import TopNavBar from './components/TopNavBar';
-import CreditRequestForm from './components/CreditRequestForm';
+import CreditRequestForm from './components/CreditRequestForm/index';
 
 function Dashboard() {
   return (
