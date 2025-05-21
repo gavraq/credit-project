@@ -23,8 +23,8 @@ class LimitRequestSerializer(serializers.ModelSerializer):
         model = LimitRequest
         fields = [
             'id', 'credit_application', 'limit_type', 'limit_type_id',
-            'requested_amount', 'approved_amount', 'status',
-            'created_at', 'updated_at'
+            'existing_amount', 'existing_tenor', 'proposed_amount', 'proposed_tenor',
+            'comments'
         ]
 
 class CreditApplicationSerializer(serializers.ModelSerializer):
@@ -34,7 +34,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         source='counterparty',
         write_only=True
     )
-    limit_requests = LimitRequestSerializer(many=True, read_only=True)
+    limit_requests = LimitRequestSerializer(many=True) # now writable
     workflow_instance_id = serializers.UUIDField(source='workflow_instance.id', read_only=True)
     workflow_state = serializers.SerializerMethodField(read_only=True)
     available_transitions = serializers.SerializerMethodField(read_only=True)
@@ -43,9 +43,28 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         model = CreditApplication
         fields = [
             'id', 'counterparty', 'counterparty_id', 'applicant_name',
-            'application_date', 'status', 'created_at', 'updated_at',
+            'created_at', 'updated_at', # 'status' removed (not in model)
             'limit_requests', 'workflow_instance_id', 'workflow_state', 'available_transitions'
         ]
+
+    def create(self, validated_data):
+        limits_data = validated_data.pop('limit_requests', [])
+        credit_app = super().create(validated_data)
+        for limit_data in limits_data:
+            # Remove write-only field if present
+            limit_type = limit_data.pop('limit_type', None)
+            LimitRequest.objects.create(credit_application=credit_app, **limit_data)
+        return credit_app
+
+    def update(self, instance, validated_data):
+        limits_data = validated_data.pop('limit_requests', [])
+        instance = super().update(instance, validated_data)
+        # Remove all old limits and recreate
+        instance.limit_requests.all().delete()
+        for limit_data in limits_data:
+            limit_type = limit_data.pop('limit_type', None)
+            LimitRequest.objects.create(credit_application=instance, **limit_data)
+        return instance
 
     def get_workflow_state(self, obj):
         if obj.workflow_instance and obj.workflow_instance.current_state:

@@ -15,6 +15,7 @@ import Typography from '@mui/material/Typography';
 import RequestTrackingDashboard from './components/RequestTrackingDashboard';
 
 import TopNavBar from './components/TopNavBar';
+import CreditRequestForm from './components/CreditRequestForm';
 
 function Dashboard() {
   return (
@@ -33,6 +34,7 @@ function MainApp() {
         <Routes>
           <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <LoginForm />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/credit-requests/:id/edit" element={<ProtectedRoute><CreditRequestForm editMode={true} /></ProtectedRoute>} />
         </Routes>
       </Router>
     </ThemeProvider>

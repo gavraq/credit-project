@@ -4,7 +4,66 @@ import React, { useState, useEffect } from 'react';
 // All TypeScript types and annotations have been removed.
 // This file is structured for maintainability, PRD 4.1 traceability, and future integration with validation and API logic.
 
-const CreditRequestForm = () => {
+import { useParams } from 'react-router-dom';
+
+import TopNavBar from './TopNavBar';
+import LogoutButton from './LogoutButton';
+
+const CreditRequestForm = (props) => {
+  const { id } = useParams();
+  const editMode = props.editMode || !!id;
+  // Workflow state logic additions
+  const [workflowInstance, setWorkflowInstance] = useState(null);
+  const [currentState, setCurrentState] = useState('');
+  const [allowedTransitions, setAllowedTransitions] = useState([]);
+  const [transitionLoading, setTransitionLoading] = useState(false);
+  const [transitionError, setTransitionError] = useState(null);
+  // TODO: Replace with actual workflow instance ID from props or context
+  const workflowInstanceId = 'REPLACE_WITH_INSTANCE_ID';
+
+  // Fetch workflow instance on mount
+  useEffect(() => {
+    async function fetchWorkflowInstance() {
+      try {
+        const { get } = await import('../services/api');
+        // Update the endpoint if needed
+        const response = await get(`/workflow-instances/${workflowInstanceId}/`);
+        setWorkflowInstance(response.data);
+        setCurrentState(response.data.current_state?.name || response.data.current_state || '');
+        setAllowedTransitions(response.data.allowed_transitions || []);
+      } catch (err) {
+        // Optionally handle error
+        setWorkflowInstance(null);
+        setAllowedTransitions([]);
+      }
+    }
+    if (workflowInstanceId && workflowInstanceId !== 'REPLACE_WITH_INSTANCE_ID') {
+      fetchWorkflowInstance();
+    }
+  }, [workflowInstanceId]);
+
+  // Handler for transition button click
+  const handleTransition = async (transitionCode) => {
+    setTransitionLoading(true);
+    setTransitionError(null);
+    try {
+      const { post } = await import('../services/api');
+      await post(`/workflow-instances/${workflowInstanceId}/transition/`, {
+        transition_code: transitionCode
+      });
+      // Refetch workflow instance to update state and allowed transitions
+      const { get } = await import('../services/api');
+      const response = await get(`/workflow-instances/${workflowInstanceId}/`);
+      setWorkflowInstance(response.data);
+      setCurrentState(response.data.current_state?.name || response.data.current_state || '');
+      setAllowedTransitions(response.data.allowed_transitions || []);
+    } catch (err) {
+      setTransitionError(err.message || 'Transition failed');
+    } finally {
+      setTransitionLoading(false);
+    }
+  };
+
   // ...existing state
   const [dateFormStarted, setDateFormStarted] = useState(() => {
     // Try to load from localStorage/sessionStorage if needed, or default to now
@@ -29,13 +88,60 @@ const CreditRequestForm = () => {
 
   // Use the api.js service to fetch counterparties with JWT auth
   // Handles form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // If form is being submitted for credit review, set completion date
-    if (!dateFormCompleted) {
-      setDateFormCompleted(new Date().toISOString().slice(0, 16));
+    setTransitionLoading(true);
+    setTransitionError(null);
+    try {
+      // Collect form data (example: adjust as needed for your fields)
+      // Only send fields that exist on the CreditApplication model
+      const payload = {
+        title: selectedCounterparty ? `${counterparties.find(c => c.id === selectedCounterparty)?.name || ''} - Credit Request` : '',
+        counterparty: selectedCounterparty,
+        counterparty_id: selectedCounterparty,
+        amount: limits?.[0]?.proposedAmount || '',
+        description: '',
+        applicant_name: '',
+        applicant_email: '',
+        applicant_phone: '',
+        // Include the limits data as required by the backend
+        limit_requests: limits
+          .filter(limit => limit.type && limit.type !== '') // Only include limits with a valid type
+          .map(limit => ({
+            limit_type_id: limit.type, // Must be a valid UUID from the limit types
+            existing_amount: limit.existingAmount || 0,
+            existing_tenor: limit.existingTenor || 0,
+            proposed_amount: limit.proposedAmount || 0,
+            proposed_tenor: limit.proposedTenor || 0,
+            comments: ''
+          })),
+        // created_by: '', // set by backend from JWT, or add if needed
+        // assigned_to: '', // add if needed
+        // expiry_date: '', // add if needed
+        // purpose: '', // add if needed
+        // decision_rationale: '', // add if needed
+        // conditions: '', // add if needed
+        // priority: '', // add if needed
+        // rank: '', // add if needed
+        // required_by_date: '', // add if needed
+        // risk_score: '', // add if needed
+        // risk_assessment_date: '', // add if needed
+        // risk_assessment_reference: '', // add if needed
+      };
+      // Do NOT include application_date or any field not present in the model/serializer
+      const { post, patch } = await import('../services/api');
+      // If workflowInstance exists, PATCH; else POST
+      if (workflowInstance && workflowInstance.id) {
+        await patch(`/credit/credit-applications/${workflowInstance.id}/`, payload);
+      } else {
+        await post('/credit/credit-applications/', payload);
+      }
+      // Optionally, show a success message or update state/UI
+    } catch (err) {
+      setTransitionError(err.message || 'Failed to save draft');
+    } finally {
+      setTransitionLoading(false);
     }
-    // TODO: Add form submission logic here
   };
 
   useEffect(() => {
@@ -75,6 +181,39 @@ const CreditRequestForm = () => {
     }
     fetchBusinessSponsors();
   }, []);
+
+  // Fetch credit request data in edit mode
+  useEffect(() => {
+    if (!editMode || !id) return;
+    async function fetchCreditRequest() {
+      try {
+        const { get } = await import('../services/api');
+        const response = await get(`/credit/credit-applications/${id}/`);
+        const data = response.data;
+        // Populate form fields with fetched data
+        setSelectedCounterparty(data.counterparty?.id || data.counterparty || '');
+        setCounterpartyCIF(data.counterparty?.cif_number || '');
+        setLimits(
+  (data.limit_requests || []).map(lr => ({
+    id: lr.id,
+    type: lr.limit_type?.id || lr.limit_type || '',
+    existingAmount: lr.approved_amount || '',
+    existingTenor: '', // Map if you have a tenor field
+    proposedAmount: lr.requested_amount || '',
+    proposedTenor: '', // Map if you have a tenor field
+    // Add more mappings as needed
+  }))
+);
+        // Add more fields as needed
+        // setApplicantName(data.applicant_name || '');
+        // setApplicantEmail(data.applicant_email || '');
+        // ...etc
+      } catch (err) {
+        // Optionally handle error
+      }
+    }
+    fetchCreditRequest();
+  }, [editMode, id]);
 
   // Brand colors
   const colors = {
@@ -315,15 +454,13 @@ const CreditRequestForm = () => {
   // Helper: update currentStep on scroll
   React.useEffect(() => {
     const handleScroll = () => {
-      const offsets = sectionRefs.map(ref => ref.current ? ref.current.getBoundingClientRect().top : Infinity);
-      // ...rest of handleScroll logic (no JSX here)
+      // (your scroll logic here, if any)
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [sectionRefs]);
+  }, []);
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif", color: colors.neutral800, maxWidth: '1200px', margin: '0 auto', padding: '1.5rem' }}>
+      <TopNavBar LogoutButton={LogoutButton} />
       {/* Header */}
       <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', marginBottom: '1.5rem' }}>
         <VersionControlHeader />
@@ -594,16 +731,83 @@ const CreditRequestForm = () => {
             <button style={{ backgroundColor: 'white', border: `1px solid ${colors.neutral400}`, color: colors.neutral800, padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer' }}>Browse Files</button>
           </div>
         </FormSection>
-        {/* Footer buttons */}
+        {/* Footer and workflow state/actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem' }}>
-          <button style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'white', color: colors.neutral800, fontWeight: '500', fontSize: '0.875rem', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, cursor: 'pointer' }}>
-            <span style={{ marginRight: '0.5rem' }}>←</span>Back
-          </button>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button style={{ backgroundColor: 'white', border: `1px solid ${colors.neutral400}`, color: colors.neutral800, padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer' }}>Save as Draft</button>
-            <button style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: colors.standardBankBlue, border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer' }}>Continue<span style={{ marginLeft: '0.5rem' }}>→</span></button>
+            <button
+              style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'white', color: colors.neutral800, fontWeight: '500', fontSize: '0.875rem', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, cursor: 'pointer' }}
+              type="button"
+              onClick={() => window.history.back()}
+            >
+              <span style={{ marginRight: '0.5rem' }}>←</span>Back
+            </button>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              {/* Save as Draft: Just saves the form, keeps state as DRAFT */}
+              <button
+                style={{ backgroundColor: 'white', border: `1px solid ${colors.neutral400}`, color: colors.neutral800, padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '500', cursor: transitionLoading ? 'not-allowed' : 'pointer', opacity: transitionLoading ? 0.7 : 1 }}
+                type="button"
+                disabled={transitionLoading}
+                onClick={handleSubmit}
+              >
+                {transitionLoading ? 'Saving...' : 'Save as Draft'}
+              </button>
+              {/* Update Credit Paper: triggers CR_TR_2 transition */}
+              <button
+                style={{ backgroundColor: colors.standardBankBlue, border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '500', cursor: transitionLoading ? 'not-allowed' : 'pointer', opacity: transitionLoading ? 0.7 : 1 }}
+                type="button"
+                disabled={transitionLoading}
+                onClick={() => handleTransition('CR_TR_2')}
+              >
+                {transitionLoading ? 'Updating...' : 'Update Credit Paper'}
+              </button>
+              {/* Submit for Credit Review: triggers CR_TR_4 transition */}
+              <button
+                style={{ backgroundColor: colors.standardBankBlue, border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '500', cursor: transitionLoading ? 'not-allowed' : 'pointer', opacity: transitionLoading ? 0.7 : 1 }}
+                type="button"
+                disabled={transitionLoading}
+                onClick={() => handleTransition('CR_TR_4')}
+              >
+                {transitionLoading ? 'Submitting...' : 'Submit for Credit Review'}
+              </button>
+            </div>
+            {/* Error feedback for footer actions */}
+            {transitionError && (
+              <div style={{ color: colors.error, marginTop: '1rem' }}>{transitionError}</div>
+            )}
           </div>
-        </div>
+        {/* Workflow State & Actions */}
+        {workflowInstance && (
+          <div style={{ margin: '2rem 0', padding: '1rem', background: colors.blueLight, borderRadius: '0.5rem', border: `1px solid ${colors.standardBankBlue}` }}>
+            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: colors.standardBankBlue }}>
+              Workflow State: <span style={{ fontWeight: 600 }}>{currentState}</span>
+            </div>
+            <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              {allowedTransitions.length === 0 ? (
+                <span style={{ color: colors.neutral600 }}>No actions available for your role at this state.</span>
+              ) : (
+                allowedTransitions.map(tr => (
+                  <button
+                    key={tr.code}
+                    disabled={transitionLoading}
+                    style={{
+                      backgroundColor: colors.standardBankBlue,
+                      color: 'white',
+                      padding: '0.5rem 1.25rem',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      fontWeight: 600,
+                      cursor: transitionLoading ? 'not-allowed' : 'pointer',
+                      opacity: transitionLoading ? 0.8 : 1,
+                    }}
+                    title={tr.description}
+                    onClick={() => handleTransition(tr.code)}
+                  >
+                    {tr.name}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </form>
     </div>
   );
