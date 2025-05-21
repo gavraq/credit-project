@@ -112,7 +112,7 @@ const CreditRequestForm = (props) => {
   useEffect(() => {
     async function fetchWorkflowInstance() {
       try {
-        const { get } = await import('../services/api');
+        const { get } = await import('../../services/api');
         const response = await get(`/workflow-instances/${workflowInstanceId}/`);
         setWorkflowInstance(response.data);
         setCurrentState(response.data.current_state?.name || response.data.current_state || '');
@@ -132,12 +132,12 @@ const CreditRequestForm = (props) => {
     setTransitionLoading(true);
     setTransitionError(null);
     try {
-      const { post } = await import('../services/api');
+      const { post } = await import('../../services/api');
       await post(`/workflow-instances/${workflowInstanceId}/transition/`, {
         transition_code: transitionCode
       });
       // Refetch workflow instance to update state and allowed transitions
-      const { get } = await import('../services/api');
+      const { get } = await import('../../services/api');
       const response = await get(`/workflow-instances/${workflowInstanceId}/`);
       setWorkflowInstance(response.data);
       setCurrentState(response.data.current_state?.name || response.data.current_state || '');
@@ -205,15 +205,15 @@ const CreditRequestForm = (props) => {
       payload.form_data = formData;
       
       // If workflowInstance exists, PATCH; else POST
-      const { post, patch } = await import('../services/api');
+      const { post, patch } = await import('../../services/api');
       if (editMode && id) {
         await patch(`/credit/credit-applications/${id}/`, payload);
       } else {
         await post('/credit/credit-applications/', payload);
       }
       
-      // Show success message
-      alert('Credit request saved successfully');
+      // Redirect directly to dashboard after successful submission
+      window.location.href = '/';
     } catch (err) {
       setTransitionError(err.message || 'Failed to save draft');
     } finally {
@@ -227,7 +227,7 @@ const CreditRequestForm = (props) => {
       setLoadingCounterparties(true);
       setCounterpartyError(null);
       try {
-        const { get } = await import('../services/api');
+        const { get } = await import('../../services/api');
         const response = await get('/credit/counterparties/');
         setCounterparties(response.data);
       } catch (err) {
@@ -246,7 +246,7 @@ const CreditRequestForm = (props) => {
       setLoadingBusinessSponsors(true);
       setBusinessSponsorError(null);
       try {
-        const { get } = await import('../services/api');
+        const { get } = await import('../../services/api');
         const response = await get('/users/?role=business_sponsor');
         setBusinessSponsors(response.data);
       } catch (err) {
@@ -265,7 +265,7 @@ const CreditRequestForm = (props) => {
       setLoadingLimitTypes(true);
       setLimitTypesError(null);
       try {
-        const { get } = await import('../services/api');
+        const { get } = await import('../../services/api');
         const response = await get('/credit/limit-types/');
         setLimitTypes(response.data);
       } catch (err) {
@@ -283,7 +283,7 @@ const CreditRequestForm = (props) => {
     if (!editMode || !id) return;
     async function fetchCreditRequest() {
       try {
-        const { get } = await import('../services/api');
+        const { get } = await import('../../services/api');
         const response = await get(`/credit/credit-applications/${id}/`);
         const data = response.data;
         
