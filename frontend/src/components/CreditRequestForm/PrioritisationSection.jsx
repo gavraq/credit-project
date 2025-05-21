@@ -29,9 +29,9 @@ const PrioritisationSection = ({
           label="Priority"
           type="select"
           options={[
-            { value: 'high', label: 'High' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'low', label: 'Low' }
+            { value: 'High', label: 'High' },
+            { value: 'Medium', label: 'Medium' },
+            { value: 'Low', label: 'Low' }
           ]}
           placeholder="Select priority"
           value={priority}

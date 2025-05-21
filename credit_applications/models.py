@@ -35,30 +35,47 @@ class Counterparty(models.Model):
         return self.name
 
 class CreditApplication(models.Model):
+    # Core identification fields
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255)
-    counterparty = models.ForeignKey(Counterparty, on_delete=models.CASCADE, related_name='applications')
     reference_number = models.CharField(max_length=100, blank=True)
+    title = models.CharField(max_length=255)
+    
+    # Counterparty information
+    counterparty = models.ForeignKey(Counterparty, on_delete=models.CASCADE, related_name='applications')
+    
+    # Core application details
+    description = models.TextField(blank=True, help_text="Detailed comments on limits required")
+    priority = models.CharField(max_length=20, choices=[('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High')], default='Medium')
+    required_by_date = models.DateField(null=True, blank=True)
+    
+    # Financial information
     amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
-    description = models.TextField(blank=True)
+    
+    # User information
     applicant_name = models.CharField(max_length=255, blank=True)
     applicant_email = models.EmailField(blank=True)
     applicant_phone = models.CharField(max_length=50, blank=True)
     created_by = models.UUIDField(null=True, blank=True)
     assigned_to = models.UUIDField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    expiry_date = models.DateField(null=True, blank=True)
+    
+    # Approval and decision fields
     purpose = models.TextField(blank=True)
     decision_rationale = models.TextField(blank=True)
     conditions = models.TextField(blank=True)
-    priority = models.CharField(max_length=20, choices=[('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High')], default='Medium')
     rank = models.IntegerField(null=True, blank=True)
-    required_by_date = models.DateField(null=True, blank=True)
+    
+    # Risk assessment
     risk_score = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     risk_assessment_date = models.DateTimeField(null=True, blank=True)
     risk_assessment_reference = models.CharField(max_length=100, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
+    expiry_date = models.DateField(null=True, blank=True)
+    
+    # Workflow
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_applications')
 
     def __str__(self):
@@ -110,10 +127,47 @@ class Document(models.Model):
         return f"{self.document_type.name} ({self.file.name})"
 
 class CreditRequestForm(models.Model):
+    # Core fields
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    credit_application = models.ForeignKey(CreditApplication, on_delete=models.CASCADE, related_name='credit_request_forms')
+    credit_application = models.OneToOneField(CreditApplication, on_delete=models.CASCADE, related_name='credit_request_form')
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_request_forms')
+    
+    # Counterparty Information
+    guarantor_name = models.CharField(max_length=255, blank=True, null=True)
+    guarantor_cif = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Financial Information
+    revenue_last_12m = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    revenue_projected_12m = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    projected_rorwa_percent = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True)
+    
+    # Risk and Compliance
+    country_risk_limit_available = models.BooleanField(default=False)
+    kyc_approval_status = models.BooleanField(default=False)
+    
+    # Relationship Information
+    relationship_comments = models.TextField(blank=True)
+    most_senior_contact = models.CharField(max_length=255, blank=True)
+    last_client_visit_date = models.DateField(blank=True, null=True)
+    
+    # Documentation
+    legal_documentation = models.TextField(blank=True)
+    positive_legal_opinion = models.BooleanField(default=False)
+    financial_statements_received = models.BooleanField(default=False)
+    interim_statements_available = models.BooleanField(default=False)
+    
+    # Stakeholders
+    account_executive = models.CharField(max_length=255, blank=True)
+    senior_business_sponsor = models.CharField(max_length=255, blank=True)
+    second_business_sponsor = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Additional Information
+    high_priority_justification = models.TextField(blank=True)
+    
+    # Legacy field for backward compatibility (will be removed after migration)
     form_data = models.JSONField(default=dict, blank=True)
+    
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

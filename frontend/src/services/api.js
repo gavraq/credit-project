@@ -11,6 +11,28 @@ const api = axios.create({
   },
 });
 
+// Flag to prevent multiple refresh attempts at once
+let isRefreshing = false;
+// Store pending requests that should be retried after token refresh
+let refreshSubscribers = [];
+
+// Function to retry the original request with new token
+const retryOriginalRequest = (originalRequest) => {
+  return new Promise(resolve => {
+    const retryRequest = (newToken) => {
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      resolve(axios(originalRequest));
+    };
+    refreshSubscribers.push(retryRequest);
+  });
+};
+
+// Notify all subscribers that refresh is complete
+const onRefreshSuccess = (newToken) => {
+  refreshSubscribers.forEach(callback => callback(newToken));
+  refreshSubscribers = [];
+};
+
 // JWT token attach (if available)
 api.interceptors.request.use(
   (config) => {
@@ -23,17 +45,63 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Global error handling
+// Global error handling with token refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Optionally: handle specific error codes or show notifications
-    if (error.response) {
-      // Unauthorized or forbidden
-      if ([401, 403].includes(error.response.status)) {
-        // Optionally trigger logout or redirect
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Handle token refresh for 401 errors
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // If already refreshing, queue this request
+        return retryOriginalRequest(originalRequest);
+      }
+      
+      originalRequest._retry = true;
+      isRefreshing = true;
+      
+      try {
+        // Get refresh token
+        const refreshToken = localStorage.getItem('jwt_refresh');
+        if (!refreshToken) {
+          // No refresh token available, redirect to login
+          localStorage.removeItem('jwt');
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+        
+        // Attempt to refresh the token
+        const response = await axios.post(`${BASE_URL}/token/refresh/`, {
+          refresh: refreshToken
+        });
+        
+        if (response.data.access) {
+          // Store the new token
+          localStorage.setItem('jwt', response.data.access);
+          // Notify subscribers and retry original request
+          onRefreshSuccess(response.data.access);
+          return axios(originalRequest);
+        }
+      } catch (refreshError) {
+        // If refresh fails, redirect to login
+        localStorage.removeItem('jwt');
+        localStorage.removeItem('jwt_refresh');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
+    
+    // For other errors or if refresh fails
+    if (error.response && [401, 403].includes(error.response.status)) {
+      // Clear tokens and redirect to login for auth errors
+      localStorage.removeItem('jwt');
+      localStorage.removeItem('jwt_refresh');
+      window.location.href = '/login';
+    }
+    
     return Promise.reject(error);
   }
 );

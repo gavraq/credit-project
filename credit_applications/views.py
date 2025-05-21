@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .models import CreditApplication, Counterparty, LimitRequest, LimitType
-from .serializers import CreditApplicationSerializer, CounterpartySerializer, LimitRequestSerializer, LimitTypeSerializer
+from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm
+from .serializers import CreditApplicationSerializer, CounterpartySerializer, LimitRequestSerializer, LimitTypeSerializer, CreditRequestFormSerializer
 
 class LimitTypeViewSet(viewsets.ModelViewSet):
     queryset = LimitType.objects.all()
@@ -21,6 +21,103 @@ from rest_framework import status
 class CreditApplicationViewSet(viewsets.ModelViewSet):
     queryset = CreditApplication.objects.all()
     serializer_class = CreditApplicationSerializer
+    
+    def update(self, request, *args, **kwargs):
+        # Add detailed logging for debugging
+        import json
+        print(f"\n\nUPDATE REQUEST DATA: {json.dumps(request.data, indent=2, default=str)}\n\n")
+        
+        try:
+            # Save a copy of the limit requests data before it gets consumed by the serializer
+            limit_requests_data = request.data.get('limit_requests', [])
+            print(f"Limit requests in request: {len(limit_requests_data)}")
+            for i, limit in enumerate(limit_requests_data):
+                print(f"  Limit {i+1}: {json.dumps(limit, indent=2, default=str)}")
+            
+            # Extract credit_request_form data from request if present
+            credit_request_form_data = request.data.pop('credit_request_form', None)
+            
+            # Log what we're about to do
+            print(f"Extracted credit_request_form_data: {json.dumps(credit_request_form_data, indent=2, default=str)}")
+            print(f"Remaining request data: {json.dumps(request.data, indent=2, default=str)}")
+            
+            # Perform regular update
+            response = super().update(request, *args, **kwargs)
+            
+            # Get the updated instance
+            instance = self.get_object()
+            
+            # If credit_request_form data was provided, update the related CreditRequestForm
+            if credit_request_form_data:
+                try:
+                    # Get or create the related CreditRequestForm
+                    credit_request_form, created = CreditRequestForm.objects.get_or_create(
+                        credit_application=instance
+                    )
+                    
+                    print(f"Found existing CreditRequestForm: {not created}")
+                    
+                    # Update each field individually
+                    for field, value in credit_request_form_data.items():
+                        if hasattr(credit_request_form, field):
+                            print(f"Setting {field} = {value}")
+                            setattr(credit_request_form, field, value)
+                        else:
+                            print(f"WARNING: Field {field} not found on CreditRequestForm model")
+                    
+                    credit_request_form.save()
+                except Exception as e:
+                    print(f"Error updating credit_request_form: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # IMPORTANT: Handle limit requests directly to ensure they're properly saved
+            if limit_requests_data:
+                from .models import LimitRequest
+                
+                # Check if any limit requests were actually saved by the serializer
+                existing_limits = LimitRequest.objects.filter(credit_application=instance)
+                print(f"Existing limits after serializer update: {existing_limits.count()}")
+                
+                # If no limits were saved or fewer than expected, manually create them
+                if existing_limits.count() != len(limit_requests_data):
+                    print("Limit requests not properly saved by serializer, manually creating them")
+                    
+                    # Delete any existing limit requests to avoid duplicates
+                    existing_limits.delete()
+                    
+                    # Manually create each limit request
+                    for i, limit_data in enumerate(limit_requests_data):
+                        try:
+                            # Create the limit request
+                            limit = LimitRequest(
+                                credit_application=instance,
+                                limit_type_id=limit_data.get('limit_type_id'),
+                                existing_amount=limit_data.get('existing_amount'),
+                                existing_tenor=limit_data.get('existing_tenor'),
+                                proposed_amount=limit_data.get('proposed_amount'),
+                                proposed_tenor=limit_data.get('proposed_tenor'),
+                                comments=limit_data.get('comments', '')
+                            )
+                            limit.save()
+                            print(f"Manually created limit request {i+1} with ID: {limit.id}")
+                        except Exception as e:
+                            print(f"Error manually creating limit request: {e}")
+                            import traceback
+                            traceback.print_exc()
+                
+                # Verify limits were created
+                final_limits = LimitRequest.objects.filter(credit_application=instance)
+                print(f"Final limit requests count: {final_limits.count()}")
+                for i, limit in enumerate(final_limits):
+                    print(f"  Limit {i+1}: ID={limit.id}, type={limit.limit_type_id}, amount={limit.proposed_amount}")
+            
+            return response
+        except Exception as e:
+            print(f"ERROR in update method: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     def perform_create(self, serializer):
         # Import here to avoid circular import
@@ -30,6 +127,9 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
             CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm,
             CreditQuestionnaireForm, CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm
         )
+        # Extract form_data from request data if present
+        form_data = serializer.context['request'].data.get('form_data')
+        
         # Parent workflow for CreditApplication
         workflow_def = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
         initial_state = State.objects.get(workflow_definition=workflow_def, is_initial=True)
@@ -59,7 +159,19 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
             try:
                 sub_wf_def = WorkflowDefinition.objects.get(code=wf_code)
                 sub_initial_state = State.objects.get(workflow_definition=sub_wf_def, is_initial=True)
-                sub_obj = model_cls.objects.create(credit_application=credit_app)
+                
+                # If this is the CreditRequestForm, we need to handle it differently now
+                if model_cls == CreditRequestForm:
+                    # The serializer already created a CreditRequestForm instance
+                    # Let's retrieve it instead of creating a new one
+                    try:
+                        sub_obj = credit_app.credit_request_form
+                    except CreditRequestForm.DoesNotExist:
+                        # If it doesn't exist for some reason, create it
+                        sub_obj = model_cls.objects.create(credit_application=credit_app)
+                else:
+                    sub_obj = model_cls.objects.create(credit_application=credit_app)
+                    
                 sub_instance = WorkflowInstance.objects.create(
                     workflow_definition=sub_wf_def,
                     current_state=sub_initial_state,

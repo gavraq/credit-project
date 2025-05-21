@@ -26,9 +26,9 @@ const LegalSection = ({
         label="Confirmation of positive legal opinion" 
         type="select"
         options={[
-          { value: 'yes', label: 'Yes' },
-          { value: 'no', label: 'No' },
-          { value: 'tbc', label: 'TBC' }
+          { value: 'Yes', label: 'Yes' },
+          { value: 'No', label: 'No' },
+          { value: 'TBC', label: 'TBC' }
         ]}
         placeholder="Select option" 
         value={positiveLegalOpinion}

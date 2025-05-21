@@ -53,6 +53,12 @@ const CreditRequestForm = (props) => {
       comments: ''
     }
   ]);
+  
+  // Debug: Log limits state changes
+  useEffect(() => {
+    console.log('Limits state updated:', limits);
+  }, [limits]);
+
   const [limitTypes, setLimitTypes] = useState([]);
   const [loadingLimitTypes, setLoadingLimitTypes] = useState(true);
   const [limitTypesError, setLimitTypesError] = useState(null);
@@ -155,57 +161,104 @@ const CreditRequestForm = (props) => {
     setTransitionLoading(true);
     setTransitionError(null);
     try {
-      // Collect form data for all required fields
+      // Debug: Log the current limits state and form values
+      console.log('Current limits state before submission:', JSON.stringify(limits, null, 2));
+      console.log('Form values before submission:', {
+        positiveLegalOpinion,
+        positiveLegalOpinionBoolean: positiveLegalOpinion === 'Yes',
+        legalDocumentType,
+        financialStatementsReceived,
+        interimStatementsAvailable
+      });
+      
+      // Ensure priority is properly capitalized
+      const capitalizedPriority = priority.charAt(0).toUpperCase() + priority.slice(1).toLowerCase();
+      
+      // Filter valid limits (those with a type)
+      const validLimits = limits.filter(limit => limit.type);
+      console.log(`Found ${validLimits.length} valid limits with types:`, validLimits);
+      
+      // Map limits to the format expected by the backend
+      const formattedLimits = validLimits.map(limit => {
+        const formattedLimit = {
+          limit_type_id: limit.type,
+          existing_amount: limit.existingAmount || "0",
+          existing_tenor: limit.existingTenor || "0",
+          proposed_amount: limit.proposedAmount || "0",
+          proposed_tenor: limit.proposedTenor || "0",
+          comments: limit.comments || ''
+        };
+        console.log('Formatted limit for submission:', formattedLimit);
+        return formattedLimit;
+      });
+      
       const payload = {
-        title: requestTitle || (selectedCounterparty ? `${counterparties.find(c => c.id === selectedCounterparty)?.name || ''} - Credit Request` : ''),
+        // Core CreditApplication fields
+        title: requestTitle,
         counterparty_id: selectedCounterparty,
-        amount: limits?.[0]?.proposedAmount || '',
-        description: detailedCommentsOnLimits || '',
-        applicant_name: relationshipManager || '',
-        applicant_email: '',
-        applicant_phone: '',
-        priority: priority || 'Medium',
-        required_by_date: requiredByDate || null,
+        priority: capitalizedPriority, // Ensure it's capitalized: 'Low', 'Medium', or 'High'
+        required_by_date: requiredByDate,
+        description: detailedCommentsOnLimits,
+        applicant_name: relationshipManager,
+        
         // Include the limits data as required by the backend
-        limit_requests: limits
-          .filter(limit => limit.type && limit.type !== '') // Only include limits with a valid type
-          .map(limit => ({
-            limit_type_id: limit.type, // Must be a valid UUID from the limit types
-            existing_amount: limit.existingAmount || 0,
-            existing_tenor: limit.existingTenor || 0,
-            proposed_amount: limit.proposedAmount || 0,
-            proposed_tenor: limit.proposedTenor || 0,
-            comments: limit.comments || ''
-          })),
+        limit_requests: formattedLimits,
+        
+        // CreditRequestForm fields as a nested object
+        credit_request_form: {
+          // Counterparty Information
+          guarantor_name: selectedGuarantor,
+          guarantor_cif: guarantorCIF,
+          
+          // Financial Information
+          revenue_last_12m: revenueLast12Months,
+          revenue_projected_12m: revenueProjected12Months,
+          projected_rorwa_percent: projectedRorwa,
+          
+          // Risk and Compliance
+          country_risk_limit_available: countryRiskLimitAvailable === 'Yes',
+          
+          // Relationship Information
+          relationship_comments: relationshipComments,
+          most_senior_contact: mostSeniorContact,
+          last_client_visit_date: lastClientVisitDate,
+          
+          // Documentation
+          legal_documentation: legalDocumentType,
+          // Debug positive legal opinion
+          positive_legal_opinion: positiveLegalOpinion === 'Yes', // Convert to boolean
+          financial_statements_received: financialStatementsReceived,
+          interim_statements_available: interimStatementsAvailable,
+          
+          // Stakeholders
+          account_executive: accountExecutive,
+          senior_business_sponsor: selectedBusinessSponsor,
+          second_business_sponsor: selectedSecondBusinessSponsor,
+          
+          // Additional Information
+          high_priority_justification: justificationForHighPriority
+        }
       };
       
-      // Create form_data object for CreditRequestForm model
-      const formData = {
-        guarantor_name: selectedGuarantor ? counterparties.find(c => c.id === selectedGuarantor)?.name || '' : '',
-        guarantor_cif: guarantorCIF || '',
-        revenue_last_12m: revenueLast12Months || 0,
-        revenue_projected_12m: revenueProjected12Months || 0,
-        projected_rorwa_percent: projectedRorwa || 0,
-        relationship_comments: relationshipComments || '',
-        most_senior_contact: mostSeniorContact || '',
-        last_client_visit_date: lastClientVisitDate || null,
-        legal_documentation: legalDocumentType || '',
-        positive_legal_opinion: positiveLegalOpinion || false,
-        financial_statements_received: financialStatementsReceived || false,
-        interim_statements_available: interimStatementsAvailable || false,
-        country_risk_limit_available: countryRiskLimitAvailable === 'yes',
-        account_executive: accountExecutive || '',
-        relationship_manager: relationshipManager || '',
-        senior_business_sponsor: selectedBusinessSponsor || '',
-        second_business_sponsor: selectedSecondBusinessSponsor || '',
-        high_priority_justification: justificationForHighPriority || '',
+      // For backward compatibility during migration
+      // We'll also include the form_data object
+      payload.form_data = {
+        ...payload.credit_request_form,
+        title: requestTitle,
+        priority: capitalizedPriority, // Use the same capitalized priority value
+        required_by_date: requiredByDate,
+        date_form_started: dateFormStarted,
+        date_form_completed: dateFormCompleted,
+        reference_number: requestNumber,
+        documents: documents.map(doc => ({
+          name: doc.name,
+          file: doc.file,
+          description: doc.description || ''
+        }))
       };
       
-      // Add form_data to payload
-      payload.form_data = formData;
-      
-      // If workflowInstance exists, PATCH; else POST
       const { post, patch } = await import('../../services/api');
+      
       if (editMode && id) {
         await patch(`/credit/credit-applications/${id}/`, payload);
       } else {
@@ -284,72 +337,97 @@ const CreditRequestForm = (props) => {
     async function fetchCreditRequest() {
       try {
         const { get } = await import('../../services/api');
+        console.log('Fetching credit application with ID:', id);
         const response = await get(`/credit/credit-applications/${id}/`);
         const data = response.data;
         
-        // Populate form fields with fetched data
-        setRequestTitle(data.title || '');
-        setSelectedCounterparty(data.counterparty?.id || data.counterparty || '');
-        setCounterpartyCIF(data.counterparty?.cif_number || '');
+        // For debugging - log the data we received
+        console.log('Loaded credit application data:', JSON.stringify(data, null, 2));
         
-        // Correctly map limit request fields
-        setLimits(
-          (data.limit_requests || []).map(lr => ({
-            id: lr.id,
-            type: lr.limit_type?.id || lr.limit_type_id || '',
-            existingAmount: lr.existing_amount || '',
-            existingTenor: lr.existing_tenor || '',
-            proposedAmount: lr.proposed_amount || '',
-            proposedTenor: lr.proposed_tenor || '',
-            comments: lr.comments || ''
-          }))
+        // Get data from either credit_request_form (new structure) or form_data (legacy)
+        const creditRequestForm = data.credit_request_form || {};
+        const formData = data.form_data || {};
+        
+        // Set basic form fields (from main CreditApplication model)
+        setRequestTitle(data.title || '');
+        setRequestNumber(data.reference_number || '');
+        
+        // Ensure priority is properly capitalized
+        const rawPriority = data.priority || 'Medium';
+        const capitalizedPriority = rawPriority.charAt(0).toUpperCase() + rawPriority.slice(1).toLowerCase();
+        setPriority(capitalizedPriority);
+        
+        setRequiredByDate(data.required_by_date || '');
+        setDetailedCommentsOnLimits(data.description || '');
+        setRelationshipManager(data.applicant_name || '');
+        
+        // Set counterparty information
+        if (data.counterparty?.id) {
+          setSelectedCounterparty(data.counterparty.id);
+          setCounterpartyCIF(data.counterparty.cif_number || '');
+        }
+        
+        // Set guarantor information (from CreditRequestForm)
+        setSelectedGuarantor(creditRequestForm.guarantor_name || formData.guarantor_name || '');
+        setGuarantorCIF(creditRequestForm.guarantor_cif || formData.guarantor_cif || '');
+        
+        // Set limits information
+        if (data.limit_requests && data.limit_requests.length > 0) {
+          console.log('Loading limit requests:', data.limit_requests);
+          const limitData = data.limit_requests.map((limit, index) => ({
+            id: index + 1,
+            type: limit.limit_type?.id || limit.limit_type_id || '',
+            existingAmount: limit.existing_amount || '',
+            existingTenor: limit.existing_tenor || '',
+            proposedAmount: limit.proposed_amount || '',
+            proposedTenor: limit.proposed_tenor || '',
+            comments: limit.comments || ''
+          }));
+          console.log('Mapped limit data:', limitData);
+          setLimits(limitData);
+        } else {
+          console.log('No limit requests found in the response');
+        }
+        
+        // Set risk information (from CreditRequestForm)
+        setCountryRiskLimitAvailable(
+          creditRequestForm.country_risk_limit_available || formData.country_risk_limit_available ? 'Yes' : 'No'
         );
         
-        // Set priority and required by date
-        setPriority(data.priority || 'Medium');
-        setRequiredByDate(data.required_by_date || '');
+        // Set relationship information (from CreditRequestForm)
+        setRevenueLast12Months(creditRequestForm.revenue_last_12m || formData.revenue_last_12_months || '');
+        setRevenueProjected12Months(creditRequestForm.revenue_projected_12m || formData.revenue_projected_12_months || '');
+        setProjectedRorwa(creditRequestForm.projected_rorwa_percent || formData.projected_rorwa || '');
+        setMostSeniorContact(creditRequestForm.most_senior_contact || formData.most_senior_contact || '');
+        setLastClientVisitDate(creditRequestForm.last_client_visit_date || formData.last_client_visit_date || '');
+        setRelationshipComments(creditRequestForm.relationship_comments || formData.relationship_comments || '');
         
-        // Set form_data fields if available
-        if (data.form_data) {
-          // Guarantor information
-          if (data.form_data.guarantor_name) {
-            const guarantor = counterparties.find(c => c.name === data.form_data.guarantor_name);
-            if (guarantor) {
-              setSelectedGuarantor(guarantor.id);
-              setGuarantorCIF(data.form_data.guarantor_cif || '');
-            }
-          }
-          
-          // Relationship information
-          setRevenueLast12Months(data.form_data.revenue_last_12m || '');
-          setRevenueProjected12Months(data.form_data.revenue_projected_12m || '');
-          setProjectedRorwa(data.form_data.projected_rorwa_percent || '');
-          setMostSeniorContact(data.form_data.most_senior_contact || '');
-          setLastClientVisitDate(data.form_data.last_client_visit_date || '');
-          setRelationshipComments(data.form_data.relationship_comments || '');
-          
-          // Legal & Financial Documentation
-          setLegalDocumentType(data.form_data.legal_documentation || '');
-          setPositiveLegalOpinion(data.form_data.positive_legal_opinion || '');
-          setFinancialStatementsReceived(data.form_data.financial_statements_received || false);
-          setInterimStatementsAvailable(data.form_data.interim_statements_available || false);
-          
-          // Country Risk Limit availability
-          setCountryRiskLimitAvailable(data.form_data.country_risk_limit_available ? 'yes' : 'no');
-          setDetailedCommentsOnLimits(data.description || '');
-          
-          // Prioritisation & Business Sponsorship
-          setAccountExecutive(data.form_data.account_executive || '');
-          setRelationshipManager(data.form_data.relationship_manager || '');
-          setSelectedBusinessSponsor(data.form_data.senior_business_sponsor || '');
-          setSelectedSecondBusinessSponsor(data.form_data.second_business_sponsor || '');
-          setJustificationForHighPriority(data.form_data.high_priority_justification || '');
+        // Set legal & financial documentation (from CreditRequestForm)
+        setLegalDocumentType(creditRequestForm.legal_documentation || formData.legal_document_type || '');
+        setPositiveLegalOpinion(
+          creditRequestForm.positive_legal_opinion || formData.positive_legal_opinion ? 'Yes' : 'No'
+        );
+        setFinancialStatementsReceived(
+          creditRequestForm.financial_statements_received || formData.financial_statements_received || false
+        );
+        setInterimStatementsAvailable(
+          creditRequestForm.interim_statements_available || formData.interim_statements_available || false
+        );
+        
+        // Set stakeholder information (from CreditRequestForm)
+        setAccountExecutive(creditRequestForm.account_executive || formData.account_executive || '');
+        setSelectedBusinessSponsor(creditRequestForm.senior_business_sponsor || formData.senior_business_sponsor || '');
+        setSelectedSecondBusinessSponsor(creditRequestForm.second_business_sponsor || formData.second_business_sponsor || '');
+        setJustificationForHighPriority(creditRequestForm.high_priority_justification || formData.justification_for_high_priority || '');
+        
+        // Set document uploads (from legacy form_data)
+        if (formData.documents && formData.documents.length > 0) {
+          setDocuments(formData.documents);
         }
-      } catch (err) {
-        // Handle error
-        console.error("Error fetching credit request:", err);
+      } catch (error) {
+        console.error('Error fetching credit request:', error);
       }
-    }
+    };
     fetchCreditRequest();
   }, [editMode, id, counterparties]);
 
