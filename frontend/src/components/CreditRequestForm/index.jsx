@@ -13,6 +13,7 @@ import RelationshipSection from './RelationshipSection';
 import LegalSection from './LegalSection';
 import PrioritisationSection from './PrioritisationSection';
 import DocumentsSection from './DocumentsSection';
+import DebugPanel from './DebugPanel';
 
 const CreditRequestForm = (props) => {
   const { id } = useParams();
@@ -24,7 +25,10 @@ const CreditRequestForm = (props) => {
   const [allowedTransitions, setAllowedTransitions] = useState([]);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
-  const workflowInstanceId = id || 'REPLACE_WITH_INSTANCE_ID';
+  const [workflowInstanceId, setWorkflowInstanceId] = useState(null);
+
+  // Debug mode toggle
+  const [showDebugTools, setShowDebugTools] = useState(false);
 
   // Basic form fields
   const [dateFormStarted, setDateFormStarted] = useState(() => new Date().toISOString().slice(0, 16));
@@ -114,42 +118,234 @@ const CreditRequestForm = (props) => {
     neutral900: '#1F2933'
   };
 
-  // Fetch workflow instance on mount
+  // Fetch credit application on mount
   useEffect(() => {
-    async function fetchWorkflowInstance() {
+    async function fetchCreditApplication() {
+      if (!id) return; // Don't fetch if no ID (new application)
+      
       try {
         const { get } = await import('../../services/api');
-        const response = await get(`/workflow-instances/${workflowInstanceId}/`);
-        setWorkflowInstance(response.data);
-        setCurrentState(response.data.current_state?.name || response.data.current_state || '');
-        setAllowedTransitions(response.data.allowed_transitions || []);
+        console.log(`Fetching credit application with ID: ${id}`);
+        const response = await get(`/api/credit/credit-applications/${id}/`);
+        const creditApp = response.data;
+        console.log('Fetched credit application:', creditApp);
+        
+        // Update form fields with credit application data
+        // Populate direct CreditApplication fields
+        setRequestTitle(creditApp.title || '');
+        setSelectedCounterparty(creditApp.counterparty?.id || '');
+        // Ensure priority is correctly capitalized for display if necessary, or handle in component
+        setPriority(creditApp.priority || 'Medium'); 
+        setRequiredByDate(creditApp.required_by_date || '');
+        setDetailedCommentsOnLimits(creditApp.description || '');
+        setRelationshipManager(creditApp.applicant_name || ''); // Assuming applicant_name is the RM
+        setDateFormStarted(creditApp.date_form_started || (creditApp.created_at ? new Date(creditApp.created_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)));
+        setRequestNumber(creditApp.request_number || `CR-TEMP-${id}`); // Populate request number
+
+        // Populate limits
+        if (creditApp.limit_requests && Array.isArray(creditApp.limit_requests) && creditApp.limit_requests.length > 0) {
+          const fetchedLimits = creditApp.limit_requests.map((limit, index) => ({
+            id: limit.id || Date.now() + index, // Ensure unique ID for React keys
+            type: limit.limit_type_id, // This is the ID, ensure LimitsSection dropdown can handle it
+            existingAmount: limit.existing_amount || '',
+            existingTenor: limit.existing_tenor || '',
+            proposedAmount: limit.proposed_amount || '',
+            proposedTenor: limit.proposed_tenor || '',
+            comments: limit.comments || ''
+          }));
+          setLimits(fetchedLimits);
+        } else {
+          // Reset to default if no limits are fetched, or keep existing if preferred
+          setLimits([
+            {
+              id: Date.now(),
+              type: '',
+              existingAmount: '',
+              existingTenor: '',
+              proposedAmount: '',
+              proposedTenor: '',
+              comments: ''
+            }
+          ]);
+        }
+
+        // Populate from credit_request_form (assuming it's nested as creditApp.credit_request_form)
+        const formData = creditApp.credit_request_form;
+        if (formData) {
+          console.log('Populating from formData (creditApp.credit_request_form):', formData);
+          // Counterparty Section (Guarantor)
+          setSelectedGuarantor(formData.guarantor_name || '');
+          setGuarantorCIF(formData.guarantor_cif || '');
+          
+          // Limits Section (additional fields, not the table itself)
+          setCountryRiskLimitAvailable(formData.country_risk_limit_available ? 'Yes' : 'No');
+          // detailedCommentsOnLimits is already set from creditApp.description, if it's duplicated in form_data, this would be the place
+
+          // Relationship Section
+          setRevenueLast12Months(formData.revenue_last_12m || '');
+          setRevenueProjected12Months(formData.revenue_projected_12m || '');
+          setProjectedRorwa(formData.projected_rorwa_percent || '');
+          setMostSeniorContact(formData.most_senior_contact || '');
+          setLastClientVisitDate(formData.last_client_visit_date || '');
+          setRelationshipComments(formData.relationship_comments || '');
+
+          // Legal Section
+          setLegalDocumentType(formData.legal_documentation || '');
+          setPositiveLegalOpinion(formData.positive_legal_opinion ? 'Yes' : 'No');
+          setFinancialStatementsReceived(formData.financial_statements_received || false);
+          setInterimStatementsAvailable(formData.interim_statements_available || false);
+
+          // Prioritisation Section
+          setAccountExecutive(formData.account_executive || '');
+          // relationshipManager is already set from creditApp.applicant_name
+          setSelectedBusinessSponsor(formData.senior_business_sponsor || '');
+          setSelectedSecondBusinessSponsor(formData.second_business_sponsor || '');
+          setJustificationForHighPriority(formData.high_priority_justification || '');
+          // priority and requiredByDate are already set from creditApp direct fields
+        }
+        
+        // Check if the credit application has a workflow instance
+        if (creditApp.workflow_instance) {
+          console.log('Credit application workflow instance:', creditApp.workflow_instance);
+          // The workflow_instance might be an object with an id property or just the ID string
+          const instanceId = typeof creditApp.workflow_instance === 'object' ? 
+            creditApp.workflow_instance.id : creditApp.workflow_instance;
+          
+          if (instanceId) {
+            console.log(`Setting workflow instance ID to: ${instanceId}`);
+            setWorkflowInstanceId(instanceId);
+          } else {
+            console.error('Credit application has workflow_instance but no ID');
+          }
+          
+          // Set workflow state directly from the credit application response
+          if (creditApp.workflow_state) {
+            console.log('Setting current state from credit application:', creditApp.workflow_state);
+            setCurrentState(creditApp.workflow_state.name || '');
+          }
+          
+          if (creditApp.available_transitions) {
+            console.log('Setting allowed transitions from credit application:', creditApp.available_transitions);
+            setAllowedTransitions(creditApp.available_transitions || []);
+          }
+        } else {
+          console.error('Credit application has no workflow instance');
+        }
       } catch (err) {
-        setWorkflowInstance(null);
-        setAllowedTransitions([]);
+        console.error('Error fetching credit application:', err);
       }
     }
-    if (workflowInstanceId && workflowInstanceId !== 'REPLACE_WITH_INSTANCE_ID') {
-      fetchWorkflowInstance();
+    
+    fetchCreditApplication();
+  }, [id]);
+
+  // Fetch workflow instance data
+  const fetchWorkflowInstance = async (instanceId) => {
+    try {
+      if (!instanceId) {
+        console.log('DEBUG: No workflow instance ID provided');
+        return;
+      }
+
+      console.log(`DEBUG: Fetching workflow instance: ${instanceId}`);
+      const { get } = await import('../../services/api');
+      
+      // Fetch workflow instance
+      try {
+        const response = await get(`/api/workflow-instances/${instanceId}/`);
+        console.log('DEBUG: Workflow instance data:', response.data);
+        
+        // Set workflow instance state
+        setWorkflowInstance(response.data);
+        setCurrentState(response.data.current_state?.name || 'Unknown');
+      } catch (instanceError) {
+        console.error('DEBUG: Error fetching workflow instance:', instanceError);
+      }
+      
+      // Fetch allowed transitions
+      try {
+        const transitionsResponse = await get(`/api/workflow-instances/${instanceId}/allowed-transitions/`);
+        console.log('DEBUG: Allowed transitions:', transitionsResponse.data);
+        setAllowedTransitions(transitionsResponse.data);
+      } catch (transitionsError) {
+        console.error('DEBUG: Error fetching transitions:', transitionsError);
+      }
+      
+    } catch (error) {
+      console.error('DEBUG: Error in fetchWorkflowInstance:', error);
+      setTransitionError('Failed to load workflow data. Please refresh the page.');
+    }
+  };
+
+  // Fetch workflow instance when workflowInstanceId changes
+  useEffect(() => {
+    if (workflowInstanceId) {
+      fetchWorkflowInstance(workflowInstanceId);
     }
   }, [workflowInstanceId]);
 
   // Handler for transition button click
   const handleTransition = async (transitionCode) => {
+    console.log(`Attempting to perform transition: ${transitionCode}`);
+    
+    if (!workflowInstance?.id) {
+      console.error('No workflow instance available');
+      setTransitionError('No workflow instance available. Please save the form first.');
+      return;
+    }
+    
     setTransitionLoading(true);
     setTransitionError(null);
+    
     try {
-      const { post } = await import('../../services/api');
-      await post(`/workflow-instances/${workflowInstanceId}/transition/`, {
-        transition_code: transitionCode
-      });
+      const { performWorkflowTransition } = await import('../../services/api');
+      
+      // First save the form to ensure all data is up to date
+      console.log('Saving form data before transition...');
+      await handleSubmit();
+      
+      // Determine if this is a sub-workflow or parent workflow instance
+      // If the current state contains CREDIT_REQUEST, it's the sub-workflow
+      const isSubWorkflow = currentState.includes('CREDIT_REQUEST');
+      
+      // Override transition code if needed to ensure correct codes are used
+      let finalTransitionCode = transitionCode;
+      
+      // If submitting the credit request form (sub-workflow)
+      if (isSubWorkflow && currentState.includes('DRAFT')) {
+        finalTransitionCode = 'CR_TR_5'; // From PRD: Credit Request DRAFT to SUBMITTED
+        console.log('Using CR_TR_5 for Credit Request sub-workflow transition');
+      } 
+      // If submitting for credit review (parent workflow)
+      else if (!isSubWorkflow && currentState.includes('CREDIT_PAPER_CREDIT_REQUEST')) {
+        finalTransitionCode = 'PP_TR_1'; // From PRD: Parent process to CREDIT_REVIEW_PENDING
+        console.log('Using PP_TR_1 for Credit Paper parent workflow transition');
+      }
+      
+      // Then perform the transition
+      console.log(`Performing transition ${finalTransitionCode} on workflow instance ${workflowInstance.id}`);
+      const result = await performWorkflowTransition(
+        workflowInstance.id, 
+        finalTransitionCode,
+        `Transition performed from Credit Request Form UI. Transition code: ${finalTransitionCode}`
+      );
+      
+      console.log('Transition result:', result);
+      
+      // Show success message
+      alert(`Successfully performed transition: ${finalTransitionCode}`);
+      
       // Refetch workflow instance to update state and allowed transitions
-      const { get } = await import('../../services/api');
-      const response = await get(`/workflow-instances/${workflowInstanceId}/`);
-      setWorkflowInstance(response.data);
-      setCurrentState(response.data.current_state?.name || response.data.current_state || '');
-      setAllowedTransitions(response.data.allowed_transitions || []);
-    } catch (err) {
-      setTransitionError(err.message || 'Transition failed');
+      await fetchWorkflowInstance(workflowInstance.id);
+      
+      // If this was a sub-workflow transition and it succeeded, check if we need to transition the parent
+      if (isSubWorkflow && result && result.detail === 'Transition performed successfully.') {
+        // We could automatically trigger the parent workflow transition here if needed
+        console.log('Sub-workflow transition successful. Parent workflow may need to be transitioned next.');
+      }
+    } catch (error) {
+      console.error('Error performing transition:', error);
+      setTransitionError(`Error performing transition: ${error.response?.data?.detail || error.message || 'Unknown error'}`);
     } finally {
       setTransitionLoading(false);
     }
@@ -157,9 +353,11 @@ const CreditRequestForm = (props) => {
 
   // Handles form submission
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    console.log('handleSubmit called with event:', e);
+    if (e && e.preventDefault) e.preventDefault();
     setTransitionLoading(true);
     setTransitionError(null);
+    console.log('Form submission started - saving as draft');
     try {
       // Debug: Log the current limits state and form values
       console.log('Current limits state before submission:', JSON.stringify(limits, null, 2));
@@ -180,8 +378,31 @@ const CreditRequestForm = (props) => {
       
       // Map limits to the format expected by the backend
       const formattedLimits = validLimits.map(limit => {
+        // Get the limit type information
+        let limitTypeId;
+        
+        // First, try to get the ID directly
+        if (typeof limit.type === 'object' && limit.type.id) {
+          // If it's an object with an id property
+          limitTypeId = limit.type.id;
+          console.log(`Limit type is an object with ID: ${limitTypeId}`);
+        } else if (typeof limit.type === 'string') {
+          // If it's a string (could be UUID or name)
+          limitTypeId = limit.type;
+          console.log(`Limit type is a string: ${limitTypeId}`);
+        } else {
+          // Fallback - this shouldn't happen with proper validation
+          console.warn('Limit type is in an unexpected format:', limit.type);
+          limitTypeId = limit.type;
+        }
+        
+        // Ensure we have a valid limit type ID
+        if (!limitTypeId) {
+          console.error('Missing limit type ID for limit:', limit);
+        }
+        
         const formattedLimit = {
-          limit_type_id: limit.type,
+          limit_type_id: limitTypeId,
           existing_amount: limit.existingAmount || "0",
           existing_tenor: limit.existingTenor || "0",
           proposed_amount: limit.proposedAmount || "0",
@@ -191,6 +412,9 @@ const CreditRequestForm = (props) => {
         console.log('Formatted limit for submission:', formattedLimit);
         return formattedLimit;
       });
+      
+      // Debug log for the final formatted limits
+      console.log('Final formatted limits for submission:', formattedLimits);
       
       const payload = {
         // Core CreditApplication fields
@@ -240,7 +464,9 @@ const CreditRequestForm = (props) => {
         }
       };
       
-      // For backward compatibility during migration
+      console.log('Frontend payload being sent:', JSON.stringify(payload, null, 2));
+
+    // For backward compatibility during migration
       // We'll also include the form_data object
       payload.form_data = {
         ...payload.credit_request_form,
@@ -259,15 +485,44 @@ const CreditRequestForm = (props) => {
       
       const { post, patch } = await import('../../services/api');
       
+      let response;
       if (editMode && id) {
-        await patch(`/credit/credit-applications/${id}/`, payload);
+        console.log(`Updating existing credit application with ID: ${id}`);
+        console.log('Payload being sent:', JSON.stringify(payload, null, 2));
+        
+        // Update the credit application with all data
+        // The backend will handle updating the related credit request form
+        response = await patch(`/api/credit/credit-applications/${id}/`, payload);
       } else {
-        await post('/credit/credit-applications/', payload);
+        console.log('Creating new credit application');
+        console.log('Payload being sent:', JSON.stringify(payload, null, 2));
+        response = await post('/api/credit/credit-applications/', payload);
       }
       
-      // Redirect directly to dashboard after successful submission
-      window.location.href = '/';
+      // Log the response for debugging
+      console.log('API response:', response.data);
+      
+      // Store the credit application ID from the response
+      if (response?.data?.id) {
+        console.log(`Credit application saved with ID: ${response.data.id}`);
+      }
+      
+      console.log('Form submission successful');
+      
+      // Update workflow instance ID if it's in the response
+      if (response.data.workflow_instance) {
+        const instanceId = typeof response.data.workflow_instance === 'object' ? 
+          response.data.workflow_instance.id : response.data.workflow_instance;
+        console.log(`Setting workflow instance ID: ${instanceId}`);
+        setWorkflowInstanceId(instanceId);
+        await fetchWorkflowInstance(instanceId);
+      }
+      
+      // Return true to indicate success to WorkflowActions
+      return true;
     } catch (err) {
+      console.error('Error in form submission:', err);
+      console.error('Error details:', err.response?.data || 'No response data');
       setTransitionError(err.message || 'Failed to save draft');
     } finally {
       setTransitionLoading(false);
@@ -281,7 +536,7 @@ const CreditRequestForm = (props) => {
       setCounterpartyError(null);
       try {
         const { get } = await import('../../services/api');
-        const response = await get('/credit/counterparties/');
+        const response = await get('/api/credit/counterparties/');
         setCounterparties(response.data);
       } catch (err) {
         setCounterpartyError(err.message);
@@ -300,7 +555,7 @@ const CreditRequestForm = (props) => {
       setBusinessSponsorError(null);
       try {
         const { get } = await import('../../services/api');
-        const response = await get('/users/?role=business_sponsor');
+        const response = await get('/api/users/?role=business_sponsor');
         setBusinessSponsors(response.data);
       } catch (err) {
         setBusinessSponsorError(err.message);
@@ -319,7 +574,7 @@ const CreditRequestForm = (props) => {
       setLimitTypesError(null);
       try {
         const { get } = await import('../../services/api');
-        const response = await get('/credit/limit-types/');
+        const response = await get('/api/credit/limit-types/');
         setLimitTypes(response.data);
       } catch (err) {
         setLimitTypesError(err.message);
@@ -338,13 +593,13 @@ const CreditRequestForm = (props) => {
       try {
         const { get } = await import('../../services/api');
         console.log('Fetching credit application with ID:', id);
-        const response = await get(`/credit/credit-applications/${id}/`);
+        const response = await get(`/api/credit/credit-applications/${id}/`);
         const data = response.data;
         
         // For debugging - log the data we received
         console.log('Loaded credit application data:', JSON.stringify(data, null, 2));
         
-        // Get data from either credit_request_form (new structure) or form_data (legacy)
+        // Get data from both the CreditRequestForm model attributes and its form_data JSONField
         const creditRequestForm = data.credit_request_form || {};
         const formData = data.form_data || {};
         
@@ -374,15 +629,30 @@ const CreditRequestForm = (props) => {
         // Set limits information
         if (data.limit_requests && data.limit_requests.length > 0) {
           console.log('Loading limit requests:', data.limit_requests);
-          const limitData = data.limit_requests.map((limit, index) => ({
-            id: index + 1,
-            type: limit.limit_type?.id || limit.limit_type_id || '',
-            existingAmount: limit.existing_amount || '',
-            existingTenor: limit.existing_tenor || '',
-            proposedAmount: limit.proposed_amount || '',
-            proposedTenor: limit.proposed_tenor || '',
-            comments: limit.comments || ''
-          }));
+          
+          // Map the limit requests to the format expected by the component
+          const limitData = data.limit_requests.map((limit, index) => {
+            // Handle both possible formats of limit_type (object or ID string)
+            let limitType = '';
+            if (limit.limit_type) {
+              // If limit_type is an object with an id property
+              limitType = typeof limit.limit_type === 'object' ? limit.limit_type.id : limit.limit_type;
+            } else if (limit.limit_type_id) {
+              // If limit_type_id is provided directly
+              limitType = limit.limit_type_id;
+            }
+            
+            return {
+              id: index + 1,
+              type: limitType,
+              existingAmount: limit.existing_amount || '',
+              existingTenor: limit.existing_tenor || '',
+              proposedAmount: limit.proposed_amount || '',
+              proposedTenor: limit.proposed_tenor || '',
+              comments: limit.comments || ''
+            };
+          });
+          
           console.log('Mapped limit data:', limitData);
           setLimits(limitData);
         } else {
@@ -418,17 +688,32 @@ const CreditRequestForm = (props) => {
         setAccountExecutive(creditRequestForm.account_executive || formData.account_executive || '');
         setSelectedBusinessSponsor(creditRequestForm.senior_business_sponsor || formData.senior_business_sponsor || '');
         setSelectedSecondBusinessSponsor(creditRequestForm.second_business_sponsor || formData.second_business_sponsor || '');
-        setJustificationForHighPriority(creditRequestForm.high_priority_justification || formData.justification_for_high_priority || '');
         
-        // Set document uploads (from legacy form_data)
+        // For high priority justification, check both possible field names in both objects
+        // Log the values to help debug
+        console.log('High priority justification values:', {
+          'creditRequestForm.high_priority_justification': creditRequestForm.high_priority_justification,
+          'formData.high_priority_justification': formData.high_priority_justification,
+          'formData.justification_for_high_priority': formData.justification_for_high_priority
+        });
+        
+        // Try all possible field names to ensure we get the latest value
+        setJustificationForHighPriority(
+          creditRequestForm.high_priority_justification || 
+          formData.high_priority_justification || 
+          formData.justification_for_high_priority || 
+          ''
+        );
+        
+        // Set document uploads (from form_data JSONField)
         if (formData.documents && formData.documents.length > 0) {
           setDocuments(formData.documents);
         }
       } catch (error) {
         console.error('Error fetching credit request:', error);
       }
-    };
     fetchCreditRequest();
+    }
   }, [editMode, id, counterparties]);
 
   // Add/remove limit rows
@@ -613,19 +898,144 @@ const CreditRequestForm = (props) => {
             documents={documents}
             setDocuments={setDocuments}
           />
+          
+          {/* Always show WorkflowActions for basic form actions */}
+          <WorkflowActions
+            transitionLoading={transitionLoading}
+            transitionError={transitionError}
+            onSubmit={handleSubmit} /* Changed from handleSubmit to onSubmit to match WorkflowActions expectations */
+            handleTransition={handleTransition}
+            workflowInstance={workflowInstance}
+            currentState={currentState}
+            allowedTransitions={allowedTransitions || []}
+            colors={colors}
+          />
         </FormSection>
         
-        {/* Footer and workflow actions */}
-        <WorkflowActions 
-          transitionLoading={transitionLoading}
-          transitionError={transitionError}
-          handleSubmit={handleSubmit}
-          handleTransition={handleTransition}
-          workflowInstance={workflowInstance}
-          currentState={currentState}
-          allowedTransitions={allowedTransitions}
-          colors={colors}
-        />
+        {/* Debug toggle button */}
+        <div style={{ textAlign: 'center', margin: '2rem 0 0.5rem' }}>
+          <button 
+            type="button"
+            onClick={() => setShowDebugTools(!showDebugTools)}
+            style={{ 
+              backgroundColor: 'transparent', 
+              border: '1px solid #ccc', 
+              borderRadius: '4px',
+              padding: '0.25rem 0.5rem',
+              fontSize: '0.75rem',
+              color: '#666'
+            }}
+          >
+            {showDebugTools ? 'Hide Debug Tools' : 'Show Debug Tools'}
+          </button>
+        </div>
+        
+        {/* Debug section - only shown when showDebugTools is true */}
+        {showDebugTools && (
+          <DebugPanel
+            id={id}
+            workflowInstanceId={workflowInstanceId}
+            setWorkflowInstanceId={setWorkflowInstanceId}
+            currentState={currentState}
+            allowedTransitions={allowedTransitions}
+            fetchWorkflowInstance={fetchWorkflowInstance}
+            fetchCreditApp={async () => {
+              try {
+                if (!id) {
+                  alert('No credit application ID available');
+                  return;
+                }
+                
+                const { get } = await import('../../services/api');
+                const response = await get(`/api/credit/credit-applications/${id}/`);
+                console.log('DEBUG: Credit application data:', response.data);
+                
+                // Set the workflow instance ID if available
+                if (response.data.workflow_instance) {
+                  const instanceId = typeof response.data.workflow_instance === 'object' ? 
+                    response.data.workflow_instance.id : response.data.workflow_instance;
+                  console.log(`DEBUG: Workflow instance ID from credit app: ${instanceId}`);
+                  setWorkflowInstanceId(instanceId);
+                  
+                  // Also fetch the workflow instance to get current state and transitions
+                  fetchWorkflowInstance(instanceId);
+                } else {
+                  console.log('DEBUG: No workflow instance found for this credit application');
+                }
+                
+                alert(`Fetched credit application: ${response.data.title}`);
+              } catch (error) {
+                console.error('DEBUG: Error fetching credit application:', error);
+                alert('Error fetching credit application: ' + (error.response?.data?.detail || error.message || 'Unknown error'));
+              }
+            }}
+            createWorkflowInstance={async () => {
+              try {
+                if (!id) {
+                  alert('No credit application ID available');
+                  return;
+                }
+                
+                // Show loading state
+                const button = document.getElementById('create-workflow-btn');
+                if (button) button.textContent = 'Creating workflow instance...';
+                
+                const { patch, get } = await import('../../services/api');
+                
+                // First, create a workflow instance
+                console.log('DEBUG: Creating workflow instance for credit application:', id);
+                
+                // We'll use the patch endpoint to update the credit application
+                // This will trigger the backend to create a workflow instance if it doesn't exist
+                const payload = {
+                  // This will trigger the workflow instance creation in the backend
+                  create_workflow_instance: true
+                };
+                
+                console.log('DEBUG: Sending payload to create workflow instance:', payload);
+                
+                try {
+                  const response = await patch(`/api/credit/credit-applications/${id}/`, payload);
+                  console.log('DEBUG: Update response:', response.data);
+                } catch (patchError) {
+                  console.error('DEBUG: Error in PATCH request:', patchError);
+                  console.error('DEBUG: Error response:', patchError.response?.data);
+                  throw patchError;
+                }
+                
+                // Now fetch the updated credit application to get the workflow instance ID
+                try {
+                  const updatedResponse = await get(`/api/credit/credit-applications/${id}/`);
+                  console.log('DEBUG: Updated credit application:', updatedResponse.data);
+                  
+                  if (updatedResponse.data.workflow_instance) {
+                    const instanceId = typeof updatedResponse.data.workflow_instance === 'object' ? 
+                      updatedResponse.data.workflow_instance.id : updatedResponse.data.workflow_instance;
+                    console.log(`DEBUG: New workflow instance ID: ${instanceId}`);
+                    setWorkflowInstanceId(instanceId);
+                    alert(`Created workflow instance with ID: ${instanceId}`);
+                    
+                    // Refresh the page to show the updated workflow state
+                    window.location.reload();
+                  } else {
+                    console.error('DEBUG: Failed to create workflow instance');
+                    alert('Failed to create workflow instance - no workflow instance ID returned');
+                  }
+                } catch (getError) {
+                  console.error('DEBUG: Error fetching updated credit application:', getError);
+                  throw getError;
+                }
+              } catch (error) {
+                console.error('DEBUG: Error creating workflow instance:', error);
+                alert('Error creating workflow instance: ' + (error.response?.data?.detail || error.message || 'Unknown error'));
+              } finally {
+                // Reset button state
+                const button = document.getElementById('create-workflow-btn');
+                if (button) button.textContent = 'TEST: Create Workflow Instance';
+              }
+            }}
+          />
+        )}
       </form>
     </div>
   );

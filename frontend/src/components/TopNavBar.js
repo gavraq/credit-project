@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
@@ -9,16 +9,13 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import { Menu, Notifications, AccountCircle, Add, Close } from '@mui/icons-material';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import CreditRequestForm from './CreditRequestForm/index';
+import { useNavigate } from 'react-router-dom';
+
 
 const TopNavBar = ({ LogoutButton }) => {
-  const [open, setOpen] = useState(false);
-
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const navigate = useNavigate();
+  
+  const handleCreateNew = () => navigate('/credit-requests/new');
 
   return (
     <>
@@ -34,7 +31,7 @@ const TopNavBar = ({ LogoutButton }) => {
             <Button color="inherit">Dashboard</Button>
             <Button color="inherit">My Tasks</Button>
             <Button color="inherit">All Requests</Button>
-            <Button color="inherit" startIcon={<Add />} onClick={handleOpen}>Create New</Button>
+            <Button color="inherit" startIcon={<Add />} onClick={handleCreateNew}>Create New</Button>
             <IconButton color="inherit">
               <Notifications />
             </IconButton>
@@ -48,17 +45,7 @@ const TopNavBar = ({ LogoutButton }) => {
           </Stack>
         </Toolbar>
       </AppBar>
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 2 }}>
-          New Credit Request
-          <IconButton aria-label="close" onClick={handleClose} size="small">
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-          <CreditRequestForm />
-        </DialogContent>
-      </Dialog>
+
     </>
   );
 };

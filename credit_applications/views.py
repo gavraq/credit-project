@@ -1,6 +1,24 @@
-from rest_framework import viewsets
-from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm
-from .serializers import CreditApplicationSerializer, CounterpartySerializer, LimitRequestSerializer, LimitTypeSerializer, CreditRequestFormSerializer
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.contrib.contenttypes.models import ContentType
+import json
+
+# Import workflow models
+from workflow_engine.models import WorkflowDefinition, State, WorkflowInstance
+
+# Import all form models
+from .models import (
+    CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm,
+    CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm,
+    CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm
+)
+from .serializers import (
+    CreditApplicationSerializer, CounterpartySerializer, LimitRequestSerializer,
+    LimitTypeSerializer, CreditRequestFormSerializer
+)
 
 class LimitTypeViewSet(viewsets.ModelViewSet):
     queryset = LimitType.objects.all()
@@ -14,110 +32,111 @@ class LimitRequestViewSet(viewsets.ModelViewSet):
     queryset = LimitRequest.objects.all()
     serializer_class = LimitRequestSerializer
 
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
-
 class CreditApplicationViewSet(viewsets.ModelViewSet):
     queryset = CreditApplication.objects.all()
     serializer_class = CreditApplicationSerializer
     
     def update(self, request, *args, **kwargs):
-        # Add detailed logging for debugging
         import json
-        print(f"\n\nUPDATE REQUEST DATA: {json.dumps(request.data, indent=2, default=str)}\n\n")
+        from rest_framework.response import Response
+        from rest_framework import status
+        print(f"\n\nVIEWSET UPDATE - request.data: {json.dumps(request.data, indent=2, default=str)}\n")
         
-        try:
-            # Save a copy of the limit requests data before it gets consumed by the serializer
-            limit_requests_data = request.data.get('limit_requests', [])
-            print(f"Limit requests in request: {len(limit_requests_data)}")
-            for i, limit in enumerate(limit_requests_data):
-                print(f"  Limit {i+1}: {json.dumps(limit, indent=2, default=str)}")
-            
-            # Extract credit_request_form data from request if present
-            credit_request_form_data = request.data.pop('credit_request_form', None)
-            
-            # Log what we're about to do
-            print(f"Extracted credit_request_form_data: {json.dumps(credit_request_form_data, indent=2, default=str)}")
-            print(f"Remaining request data: {json.dumps(request.data, indent=2, default=str)}")
-            
-            # Perform regular update
-            response = super().update(request, *args, **kwargs)
-            
-            # Get the updated instance
-            instance = self.get_object()
-            
-            # If credit_request_form data was provided, update the related CreditRequestForm
-            if credit_request_form_data:
-                try:
-                    # Get or create the related CreditRequestForm
-                    credit_request_form, created = CreditRequestForm.objects.get_or_create(
-                        credit_application=instance
-                    )
-                    
-                    print(f"Found existing CreditRequestForm: {not created}")
-                    
-                    # Update each field individually
-                    for field, value in credit_request_form_data.items():
-                        if hasattr(credit_request_form, field):
-                            print(f"Setting {field} = {value}")
-                            setattr(credit_request_form, field, value)
-                        else:
-                            print(f"WARNING: Field {field} not found on CreditRequestForm model")
-                    
-                    credit_request_form.save()
-                except Exception as e:
-                    print(f"Error updating credit_request_form: {e}")
-                    import traceback
-                    traceback.print_exc()
-            
-            # IMPORTANT: Handle limit requests directly to ensure they're properly saved
-            if limit_requests_data:
-                from .models import LimitRequest
+        instance = self.get_object()
+        
+        # --- Workflow Instance Creation (Optional) ---
+        create_workflow_instance_flag = request.data.get('create_workflow_instance', False)
+        if create_workflow_instance_flag and not instance.workflow_instance:
+            print(f"Attempting to create workflow instance for credit application: {instance.id}")
+            try:
+                from workflow_engine.models import WorkflowDefinition, State, WorkflowInstance
+                from django.contrib.contenttypes.models import ContentType
+                from .models import (
+                    CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm,
+                    CreditQuestionnaireForm, CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm
+                )
+
+                # Parent workflow for CreditApplication
+                workflow_def = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
+                initial_state = State.objects.get(workflow_definition=workflow_def, is_initial=True)
                 
-                # Check if any limit requests were actually saved by the serializer
-                existing_limits = LimitRequest.objects.filter(credit_application=instance)
-                print(f"Existing limits after serializer update: {existing_limits.count()}")
+                parent_workflow_instance = WorkflowInstance.objects.create(
+                    workflow_definition=workflow_def,
+                    current_state=initial_state,
+                    content_type=ContentType.objects.get_for_model(instance),
+                    object_id=instance.id
+                )
+                instance.workflow_instance = parent_workflow_instance
+                instance.save(update_fields=['workflow_instance'])
+                print(f"Created parent workflow instance with ID: {parent_workflow_instance.id}")
                 
-                # If no limits were saved or fewer than expected, manually create them
-                if existing_limits.count() != len(limit_requests_data):
-                    print("Limit requests not properly saved by serializer, manually creating them")
-                    
-                    # Delete any existing limit requests to avoid duplicates
-                    existing_limits.delete()
-                    
-                    # Manually create each limit request
-                    for i, limit_data in enumerate(limit_requests_data):
-                        try:
-                            # Create the limit request
-                            limit = LimitRequest(
-                                credit_application=instance,
-                                limit_type_id=limit_data.get('limit_type_id'),
-                                existing_amount=limit_data.get('existing_amount'),
-                                existing_tenor=limit_data.get('existing_tenor'),
-                                proposed_amount=limit_data.get('proposed_amount'),
-                                proposed_tenor=limit_data.get('proposed_tenor'),
-                                comments=limit_data.get('comments', '')
+                sub_workflows_config = [
+                    ('CREDIT_REQUEST', CreditRequestForm, 'creditrequestform'),
+                    ('CREDIT_REVIEW', CreditReviewForm, 'creditreviewform'),
+                    ('BUSINESS_SPONSORSHIP', BusinessSponsorshipForm, 'businesssponsorshipform'),
+                    ('LEGAL_REVIEW', LegalReviewForm, 'legalreviewform'),
+                    ('CREDIT_QUESTIONNAIRE', CreditQuestionnaireForm, 'creditquestionnaireform'),
+                    ('CREDIT_ANALYSIS', CreditAnalysisForm, 'creditanalysisform'),
+                    ('CREDIT_COMPILATION', CreditCompilationForm, 'creditcompilationform'),
+                    ('CREDIT_APPROVAL', CreditApprovalForm, 'creditapprovalform'),
+                ]
+                
+                for wf_code, model_cls, related_name in sub_workflows_config:
+                    try:
+                        sub_wf_def = WorkflowDefinition.objects.get(code=wf_code)
+                        sub_initial_state = State.objects.get(workflow_definition=sub_wf_def, is_initial=True)
+                        sub_obj = getattr(instance, related_name, None)
+                        if not sub_obj:
+                            sub_obj = model_cls.objects.create(credit_application=instance)
+                            print(f"Created {model_cls.__name__} with ID: {sub_obj.id} for sub-workflow {wf_code}")
+                        
+                        if not getattr(sub_obj, 'workflow_instance', None):
+                            sub_wf_instance = WorkflowInstance.objects.create(
+                                workflow_definition=sub_wf_def,
+                                current_state=sub_initial_state,
+                                content_type=ContentType.objects.get_for_model(sub_obj),
+                                object_id=sub_obj.id
                             )
-                            limit.save()
-                            print(f"Manually created limit request {i+1} with ID: {limit.id}")
-                        except Exception as e:
-                            print(f"Error manually creating limit request: {e}")
-                            import traceback
-                            traceback.print_exc()
-                
-                # Verify limits were created
-                final_limits = LimitRequest.objects.filter(credit_application=instance)
-                print(f"Final limit requests count: {final_limits.count()}")
-                for i, limit in enumerate(final_limits):
-                    print(f"  Limit {i+1}: ID={limit.id}, type={limit.limit_type_id}, amount={limit.proposed_amount}")
+                            sub_obj.workflow_instance = sub_wf_instance
+                            sub_obj.save(update_fields=['workflow_instance'])
+                            print(f"Created sub-workflow instance for {model_cls.__name__} ({wf_code}) with ID: {sub_wf_instance.id}")
+                        else:
+                            print(f"{model_cls.__name__} ({wf_code}) already has workflow instance: {sub_obj.workflow_instance.id}")
+                    except WorkflowDefinition.DoesNotExist:
+                        print(f"WorkflowDefinition with code {wf_code} not found. Skipping sub-workflow creation.")
+                    except State.DoesNotExist:
+                        print(f"Initial state for workflow {wf_code} not found. Skipping sub-workflow creation.")
+                    except Exception as e_sub_wf:
+                        print(f"Error creating sub-workflow for {wf_code} on {model_cls.__name__}: {e_sub_wf}")
+            except Exception as e_wf_main:
+                print(f"Error during main workflow instance creation process: {e_wf_main}")
+                # Depending on policy, you might want to return an error or just log and continue
+                # For now, we log and continue to attempt the main data update.
+
+        # --- Standard DRF Update Logic ---
+        try:
+            data_for_serializer = request.data.copy()
+            data_for_serializer.pop('create_workflow_instance', None) # Remove flag if present
             
-            return response
-        except Exception as e:
-            print(f"ERROR in update method: {e}")
+            partial = kwargs.pop('partial', True) # Default for PATCH is partial=True
+            serializer = self.get_serializer(instance, data=data_for_serializer, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer) # This calls serializer.save()
+            
+            if getattr(instance, '_prefetched_objects_cache', None):
+                instance._prefetched_objects_cache = {}
+                
+            return Response(serializer.data)
+            
+        except Exception as e_main_update:
+            print(f"Error during main update of CreditApplication: {e_main_update}")
             import traceback
             traceback.print_exc()
-            raise
+            # Return a DRF error response
+            return Response(
+                {'detail': f'An error occurred during the update: {str(e_main_update)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def perform_create(self, serializer):
         # Import here to avoid circular import

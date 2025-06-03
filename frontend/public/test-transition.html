@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Transition Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .response-container {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .debug-section {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Workflow Transition Test</h1>
+    
+    <div class="section">
+        <h2>Login</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button id="login-btn">Login</button>
+            <div id="login-status" class="status"></div>
+        </form>
+    </div>
+    
+    <div class="section">
+        <h2>Workflow Instance Information</h2>
+        <div>
+            <label for="workflow-id">Parent Workflow Instance ID:</label>
+            <input type="text" id="workflow-id" value="91cad316-f2c4-4823-a922-c69e5bca7a2a" style="width: 300px;">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="sub-workflow-id">Credit Request Sub-Workflow Instance ID:</label>
+            <input type="text" id="sub-workflow-id" style="width: 300px;">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="transition-code">Parent Transition Code:</label>
+            <input type="text" id="transition-code" value="PP_TR_1" style="width: 100px;">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="sub-transition-code">Sub-Process Transition Code:</label>
+            <input type="text" id="sub-transition-code" value="CR_TR_5" style="width: 100px;">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="comments">Comments:</label>
+            <textarea id="comments" rows="3" style="width: 100%;">Test transition from debug page</textarea>
+        </div>
+        <div style="margin-top: 20px;">
+            <button id="fetch-parent-btn">Fetch Parent Workflow</button>
+            <button id="fetch-sub-btn">Fetch Sub-Workflow</button>
+            <button id="sub-transition-btn">1. Perform Sub-Process Transition</button>
+            <button id="parent-transition-btn">2. Perform Parent Transition</button>
+            <button id="sequence-btn">Perform Both Transitions</button>
+        </div>
+        <div id="status" style="margin-top: 20px;"></div>
+    </div>
+    
+    <div class="container">
+        <h2>Response</h2>
+        <pre id="response">No response yet</pre>
+    </div>
+
+    <script>
+        // Base URL for API
+        const BASE_URL = 'http://localhost:8000/api';
+        
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+        
+        function setToken(token) {
+            localStorage.setItem('token', token);
+        }
+        
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function showLoginStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('login-status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function showResponse(data) {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = JSON.stringify(data, null, 2);
+        }
+        
+        async function login(username, password) {
+            try {
+                const response = await fetch(`${BASE_URL}/token/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                setToken(data.access);
+                showLoginStatus('Login successful! Token saved.', 'success');
+                return true;
+            } catch (error) {
+                console.error('Login error:', error);
+                showLoginStatus(`Login failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Fetch parent workflow instance info
+        document.getElementById('fetch-parent-btn').addEventListener('click', async () => {
+            const workflowId = document.getElementById('workflow-id').value.trim();
+            
+            if (!workflowId) {
+                showStatus('Please enter a parent workflow instance ID', true);
+                return;
+            }
+            
+            try {
+                showStatus('Fetching parent workflow instance...');
+                
+                // Fetch workflow instance
+                const response = await fetch(`${BASE_URL}/workflow-instances/${workflowId}/`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                showResponse(data);
+                showStatus('Successfully fetched parent workflow instance');
+                
+                // The allowed transitions are already in the workflow instance response
+                if (data.allowed_transitions && data.allowed_transitions.length > 0) {
+                    console.log('Available parent transitions:', data.allowed_transitions);
+                    // Update the transition code input with the first available transition
+                    document.getElementById('transition-code').value = data.allowed_transitions[0].code;
+                    // Override with the specific transition code from PRD if needed
+                    if (data.current_state && data.current_state.includes('CREDIT_PAPER_CREDIT_REQUEST')) {
+                        document.getElementById('transition-code').value = 'PP_TR_1';
+                    }
+                } else {
+                    console.log('No available transitions found in parent workflow response');
+                    // Set default transition code from PRD
+                    document.getElementById('transition-code').value = 'PP_TR_1';
+                }
+                
+                // Try to find the sub-workflow instance ID
+                if (data.object_id) {
+                    // Try to find the sub-workflow instance ID by fetching the credit application
+                    // and then getting the credit_request_form's workflow_instance
+                    try {
+                        const creditAppResponse = await fetch(`${BASE_URL}/credit/applications/${data.object_id}/`, {
+                            headers: {
+                                'Authorization': `Bearer ${getToken()}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (!creditAppResponse.ok) {
+                            throw new Error(`HTTP error ${creditAppResponse.status}: ${await creditAppResponse.text()}`);
+                        }
+                        
+                        const creditAppData = await creditAppResponse.json();
+                        console.log('Credit Application data:', creditAppData);
+                        
+                        // Now fetch the credit request form to get its workflow instance
+                        if (creditAppData.credit_request_form) {
+                            const formResponse = await fetch(`${BASE_URL}/credit/request-forms/${creditAppData.credit_request_form}/`, {
+                                headers: {
+                                    'Authorization': `Bearer ${getToken()}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            if (!formResponse.ok) {
+                                throw new Error(`HTTP error ${formResponse.status}: ${await formResponse.text()}`);
+                            }
+                            
+                            const formData = await formResponse.json();
+                            console.log('Credit Request Form data:', formData);
+                            
+                            if (formData.workflow_instance) {
+                                document.getElementById('sub-workflow-id').value = formData.workflow_instance;
+                                // Set the default transition code for sub-workflow to CR_TR_5 (from PRD)
+                                document.getElementById('sub-transition-code').value = 'CR_TR_5';
+                                showStatus('Found sub-workflow instance: ' + formData.workflow_instance);
+                            } else {
+                                showStatus('Credit Request Form has no workflow instance', 'error');
+                            }
+                        } else {
+                            showStatus('Credit Application has no Credit Request Form', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching related data:', error);
+                        showStatus('Error finding sub-workflow: ' + error.message, 'error');
+                    }
+                } else {
+                    showStatus('Parent workflow has no object_id', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error fetching parent workflow instance:', error);
+                showStatus(`Error: ${error.message}`, true);
+            }
+        });
+
+        // Fetch sub-workflow instance info
+        document.getElementById('fetch-sub-btn').addEventListener('click', async () => {
+            const subWorkflowId = document.getElementById('sub-workflow-id').value.trim();
+            
+            if (!subWorkflowId) {
+                showStatus('Please enter a sub-workflow instance ID', true);
+                return;
+            }
+            
+            try {
+                showStatus('Fetching sub-workflow instance...');
+                
+                // Fetch workflow instance
+                const response = await fetch(`${BASE_URL}/workflow-instances/${subWorkflowId}/`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                showResponse(data);
+                showStatus('Successfully fetched sub-workflow instance');
+                
+                // The allowed transitions are already in the workflow instance response
+                if (data.allowed_transitions && data.allowed_transitions.length > 0) {
+                    console.log('Available sub-workflow transitions:', data.allowed_transitions);
+                    // Update the transition code input with the first available transition
+                    document.getElementById('sub-transition-code').value = data.allowed_transitions[0].code;
+                } else {
+                    console.log('No available transitions found in sub-workflow response');
+                }
+                
+            } catch (error) {
+                console.error('Error fetching sub-workflow instance:', error);
+                showStatus(`Error: ${error.message}`, true);
+            }
+        });
+
+        // Perform sub-workflow transition
+        document.getElementById('sub-transition-btn').addEventListener('click', async () => {
+            const subWorkflowId = document.getElementById('sub-workflow-id').value.trim();
+            const transitionCode = document.getElementById('sub-transition-code').value.trim();
+            const comments = document.getElementById('comments').value;
+            
+            if (!subWorkflowId || !transitionCode) {
+                showStatus('Please enter both sub-workflow ID and transition code', true);
+                return;
+            }
+            
+            try {
+                showStatus('Performing sub-workflow transition...');
+                
+                const payload = {
+                    transition_code: transitionCode,
+                    comments: comments
+                };
+                
+                console.log('Sub-workflow transition payload:', payload);
+                
+                const response = await fetch(`${BASE_URL}/workflow-instances/${subWorkflowId}/transition/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                showResponse(data);
+                showStatus('Sub-workflow transition successful!');
+                
+            } catch (error) {
+                console.error('Error performing sub-workflow transition:', error);
+                showStatus(`Error: ${error.message}`, true);
+            }
+        });
+
+        // Perform parent workflow transition
+        document.getElementById('parent-transition-btn').addEventListener('click', async () => {
+            const workflowId = document.getElementById('workflow-id').value.trim();
+            const transitionCode = document.getElementById('transition-code').value.trim();
+            const comments = document.getElementById('comments').value;
+            
+            if (!workflowId || !transitionCode) {
+                showStatus('Please enter both parent workflow ID and transition code', true);
+                return;
+            }
+            
+            try {
+                showStatus('Performing parent workflow transition...');
+                
+                const payload = {
+                    transition_code: transitionCode,
+                    comments: comments
+                };
+                
+                console.log('Parent workflow transition payload:', payload);
+                
+                const response = await fetch(`${BASE_URL}/workflow-instances/${workflowId}/transition/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                showResponse(data);
+                showStatus('Parent workflow transition successful!');
+                
+            } catch (error) {
+                console.error('Error performing parent workflow transition:', error);
+                showStatus(`Error: ${error.message}`, true);
+            }
+        });
+
+        // Perform both transitions in sequence
+        document.getElementById('sequence-btn').addEventListener('click', async () => {
+            const subWorkflowId = document.getElementById('sub-workflow-id').value.trim();
+            const parentWorkflowId = document.getElementById('workflow-id').value.trim();
+            const subTransitionCode = document.getElementById('sub-transition-code').value.trim();
+            const parentTransitionCode = document.getElementById('transition-code').value.trim();
+            const comments = document.getElementById('comments').value;
+            
+            if (!subWorkflowId || !parentWorkflowId || !subTransitionCode || !parentTransitionCode) {
+                showStatus('Please enter all workflow IDs and transition codes', true);
+                return;
+            }
+            
+            try {
+                // Step 1: Sub-workflow transition
+                showStatus('Step 1: Performing sub-workflow transition...');
+                
+                const subPayload = {
+                    transition_code: subTransitionCode,
+                    comments: comments
+                };
+                
+                console.log('Sub-workflow transition payload:', subPayload);
+                
+                const subResponse = await fetch(`${BASE_URL}/workflow-instances/${subWorkflowId}/transition/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(subPayload)
+                });
+                
+                if (!subResponse.ok) {
+                    const errorText = await subResponse.text();
+                    console.error('Error response from sub-workflow transition:', errorText);
+                    throw new Error(`HTTP error ${subResponse.status}: ${errorText}`);
+                }
+                
+                const subData = await subResponse.json();
+                showResponse(subData);
+                showStatus('Step 1: Sub-workflow transition successful!');
+                
+                // Step 2: Parent workflow transition
+                showStatus('Step 2: Performing parent workflow transition...');
+                
+                const parentPayload = {
+                    transition_code: parentTransitionCode,
+                    comments: comments
+                };
+                
+                console.log('Parent workflow transition payload:', parentPayload);
+                
+                const parentResponse = await fetch(`${BASE_URL}/workflow-instances/${parentWorkflowId}/transition/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(parentPayload)
+                });
+                
+                if (!parentResponse.ok) {
+                    const errorText = await parentResponse.text();
+                    console.error('Error response from parent workflow transition:', errorText);
+                    throw new Error(`HTTP error ${parentResponse.status}: ${errorText}`);
+                }
+                
+                const parentData = await parentResponse.json();
+                showResponse(parentData);
+                showStatus('Both transitions completed successfully!');
+                
+            } catch (error) {
+                console.error('Error performing transitions:', error);
+                showStatus(`Error: ${error.message}`, true);
+            }
+        });
+    </script>
+</body>
+</html>

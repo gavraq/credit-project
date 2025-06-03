@@ -2,7 +2,7 @@ import api from './api';
 
 export async function login(username, password) {
   // Use SimpleJWT endpoint and response
-  const response = await api.post('/token/', { username, password });
+  const response = await api.post('/api/token/', { username, password });
   
   // Store tokens in localStorage
   localStorage.setItem('jwt', response.data.access);

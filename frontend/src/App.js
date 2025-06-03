@@ -10,12 +10,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LogoutButton from './components/LogoutButton';
 import Typography from '@mui/material/Typography';
 
-
-
 import RequestTrackingDashboard from './components/RequestTrackingDashboard';
-
 import TopNavBar from './components/TopNavBar';
 import CreditRequestForm from './components/CreditRequestForm/index';
+import CreditReviewForm from './components/CreditReviewForm/index';
 
 function Dashboard() {
   return (
@@ -34,7 +32,9 @@ function MainApp() {
         <Routes>
           <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <LoginForm />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/credit-requests/new" element={<ProtectedRoute><CreditRequestForm editMode={false} /></ProtectedRoute>} />
           <Route path="/credit-requests/:id/edit" element={<ProtectedRoute><CreditRequestForm editMode={true} /></ProtectedRoute>} />
+          <Route path="/credit-review/:id" element={<ProtectedRoute><CreditReviewForm /></ProtectedRoute>} />
         </Routes>
       </Router>
     </ThemeProvider>

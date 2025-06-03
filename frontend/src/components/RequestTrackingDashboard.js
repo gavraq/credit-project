@@ -38,7 +38,8 @@ const RequestTrackingDashboard = () => {
       setError(null);
       try {
         const { get } = await import('../services/api');
-        const response = await get('/credit/credit-applications/');
+        const response = await get('/api/credit/credit-applications/');
+        console.log('Fetched credit applications:', response.data);
         setRequests(response.data);
       } catch (err) {
         setError(err.message || 'Failed to fetch requests');
@@ -158,26 +159,42 @@ const RequestTrackingDashboard = () => {
               {filteredRequests.length > 0 ? (
                 filteredRequests.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>{r.id}</TableCell>
-                    <TableCell>{r.title}</TableCell>
+                    <TableCell>{r.reference_number || r.id}</TableCell>
+                    <TableCell>{r.title || 'Untitled Request'}</TableCell>
                     <TableCell>{typeof r.counterparty === 'object' && r.counterparty !== null ? r.counterparty.name : r.counterparty || ''}</TableCell>
                     <TableCell>
-                      <Chip label={r.status} color={statusColors[r.status] || 'default'} size="small" />
+                      <Chip label={r.workflow_state?.name || 'Draft'} color={statusColors[r.workflow_state?.code || 'draft'] || 'default'} size="small" />
                     </TableCell>
-                    <TableCell>{r.submittedBy}</TableCell>
-                    <TableCell>{r.rank}</TableCell>
+                    <TableCell>{r.applicant_name || ''}</TableCell>
+                    <TableCell>{r.rank || ''}</TableCell>
                     <TableCell>
-                      <Chip label={r.priority} color={priorityColors[r.priority] || 'default'} size="small" />
+                      <Chip label={r.priority || 'Medium'} color={priorityColors[r.priority || 'Medium'] || 'default'} size="small" />
                     </TableCell>
-                    <TableCell>{r.submittedDate}</TableCell>
-                    <TableCell>{r.requiredByDate}</TableCell>
+                    <TableCell>{r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : ''}</TableCell>
+                    <TableCell>{r.required_by_date ? new Date(r.required_by_date).toLocaleDateString() : ''}</TableCell>
                     <TableCell>
                       <IconButton size="small" color="primary">
                         <Visibility fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" color="secondary" onClick={() => navigate(`/credit-requests/${r.id}/edit`)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
+                      {r.workflow_state?.code === 'CREDIT_PAPER_CREDIT_REVIEW_PENDING' ? (
+                        <IconButton 
+                          size="small" 
+                          color="secondary" 
+                          onClick={() => navigate(`/credit-review/${r.id}`)}
+                          title="Review Credit Application"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      ) : (
+                        <IconButton 
+                          size="small" 
+                          color="secondary" 
+                          onClick={() => navigate(`/credit-requests/${r.id}/edit`)}
+                          title="Edit Credit Request"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

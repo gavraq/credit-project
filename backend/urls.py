@@ -21,13 +21,15 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from backend.views import ProtectedHelloView
-from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView
+from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView, WorkflowInstanceDetailView, WorkflowInstanceListView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/hello/', ProtectedHelloView.as_view(), name='protected_hello'),
+    path('api/workflow-instances/', WorkflowInstanceListView.as_view(), name='workflow_instance_list'),
+    path('api/workflow-instances/<uuid:pk>/', WorkflowInstanceDetailView.as_view(), name='workflow_instance_detail'),
     path('api/workflow-instances/<uuid:pk>/transition/', WorkflowInstanceTransitionView.as_view(), name='workflow_instance_transition'),
     path('api/workflow-instances/<uuid:pk>/logs/', WorkflowInstanceLogListView.as_view(), name='workflow_instance_logs'),
     path('api/credit/', include('credit_applications.urls')),

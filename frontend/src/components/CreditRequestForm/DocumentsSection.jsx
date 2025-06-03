@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Document uploads section component
-const DocumentsSection = ({ colors, documents, setDocuments }) => {
+const DocumentsSection = ({ colors, documents = [], setDocuments }) => {
   const handleFileChange = (e) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);

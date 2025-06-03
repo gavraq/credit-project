@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Set the base URL for the API (can be set from env var or fallback)
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 // Create an Axios instance
 const api = axios.create({
@@ -72,7 +72,7 @@ api.interceptors.response.use(
         }
         
         // Attempt to refresh the token
-        const response = await axios.post(`${BASE_URL}/token/refresh/`, {
+        const response = await axios.post(`${BASE_URL}/api/token/refresh/`, {
           refresh: refreshToken
         });
         
@@ -112,5 +112,78 @@ export const post = (url, data, config) => api.post(url, data, config);
 export const put = (url, data, config) => api.put(url, data, config);
 export const patch = (url, data, config) => api.patch(url, data, config);
 export const del = (url, config) => api.delete(url, config);
+
+// API functions for credit applications
+export const fetchCreditRequest = async (id) => {
+  try {
+    const response = await get(`/api/credit/credit-applications/${id}/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching credit request:', error);
+    throw error;
+  }
+};
+
+export const submitCreditRequest = async (formData) => {
+  try {
+    const response = await post('/api/credit/credit-applications/', formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting credit request:', error);
+    throw error;
+  }
+};
+
+export const updateCreditRequest = async (id, formData) => {
+  try {
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating credit request:', error);
+    throw error;
+  }
+};
+
+export const submitCreditReview = async (id, formData) => {
+  try {
+    console.log('Submitting credit review with data:', formData);
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting credit review:', error);
+    throw error;
+  }
+};
+
+export const performWorkflowTransition = async (workflowInstanceId, transitionCode, comments = '', systemContext = {}) => {
+  try {
+    console.log(`DEBUG: Performing workflow transition: ${transitionCode} on instance ${workflowInstanceId}`);
+    const payload = {
+      transition_code: transitionCode,
+      comments: comments || ''
+    };
+    
+    if (Object.keys(systemContext).length > 0) {
+      payload.system_context = systemContext;
+    }
+    
+    // Make sure to use the correct API endpoint with the /api prefix
+    const url = `/api/workflow-instances/${workflowInstanceId}/transition/`;
+    console.log(`DEBUG: Making POST request to: ${url} with payload:`, payload);
+    
+    try {
+      const response = await post(url, payload);
+      console.log('DEBUG: Transition response:', response.data);
+      return response.data;
+    } catch (postError) {
+      console.error('DEBUG: Error in transition POST request:', postError);
+      console.error('DEBUG: Error response:', postError.response?.data);
+      throw postError;
+    }
+  } catch (error) {
+    console.error('DEBUG: Error performing workflow transition:', error);
+    throw error;
+  }
+};
 
 export default api;

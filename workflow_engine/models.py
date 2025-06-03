@@ -75,6 +75,56 @@ class WorkflowInstance(models.Model):
                 if user_role_norm in allowed_roles_norm:
                     allowed.append(t)
         return allowed
+        
+    def perform_transition(self, transition_code, user, comments='', system_context=None):
+        """Perform a workflow transition.
+        
+        Args:
+            transition_code: The code of the transition to perform
+            user: The user performing the transition
+            comments: Optional comments about the transition
+            system_context: Optional system context data
+            
+        Returns:
+            The updated workflow instance
+            
+        Raises:
+            ValueError: If the transition is not allowed
+            PermissionError: If the user doesn't have permission to perform the transition
+        """
+        # Find the transition by code
+        try:
+            transition = self.workflow_definition.transitions.get(
+                code=transition_code,
+                from_state=self.current_state
+            )
+        except Transition.DoesNotExist:
+            raise ValueError(f"Transition '{transition_code}' is not valid from current state '{self.current_state.code}'")
+        
+        # Check if user has permission to perform this transition
+        allowed_transitions = self.get_allowed_transitions(user)
+        if transition not in allowed_transitions:
+            raise PermissionError(f"User does not have permission to perform transition '{transition_code}'")
+        
+        # Create a log entry for this transition
+        StateLog.objects.create(
+            workflow_instance=self,
+            transition=transition,
+            from_state=self.current_state,
+            to_state=transition.to_state,
+            performed_by=user,
+            comments=comments,
+            system_context=system_context or {}
+        )
+        
+        # Update the current state
+        old_state = self.current_state
+        self.current_state = transition.to_state
+        self.save(update_fields=['current_state', 'updated_at'])
+        
+        print(f"Workflow transition: {old_state.code} -> {self.current_state.code} via {transition_code}")
+        
+        return self
 
 class StateLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

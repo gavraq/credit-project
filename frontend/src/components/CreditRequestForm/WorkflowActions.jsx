@@ -2,7 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
-const WorkflowActions = ({ onSubmit, formData, formRef, creditApplicationId }) => {
+const WorkflowActions = ({ 
+  onSubmit, 
+  formRef, 
+  workflowInstance,
+  currentState,
+  allowedTransitions = [],
+  transitionLoading,
+  transitionError,
+  handleTransition,
+  colors
+}) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [workflowState, setWorkflowState] = useState(null);
@@ -11,58 +21,15 @@ const WorkflowActions = ({ onSubmit, formData, formRef, creditApplicationId }) =
   const params = useParams();
   const location = useLocation();
   
-  // Extract credit application ID from various sources
-  const getCreditApplicationId = () => {
-    // First, check if it was passed as a prop
-    if (creditApplicationId) {
-      console.log(`Using creditApplicationId from props: ${creditApplicationId}`);
-      return creditApplicationId;
-    }
-    
-    // Second, check if it's in the URL params
-    if (params.id) {
-      console.log(`Using creditApplicationId from URL params: ${params.id}`);
-      return params.id;
-    }
-    
-    // Third, try to extract from the URL path
-    const pathSegments = location.pathname.split('/');
-    const idFromPath = pathSegments[pathSegments.length - 1];
-    if (idFromPath && idFromPath.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      console.log(`Using creditApplicationId from URL path: ${idFromPath}`);
-      return idFromPath;
-    }
-    
-    console.error('No credit application ID available');
-    return null;
-  };
-  
+  // Use the provided workflow state and transitions
   useEffect(() => {
-    const fetchWorkflowState = async () => {
-      const id = getCreditApplicationId();
-      if (!id) {
-        console.error('Cannot fetch workflow state: No credit application ID');
-        return;
-      }
-      
-      try {
-        const response = await axios.get(`/api/credit/credit-applications/${id}/`);
-        const { workflow_state, available_transitions, workflow_instance } = response.data;
-        
-        console.log('Fetched workflow state:', workflow_state);
-        console.log('Available transitions:', available_transitions);
-        console.log('Workflow instance ID:', workflow_instance);
-        
-        setWorkflowState(workflow_state);
-        setAvailableTransitions(available_transitions || []);
-      } catch (err) {
-        console.error('Error fetching workflow state:', err);
-        setError('Failed to fetch workflow state');
-      }
-    };
-    
-    fetchWorkflowState();
-  }, []);
+    if (currentState) {
+      setWorkflowState(currentState);
+    }
+    if (allowedTransitions && allowedTransitions.length > 0) {
+      setAvailableTransitions(allowedTransitions);
+    }
+  }, [currentState, allowedTransitions]);
   
   const handleSubmitForm = async (event) => {
     if (event) {
@@ -73,171 +40,147 @@ const WorkflowActions = ({ onSubmit, formData, formRef, creditApplicationId }) =
     setError(null);
     
     try {
-      // Get the credit application ID
-      const id = getCreditApplicationId();
-      if (!id) {
-        throw new Error('No credit application ID available');
-      }
+      console.log('Submitting form for review');
       
-      console.log('Submitting form with credit application ID:', id);
-      
-      // First, save the form data
+      // First, save the form data using the provided onSubmit handler
       if (onSubmit) {
         console.log('Calling onSubmit to save form data');
-        await onSubmit(event);
+        const submitResult = await onSubmit(event);
+        if (!submitResult) {
+          throw new Error('Form submission failed');
+        }
       } else if (formRef && formRef.current) {
         console.log('Submitting form via formRef');
         formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
       } else {
         console.warn('No onSubmit handler or formRef provided');
+        throw new Error('No way to submit the form');
       }
       
-      // Now, fetch the credit application to get the workflow instance ID
-      console.log(`Fetching credit application ${id} to get workflow instance ID`);
-      const creditAppResponse = await axios.get(`/api/credit/credit-applications/${id}/`);
-      const { workflow_instance: instanceId } = creditAppResponse.data;
-      
-      if (!instanceId) {
-        throw new Error('Credit application has no workflow instance');
+      // Check if we have a workflow instance
+      if (!workflowInstance) {
+        throw new Error('No workflow instance available');
       }
       
-      console.log(`Found workflow instance: ${instanceId}`);
+      const instanceId = typeof workflowInstance === 'object' ? 
+        workflowInstance.id : workflowInstance;
       
-      // Get the JWT token from local storage
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
+      console.log(`Using workflow instance: ${instanceId}`);
       
-      // Set up headers for the API calls
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
-      
-      // Check if there's a credit request form with a workflow instance
-      console.log('Checking for credit request form workflow instance');
-      let creditRequestFormWorkflowId = null;
-      
-      try {
-        // First, get the credit request form ID
-        if (creditAppResponse.data.credit_request_form) {
-          const creditRequestFormId = creditAppResponse.data.credit_request_form;
-          console.log(`Found credit request form ID: ${creditRequestFormId}`);
-          
-          // Then, fetch the credit request form to get its workflow instance
-          const formResponse = await axios.get(`/api/credit/credit-request-forms/${creditRequestFormId}/`);
-          
-          if (formResponse.data.workflow_instance) {
-            creditRequestFormWorkflowId = formResponse.data.workflow_instance;
-            console.log(`Found credit request form workflow instance: ${creditRequestFormWorkflowId}`);
-          } else {
-            console.warn('Credit request form has no workflow instance');
-          }
-        } else {
-          console.warn('Credit application has no credit request form');
-        }
-      } catch (formError) {
-        console.error('Error fetching credit request form:', formError);
-        // Continue with parent process transition even if sub-process fails
-      }
-      
-      // If we have the credit request form workflow ID, transition it
-      if (creditRequestFormWorkflowId) {
-        console.log(`Found sub-process workflow instance: ${creditRequestFormWorkflowId}`);
-        
-        // Transition the sub-process workflow
-        console.log('Transitioning sub-process workflow with code CR_TR_5');
-        const subProcessPayload = {
-          transition_code: 'CR_TR_5',
-          comments: 'Submitting credit request form'
-        };
-        
-        // Make the direct API call for the sub-process
-        const subProcessUrl = `/api/workflow-instances/${creditRequestFormWorkflowId}/transition/`;
-        console.log(`Making POST request to: ${subProcessUrl} with payload:`, subProcessPayload);
-        
-        try {
-          const subProcessResponse = await axios.post(subProcessUrl, subProcessPayload, { headers });
-          console.log('Sub-process transition response:', subProcessResponse.data);
-        } catch (subProcessError) {
-          console.error('Error transitioning sub-process:', subProcessError);
-          console.error('Error details:', subProcessError.response?.data || 'No response data');
-        }
-      }
-      
-      // Now transition the parent process
-      console.log('Transitioning parent process with code PP_TR_1');
-      const parentProcessPayload = {
+      // Perform the workflow transition
+      console.log('Transitioning workflow with code PP_TR_1');
+      const transitionPayload = {
         transition_code: 'PP_TR_1',
         comments: 'Moving to credit review pending'
       };
       
-      // Make the direct API call for the parent process
-      const parentProcessUrl = `/api/workflow-instances/${instanceId}/transition/`;
-      console.log(`Making POST request to: ${parentProcessUrl} with payload:`, parentProcessPayload);
+      const { post } = await import('../../services/api');
+      const transitionUrl = `/api/workflow-instances/${instanceId}/transition/`;
+      console.log(`Making POST request to: ${transitionUrl} with payload:`, transitionPayload);
       
-      try {
-        const parentProcessResponse = await axios.post(parentProcessUrl, parentProcessPayload, { headers });
-        console.log('Parent process transition response:', parentProcessResponse.data);
-        alert('Credit request submitted for review successfully!');
-        navigate('/');
-      } catch (parentProcessError) {
-        console.error('Error transitioning parent process:', parentProcessError);
-        console.error('Error details:', parentProcessError.response?.data || 'No response data');
-        alert('Credit request saved but parent workflow transition failed: ' + 
-              (parentProcessError.response?.data?.detail || parentProcessError.message));
-        navigate('/');
-      }
+      const transitionResponse = await post(transitionUrl, transitionPayload);
+      console.log('Transition response:', transitionResponse.data);
+      
+      // Navigate to dashboard without alert
+      navigate('/');
     } catch (error) {
-      console.error('Error in workflow transitions:', error);
+      console.error('Error submitting form for review:', error);
+      console.error('Error details:', error.response?.data || 'No response data');
       setError(`Error: ${error.message}`);
+    } finally {
       setLoading(false);
     }
   };
   
   const handleSaveAsDraft = async (event) => {
+    console.log('handleSaveAsDraft called with event:', event);
     if (event) {
       event.preventDefault();
     }
+    console.log('Attempting to save form as draft');
+    setLoading(true);
+    setError(null);
     
     try {
       if (onSubmit) {
-        await onSubmit(event);
-        alert('Credit request saved as draft');
+        console.log('Using onSubmit handler to save form');
+        const submitResult = await onSubmit(event);
+        console.log('Form saved successfully via onSubmit');
         navigate('/');
       } else if (formRef && formRef.current) {
+        console.log('Using formRef to trigger form submission');
         formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-        alert('Credit request saved as draft');
+        console.log('Form submitted via formRef');
         navigate('/');
       } else {
-        console.warn('No onSubmit handler or formRef provided');
+        console.error('No onSubmit handler or formRef provided - cannot save form');
+        throw new Error('No way to submit the form');
       }
     } catch (error) {
       console.error('Error saving as draft:', error);
+      console.error('Error details:', error.response?.data || 'No response data');
       setError(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+      console.log('handleSaveAsDraft completed');
     }
   };
   
   return (
-    <div style={{ marginTop: '20px' }}>
-      {error && <div style={{ padding: '10px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', marginBottom: '15px' }}>{error}</div>}
+    <div style={{ 
+      marginTop: '20px', 
+      padding: '15px', 
+      border: `1px solid ${colors?.border || '#ddd'}`, 
+      borderRadius: '5px', 
+      backgroundColor: colors?.background || '#f9f9f9' 
+    }}>
+      <h3 style={{ marginTop: 0, color: colors?.text || '#333' }}>Form Actions</h3>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+      {/* Show any errors from this component */}
+      {error && (
+        <div style={{ color: 'red', marginBottom: '10px' }}>
+          {error}
+        </div>
+      )}
+      
+      {/* Show any errors from parent component */}
+      {transitionError && (
+        <div style={{ color: 'red', marginBottom: '10px' }}>
+          {transitionError}
+        </div>
+      )}
+      
+      <div style={{ display: 'flex', gap: '10px' }}>
         <button 
-          style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.65 : 1 }}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: colors?.secondaryButton || '#6c757d', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px', 
+            cursor: (loading || transitionLoading) ? 'not-allowed' : 'pointer', 
+            opacity: (loading || transitionLoading) ? 0.65 : 1 
+          }}
           onClick={handleSaveAsDraft} 
-          disabled={loading}
+          disabled={loading || transitionLoading}
         >
-          Save as Draft
+          {(loading || transitionLoading) ? 'Saving...' : 'Save as Draft'}
         </button>
         
         <button 
-          style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.65 : 1 }}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: colors?.primaryButton || '#007bff', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px', 
+            cursor: (loading || transitionLoading) ? 'not-allowed' : 'pointer', 
+            opacity: (loading || transitionLoading) ? 0.65 : 1 
+          }}
           onClick={handleSubmitForm} 
-          disabled={loading}
+          disabled={loading || transitionLoading}
         >
-          {loading ? 'Submitting...' : 'Submit for Review'}
+          {(loading || transitionLoading) ? 'Submitting...' : 'Submit for Review'}
         </button>
       </div>
     </div>
