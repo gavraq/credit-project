@@ -20,6 +20,7 @@ const WorkflowActions = ({
   const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();
+  console.log('WorkflowActions rendered/updated. Props received - workflowInstance:', workflowInstance, 'currentState:', currentState, 'allowedTransitions:', allowedTransitions);
   
   // Use the provided workflow state and transitions
   useEffect(() => {
@@ -58,6 +59,7 @@ const WorkflowActions = ({
       }
       
       // Check if we have a workflow instance
+      console.log('WorkflowActions.handleSubmitForm: Checking workflowInstance prop:', workflowInstance);
       if (!workflowInstance) {
         throw new Error('No workflow instance available');
       }

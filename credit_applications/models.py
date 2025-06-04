@@ -173,7 +173,7 @@ class CreditRequestForm(models.Model):
 
 class CreditReviewForm(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    credit_application = models.ForeignKey(CreditApplication, on_delete=models.CASCADE, related_name='credit_review_forms')
+    credit_application = models.OneToOneField(CreditApplication, on_delete=models.CASCADE, related_name='credit_review_form')
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_review_forms')
     form_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -181,7 +181,7 @@ class CreditReviewForm(models.Model):
 
 class BusinessSponsorshipForm(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    credit_application = models.ForeignKey(CreditApplication, on_delete=models.CASCADE, related_name='business_sponsorship_forms')
+    credit_application = models.OneToOneField(CreditApplication, on_delete=models.CASCADE, related_name='business_sponsorship_form')
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='business_sponsorship_forms')
     form_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -189,7 +189,7 @@ class BusinessSponsorshipForm(models.Model):
 
 class LegalReviewForm(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    credit_application = models.ForeignKey(CreditApplication, on_delete=models.CASCADE, related_name='legal_review_forms')
+    credit_application = models.OneToOneField(CreditApplication, on_delete=models.CASCADE, related_name='legal_review_form')
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='legal_review_forms')
     form_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -197,7 +197,7 @@ class LegalReviewForm(models.Model):
 
 class CreditQuestionnaireForm(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    credit_application = models.ForeignKey(CreditApplication, on_delete=models.CASCADE, related_name='credit_questionnaire_forms')
+    credit_application = models.OneToOneField(CreditApplication, on_delete=models.CASCADE, related_name='credit_questionnaire_form')
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_questionnaire_forms')
     form_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

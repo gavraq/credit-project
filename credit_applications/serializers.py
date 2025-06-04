@@ -1,5 +1,6 @@
+import uuid
 from rest_framework import serializers
-from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm
+from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm
 
 class LimitTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,8 +18,18 @@ class LimitRequestSerializer(serializers.ModelSerializer):
         queryset=LimitType.objects.all(),
         source='limit_type',
         write_only=True,
-        required=False # in case null allowed
+        required=False, # Allows limit_type_id to be omitted if not applicable
+        allow_null=True   # Allows limit_type_id to be explicitly null if needed
     )
+    # Explicitly define credit_application to allow it to be initially absent
+    # during the creation of a new CreditApplication with nested limit requests.
+    # The actual linking happens in CreditApplicationSerializer.create().
+    credit_application = serializers.PrimaryKeyRelatedField(
+        queryset=CreditApplication.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = LimitRequest
         fields = [
@@ -48,7 +59,26 @@ class CreditRequestFormSerializer(serializers.ModelSerializer):
 class CreditReviewFormSerializer(serializers.ModelSerializer):
     class Meta:
         model = CreditReviewForm
-        exclude = ['credit_application', 'workflow_instance', 'form_data']
+        fields = ['id', 'form_data', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class BusinessSponsorshipFormSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessSponsorshipForm
+        fields = ['id', 'form_data', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class LegalReviewFormSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LegalReviewForm
+        fields = ['id', 'form_data', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class CreditQuestionnaireFormSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CreditQuestionnaireForm
+        fields = ['id', 'form_data', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class CreditApplicationSerializer(serializers.ModelSerializer):
     counterparty = CounterpartySerializer(read_only=True)
@@ -63,8 +93,11 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
     workflow_instance_id = serializers.UUIDField(source='workflow_instance.id', read_only=True)
     workflow_state = serializers.SerializerMethodField(read_only=True)
     available_transitions = serializers.SerializerMethodField(read_only=True)
-    credit_request_form = CreditRequestFormSerializer(required=False)
-    credit_review_form = CreditReviewFormSerializer(required=False)
+    credit_request_form = CreditRequestFormSerializer(required=False, allow_null=True)
+    credit_review_form = CreditReviewFormSerializer(required=False, allow_null=True)
+    business_sponsorship_form = BusinessSponsorshipFormSerializer(required=False, allow_null=True)
+    legal_review_form = LegalReviewFormSerializer(required=False, allow_null=True)
+    credit_questionnaire_form = CreditQuestionnaireFormSerializer(required=False, allow_null=True)
     
     def validate_priority(self, value):
         """Normalize priority value to ensure proper capitalization."""
@@ -84,237 +117,230 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             'description', 'priority', 'required_by_date', 'applicant_name',
             'created_at', 'updated_at', 'limit_requests', 'workflow_instance_id', 
             'workflow_state', 'available_transitions', 'credit_request_form',
-            'credit_review_form'
+            'credit_review_form', 'business_sponsorship_form', 'legal_review_form', 'credit_questionnaire_form'
         ]
 
     def create(self, validated_data):
-        limits_data = validated_data.pop('limit_requests', [])
+        # Pop other form data first from validated_data as they might be fine with current nested handling
+        # or might need similar treatment if they also have strict parent FK requirements.
+        # For now, focusing on limit_requests as it's the reported issue.
         credit_request_form_data = validated_data.pop('credit_request_form', None)
         credit_review_form_data = validated_data.pop('credit_review_form', None)
+        business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
+        legal_review_form_data = validated_data.pop('legal_review_form', None)
+        credit_questionnaire_form_data = validated_data.pop('credit_questionnaire_form', None)
+
+        # Retrieve raw limit_requests data from initial_data because validated_data.pop('limit_requests')
+        # would only work if nested validation passed, which it isn't for credit_application.
+        # We also remove 'limit_requests' from validated_data if it's there to prevent super().create() from processing it.
+        raw_limits_data = self.initial_data.get('limit_requests', [])
+        validated_data.pop('limit_requests', None) # Ensure super().create doesn't see it
         
-        # Create the credit application
+        # Create the credit application instance first
         credit_app = super().create(validated_data)
         
-        # Create limit requests
-        # 'limits_data' is correctly defined at the start of the 'create' method as: 
-        # limits_data = validated_data.pop('limit_requests', [])
-        for limit_data_item in limits_data:
-            LimitRequest.objects.create(credit_application=credit_app, **limit_data_item)
+        # Now, create limit requests using the raw data and the created credit_app instance
+        if raw_limits_data:
+            for i, lr_raw_data in enumerate(raw_limits_data):
+                try:
+                    limit_type_id_from_raw = lr_raw_data.get('limit_type_id')
+                    
+                    if not limit_type_id_from_raw:
+                        continue
+
+                    limit_request_payload_for_create = {
+                        'credit_application': credit_app.id,
+                        'limit_type_id': limit_type_id_from_raw,
+                        'existing_amount': lr_raw_data.get('existing_amount'),
+                        'existing_tenor': lr_raw_data.get('existing_tenor'),
+                        'proposed_amount': lr_raw_data.get('proposed_amount'),
+                        'proposed_tenor': lr_raw_data.get('proposed_tenor'),
+                        'comments': lr_raw_data.get('comments', '')
+                    }
+                    
+                    temp_lr_serializer = LimitRequestSerializer(data=limit_request_payload_for_create)
+                    if temp_lr_serializer.is_valid(raise_exception=True):
+                        temp_lr_serializer.save()
+                except Exception as e_create_limit:
+                    continue
         
         # Create credit request form if data provided
         if credit_request_form_data:
             CreditRequestForm.objects.create(credit_application=credit_app, **credit_request_form_data)
         else:
-            # Always create an empty credit request form to ensure one-to-one relationship
             CreditRequestForm.objects.create(credit_application=credit_app)
         
         # Create credit review form if data provided
         if credit_review_form_data:
             CreditReviewForm.objects.create(credit_application=credit_app, **credit_review_form_data)
+
+        if business_sponsorship_form_data:
+            BusinessSponsorshipForm.objects.create(credit_application=credit_app, **business_sponsorship_form_data)
+
+        if legal_review_form_data:
+            LegalReviewForm.objects.create(credit_application=credit_app, **legal_review_form_data)
+
+        if credit_questionnaire_form_data:
+            CreditQuestionnaireForm.objects.create(credit_application=credit_app, **credit_questionnaire_form_data)
             
         return credit_app
 
     def update(self, instance, validated_data):
-        import json
-        print(f"\n\nUPDATE SERIALIZER - initial_data: {json.dumps(self.initial_data, indent=2, default=str)}")
-        print(f"UPDATE SERIALIZER - validated_data (before pop): {json.dumps(validated_data, indent=2, default=str)}\n")
-
         credit_request_form_data = validated_data.pop('credit_request_form', None)
+        credit_review_form_data = validated_data.pop('credit_review_form', None) # Already popped in current version, but ensure it's handled
+        business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
+        legal_review_form_data = validated_data.pop('legal_review_form', None)
+        credit_questionnaire_form_data = validated_data.pop('credit_questionnaire_form', None)
         limit_requests_data = validated_data.pop('limit_requests', [])
 
-        print(f"Extracted credit_request_form_data: {json.dumps(credit_request_form_data, indent=2, default=str)}")
-        print(f"Extracted limit_requests_data: {json.dumps(limit_requests_data, indent=2, default=str)}")
-        print(f"UPDATE SERIALIZER - validated_data (AFTER pop, before super().update filtering): {json.dumps(validated_data, indent=2, default=str)}\n")
-
-        # Filter validated_data to only include fields belonging to the CreditApplication model
         model_field_names = {f.name for f in instance._meta.fields}
         parent_validated_data = {
             key: value for key, value in validated_data.items() if key in model_field_names
         }
-        # Note: This simple filtering might not correctly handle all field types or relationships 
-        # (e.g., m2m if not handled by name, or custom field names via 'source').
-        # For this case, it should be okay for direct fields.
-
-        print(f"UPDATE SERIALIZER - parent_validated_data (for super().update): {json.dumps(parent_validated_data, indent=2, default=str)}\n")
-
-        # Update the parent instance with its direct fields using the filtered data
+        
         super().update(instance, parent_validated_data)
         instance.refresh_from_db() # Refresh the instance from the database
-        print(f"CreditApplication instance {instance.pk} refreshed from DB.")
 
-        # Handle CreditRequestForm update (OneToOne relationship)
         if credit_request_form_data:
             try:
-                # Access via the related_name from the refreshed CreditApplication instance
-                crf_instance = instance.credit_request_form  # Corrected related name
-                print(f"Found existing CreditRequestForm via instance.credit_request_form (ID: {crf_instance.pk}) for CreditApplication: {instance.pk}")
+                crf_instance = instance.credit_request_form  
+
             except CreditRequestForm.DoesNotExist:
                 crf_instance = None
-                print(f"CreditRequestForm.DoesNotExist when accessing instance.credit_request_form for CA {instance.pk} (after refresh). Will attempt to create.")
-            except AttributeError: # Should ideally not be hit now if related_name is correct and instance refreshed
+
+            except AttributeError: 
                 crf_instance = None 
-                print(f"AttributeError when accessing instance.credit_request_form for CA {instance.pk}. This is unexpected. Will attempt to create.")
+
 
             if crf_instance:
                 crf_serializer = CreditRequestFormSerializer(crf_instance, data=credit_request_form_data, partial=True)
-                crf_serializer.is_valid(raise_exception=True)
-                crf_serializer.save()
-                print(f"Successfully updated CreditRequestForm: {crf_instance.id}")
+                if crf_serializer.is_valid(raise_exception=True):
+                    crf_serializer.save()
+
             else:
-                # This implies the CreditRequestForm was not created with the CreditApplication.
-                # This could be an issue with the initial creation logic (e.g., in the view's workflow setup).
-                # For an update, we'd typically expect it to exist.
-                print(f"WARNING: CreditRequestForm (instance.creditrequestform) not found for CreditApplication {instance.id} during update. Attempting to create.")
-                # Ensure 'credit_application' is not in credit_request_form_data as it's read_only in serializer
-                # and will be provided via save(credit_application=instance)
                 credit_request_form_data.pop('credit_application', None) 
                 crf_create_serializer = CreditRequestFormSerializer(data=credit_request_form_data)
                 if crf_create_serializer.is_valid(raise_exception=True):
                     crf_create_serializer.save(credit_application=instance) # Associate with parent
-                    print(f"Successfully CREATED missing CreditRequestForm for CreditApplication {instance.id}")
 
-        # Handle LimitRequests update (ForeignKey relationship from LimitRequest to CreditApplication)
-        # Only process if 'limit_requests' was part of the incoming PATCH data.
+
         if 'limit_requests' in self.initial_data:
-            print(f"Processing limit_requests update. Number of items from payload: {len(limit_requests_data)}")
-            # Simple strategy: Delete all existing and recreate from payload
+
             instance.limit_requests.all().delete()
-            for lr_data in limit_requests_data:
-                # 'credit_application' is read_only in CreditApplicationLimitRequestSerializer,
-                # so pass it to save() method.
-                lr_data.pop('credit_application', None) # Ensure it's not in lr_data if accidentally included
-                lr_serializer = LimitRequestSerializer(data=lr_data)
-                if lr_serializer.is_valid(raise_exception=True):
-                    lr_serializer.save(credit_application=instance)
-                else:
-                    print(f"Error validating limit request data: {lr_serializer.errors}")
-            print(f"Recreated {len(limit_requests_data)} limit requests for CreditApplication {instance.id}")
-        
+            for i, lr_data in enumerate(limit_requests_data):
+                try:
+                    limit_type_id = None
+                    limit_type_name = None
+                    
+                    if 'limit_type_id' in lr_data and lr_data['limit_type_id']:
+                        limit_type_id = lr_data['limit_type_id']
+                    
+                    if not limit_type_id and 'limit_type' in lr_data and lr_data['limit_type']:
+                        limit_type_value = lr_data['limit_type']
+                        if isinstance(limit_type_value, LimitType):
+                            limit_type_id = limit_type_value.id
+                        elif isinstance(limit_type_value, str): 
+                            try:
+                                uuid.UUID(str(limit_type_value)) 
+                                limit_type_id = str(limit_type_value)
+                            except ValueError:
+                                limit_type_name = limit_type_value 
+                        elif isinstance(limit_type_value, dict):
+                            if 'id' in limit_type_value and limit_type_value['id']:
+                                limit_type_id = limit_type_value['id']
+                            elif 'name' in limit_type_value and limit_type_value['name']:
+                                limit_type_name = limit_type_value['name']
+                    
+                    if not limit_type_id and limit_type_name:
+                        try:
+                            limit_type_obj = LimitType.objects.filter(name__iexact=limit_type_name).first()
+                            if limit_type_obj:
+                                limit_type_id = limit_type_obj.id
+                            else:
+                                continue 
+                        except Exception as e_lookup:
+                            continue
+                    
+                    if not limit_type_id:
+                        continue
+
+                    limit_request_payload = {
+                        'credit_application': instance.id,
+                        'limit_type_id': limit_type_id,
+                        'existing_amount': lr_data.get('existing_amount'),
+                        'existing_tenor': lr_data.get('existing_tenor'),
+                        'proposed_amount': lr_data.get('proposed_amount'),
+                        'proposed_tenor': lr_data.get('proposed_tenor'),
+                        'comments': lr_data.get('comments', '')
+                    }
+                    
+                    # 6. Use LimitRequestSerializer to create the object
+                    print(f"    Attempting to create LimitRequest with payload: {limit_request_payload}")
+                    temp_lr_serializer = LimitRequestSerializer(data=limit_request_payload)
+                    if temp_lr_serializer.is_valid(raise_exception=True):
+                        temp_lr_serializer.save() # Save without arguments as credit_application is in data
+                        print(f"    Successfully created LimitRequest {i+1} with ID: {temp_lr_serializer.instance.id}")
+
+                except Exception as e_outer_loop:
+                    print(f"  ERROR processing limit request item {i+1} ({lr_data}): {e_outer_loop}")
+                    # import traceback # Uncomment for deeper debugging if needed
+                    # traceback.print_exc()
+                    continue # Continue to next limit item if one fails
         # Handle credit review form data if provided
-        credit_review_form_data = validated_data.pop('credit_review_form', None)
-        if credit_review_form_data:
-            try:
-                # Get or create the credit review form
-                credit_review_form, created = CreditReviewForm.objects.get_or_create(
-                    credit_application=instance
-                )
-                
-                # Update the credit review form fields
-                for attr, value in credit_review_form_data.items():
-                    setattr(credit_review_form, attr, value)
-                
-                credit_review_form.save()
-                print(f"Credit review form {'created' if created else 'updated'}")
-            except Exception as e:
-                print(f"ERROR handling credit review form: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        # Handle limit requests
-        # 'limit_requests_data' is defined earlier in the 'update' method by:
-        # limit_requests_data = validated_data.pop('limit_requests', [])
-        if limit_requests_data: # Corrected variable name
-            try:
-                # Log existing limits before deletion
-                existing_limits = list(instance.limit_requests.all())
-                print(f"Existing limits before deletion: {len(existing_limits)}")
-                for i, limit in enumerate(existing_limits):
-                    print(f"  Limit {i+1}: type={limit.limit_type_id}, existing_amount={limit.existing_amount}, proposed_amount={limit.proposed_amount}")
-                
-                # Remove all old limits and recreate
-                instance.limit_requests.all().delete()
-                print(f"Creating {len(limit_requests_data)} new limit requests") # Corrected variable name
-                
-                # Create new limit requests
-                from .models import LimitRequest # This import might be redundant if already at top-level
-                for i, limit_data_item in enumerate(limit_requests_data): # Corrected variable name and loop var
-                    try:
-                        print(f"  Processing limit {i+1}: {json.dumps(limit_data_item, indent=2, default=str)}") # Corrected loop var
-                        
-                        # Direct approach to handle the limit type
-                        limit_type_id = None
-                        limit_type_name = None
-                        
-                        # First, try to get the limit type ID directly
-                        if 'limit_type_id' in limit_data:
-                            limit_type_id = limit_data['limit_type_id']
-                            print(f"  Found limit_type_id directly: {limit_type_id}")
-                        
-                        # If no ID, try to get the name
-                        if not limit_type_id and 'limit_type' in limit_data:
-                            # The limit_type could be a string name, a UUID string, or an object
-                            if isinstance(limit_data['limit_type'], str):
-                                limit_type_name = limit_data['limit_type']
-                                print(f"  Found limit_type as string: {limit_type_name}")
-                            elif isinstance(limit_data['limit_type'], dict) and 'id' in limit_data['limit_type']:
-                                limit_type_id = limit_data['limit_type']['id']
-                                print(f"  Found limit_type_id from object: {limit_type_id}")
-                            elif isinstance(limit_data['limit_type'], dict) and 'name' in limit_data['limit_type']:
-                                limit_type_name = limit_data['limit_type']['name']
-                                print(f"  Found limit_type_name from object: {limit_type_name}")
-                        
-                        # If we have a name but no ID, look up the ID by name
-                        if not limit_type_id and limit_type_name:
-                            try:
-                                # First try to parse as UUID
-                                try:
-                                    import uuid
-                                    uuid.UUID(limit_type_name)
-                                    limit_type_id = limit_type_name
-                                    print(f"  Parsed limit_type_name as UUID: {limit_type_id}")
-                                except ValueError:
-                                    # If not a UUID, look up by name
-                                    from .models import LimitType
-                                    limit_type_obj = LimitType.objects.filter(name=limit_type_name).first()
-                                    if limit_type_obj:
-                                        limit_type_id = limit_type_obj.id
-                                        print(f"  Found limit_type_id {limit_type_id} for name '{limit_type_name}'")
-                                    else:
-                                        print(f"  ERROR: Could not find limit type with name '{limit_type_name}'")
-                            except Exception as e:
-                                print(f"  ERROR looking up limit type by name: {e}")
-                        
-                        # If we still don't have an ID, try to find the first limit type
-                        if not limit_type_id:
-                            try:
-                                from .models import LimitType
-                                first_limit_type = LimitType.objects.first()
-                                if first_limit_type:
-                                    limit_type_id = first_limit_type.id
-                                    print(f"  FALLBACK: Using first available limit type: {first_limit_type.name} (ID: {limit_type_id})")
-                                else:
-                                    print(f"  ERROR: No limit types found in the database")
-                                    continue
-                            except Exception as e:
-                                print(f"  ERROR finding first limit type: {e}")
-                                continue
-                            
-                        # Create the limit request with explicit field mapping
-                        limit = LimitRequest(
-                            credit_application=instance,
-                            limit_type_id=limit_type_id,  # Use the extracted limit_type_id
-                            existing_amount=limit_data.get('existing_amount', 0),
-                            existing_tenor=limit_data.get('existing_tenor', 0),
-                            proposed_amount=limit_data.get('proposed_amount', 0),
-                            proposed_tenor=limit_data.get('proposed_tenor', 0),
-                            comments=limit_data.get('comments', '')
-                        )
-                        limit.save()
-                        print(f"  Successfully created limit {i+1} with ID: {limit.id}")
-                    except Exception as e:
-                        print(f"  ERROR creating limit request {i+1}: {e}")
-                        import traceback
-                        traceback.print_exc()
-                
-                # Verify limits were created
-                new_limits = list(instance.limit_requests.all())
-                print(f"Limits after recreation: {len(new_limits)}")
-                for i, limit in enumerate(new_limits):
-                    print(f"  Limit {i+1}: ID={limit.id}, type={limit.limit_type_id}, existing_amount={limit.existing_amount}, proposed_amount={limit.proposed_amount}")
-            except Exception as e:
-                print(f"ERROR handling limit requests: {e}")
-                import traceback
-                traceback.print_exc()
+        if 'credit_review_form' in self.initial_data: 
+            credit_review_form_data_local = validated_data.get('credit_review_form', self.initial_data.get('credit_review_form'))
+            if credit_review_form_data_local: 
+                try:
+                    credit_review_form_instance, created = CreditReviewForm.objects.get_or_create(
+                        credit_application=instance
+                    )
+                    crf_serializer = CreditReviewFormSerializer(credit_review_form_instance, data=credit_review_form_data_local, partial=True)
+                    if crf_serializer.is_valid(raise_exception=True):
+                        crf_serializer.save()
+                except Exception as e:
+                    print(f"Error updating/creating credit review form: {e}")
+
+        # Handle business sponsorship form data if provided
+        if 'business_sponsorship_form' in self.initial_data:
+            business_sponsorship_form_data_local = validated_data.get('business_sponsorship_form', self.initial_data.get('business_sponsorship_form'))
+            if business_sponsorship_form_data_local:
+                try:
+                    bs_form_instance, created = BusinessSponsorshipForm.objects.get_or_create(
+                        credit_application=instance
+                    )
+                    bsf_serializer = BusinessSponsorshipFormSerializer(bs_form_instance, data=business_sponsorship_form_data_local, partial=True)
+                    if bsf_serializer.is_valid(raise_exception=True):
+                        bsf_serializer.save()
+                except Exception as e:
+                    print(f"Error updating/creating business sponsorship form: {e}")
+
+        # Handle legal review form data if provided
+        if 'legal_review_form' in self.initial_data:
+            legal_review_form_data_local = validated_data.get('legal_review_form', self.initial_data.get('legal_review_form'))
+            if legal_review_form_data_local:
+                try:
+                    lr_form_instance, created = LegalReviewForm.objects.get_or_create(
+                        credit_application=instance
+                    )
+                    lrf_serializer = LegalReviewFormSerializer(lr_form_instance, data=legal_review_form_data_local, partial=True)
+                    if lrf_serializer.is_valid(raise_exception=True):
+                        lrf_serializer.save()
+                except Exception as e:
+                    print(f"Error updating/creating legal review form: {e}")
+
+        # Handle credit questionnaire form data if provided
+        if 'credit_questionnaire_form' in self.initial_data:
+            credit_questionnaire_form_data_local = validated_data.get('credit_questionnaire_form', self.initial_data.get('credit_questionnaire_form'))
+            if credit_questionnaire_form_data_local:
+                try:
+                    cq_form_instance, created = CreditQuestionnaireForm.objects.get_or_create(
+                        credit_application=instance
+                    )
+                    cqf_serializer = CreditQuestionnaireFormSerializer(cq_form_instance, data=credit_questionnaire_form_data_local, partial=True)
+                    if cqf_serializer.is_valid(raise_exception=True):
+                        cqf_serializer.save()
+                except Exception as e:
+                    print(f"Error updating/creating credit questionnaire form: {e}")
             
         return instance
 

@@ -206,7 +206,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         for wf in WORKFLOWS:
             definition = wf['definition']
-            workflow_def, created = WorkflowDefinition.objects.get_or_create(
+            workflow_def, created = WorkflowDefinition.objects.update_or_create(
                 code=definition['code'],
                 defaults={
                     'name': definition['name'],
@@ -217,12 +217,12 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(self.style.SUCCESS(f"WorkflowDefinition '{workflow_def.code}' created."))
             else:
-                self.stdout.write(f"WorkflowDefinition '{workflow_def.code}' loaded.")
+                self.stdout.write(f"WorkflowDefinition '{workflow_def.code}' updated/loaded.")
 
             # Load states for this workflow
             state_objs = {}
             for state_data in wf['states']:
-                state, _ = State.objects.get_or_create(
+                state, created_state = State.objects.update_or_create(
                     workflow_definition=workflow_def,
                     code=state_data['code'],
                     defaults={
@@ -234,13 +234,16 @@ class Command(BaseCommand):
                     }
                 )
                 state_objs[state.code] = state
-                self.stdout.write(f"State '{state.code}' loaded.")
+                if created_state:
+                    self.stdout.write(f"State '{state.code}' created.")
+                else:
+                    self.stdout.write(f"State '{state.code}' updated/loaded.")
 
             # Load transitions for this workflow
             for trans_data in wf['transitions']:
                 from_state = state_objs[trans_data['from_code']]
                 to_state = state_objs[trans_data['to_code']]
-                transition, _ = Transition.objects.get_or_create(
+                transition, created_transition = Transition.objects.update_or_create(
                     workflow_definition=workflow_def,
                     code=trans_data['code'],
                     defaults={
@@ -254,6 +257,9 @@ class Command(BaseCommand):
                         'metadata': trans_data.get('metadata', {})
                     }
                 )
-                self.stdout.write(f"Transition '{transition.code}' loaded.")
+                if created_transition:
+                    self.stdout.write(f"Transition '{transition.code}' created.")
+                else:
+                    self.stdout.write(f"Transition '{transition.code}' updated/loaded.")
 
             self.stdout.write(self.style.SUCCESS(f"Workflow '{workflow_def.code}' states and transitions loaded."))
