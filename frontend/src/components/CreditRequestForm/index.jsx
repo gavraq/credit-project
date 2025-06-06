@@ -268,7 +268,49 @@ const CreditRequestForm = (props) => {
   }, [workflowInstanceId, refetchTrigger]); // Added refetchTrigger dependency
 
   // Handler for transition button click
-  const handleTransition = async (transitionCode) => {
+  const validateFormForSubmission = () => {
+    const missingFields = [];
+    if (!requestTitle) missingFields.push('Title'); // Corrected to use 'title' state variable
+    if (!selectedCounterparty) missingFields.push('Counterparty'); // Corrected back
+    if (!selectedBusinessSponsor) missingFields.push('Senior Business Sponsor'); // Corrected back
+    if (!priority) missingFields.push('Priority');
+    if (priority === 'HIGH' && !justificationForHighPriority) {
+      missingFields.push('Justification for High Priority');
+    }
+    if (!requiredByDate) missingFields.push('Required By Date');
+    
+    // Check limits (the state variable for limit requests is `limits`)
+    if (!limits || limits.length === 0) {
+      missingFields.push('At least one Limit Request');
+    } else {
+      // Optional: Deeper validation for each limit can be added here
+      // For example, ensure each limit has a type, proposed amount, and tenor
+      limits.forEach((limit, index) => {
+        if (!limit.limit_type_id) missingFields.push(`Limit Request ${index + 1}: Type`); // Corrected
+        if (limit.proposed_amount === undefined || limit.proposed_amount === null || limit.proposed_amount === '') missingFields.push(`Limit Request ${index + 1}: Proposed Amount`); // Corrected
+        if (!limit.proposed_tenor) missingFields.push(`Limit Request ${index + 1}: Proposed Tenor`); // Corrected
+      });
+    }
+
+    // TODO: Add validation for documents if they are mandatory for submission
+
+    if (missingFields.length > 0) {
+      return `Submission failed: Please fill in the following required fields: ${missingFields.join(', ')}.`;
+    }
+    return null; // No errors
+  };
+
+  const handleTransition = async (transitionCode, comments) => { // Restored comments parameter
+    setTransitionLoading(true);
+    setTransitionError(null);
+
+    const validationError = validateFormForSubmission();
+    if (validationError) {
+      setTransitionError(validationError);
+      setTransitionLoading(false);
+      console.error('Validation failed for submission:', validationError);
+      return; // Stop the transition
+    }
     console.log(`Attempting to perform transition: ${transitionCode}`);
     setTransitionLoading(true);
     setTransitionError(null);
@@ -350,59 +392,79 @@ const CreditRequestForm = (props) => {
   };
 
   // Handles form submission
-  const handleSubmit = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    // setTransitionLoading(true); // Loading state is handled by the caller (handleTransition or a direct save button)
-    // setTransitionError(null);
-    console.log('Form submission started.');
+  const handleSubmit = async (e, isSubmittingForReview = false) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+
+    if (isSubmittingForReview) {
+      console.log('handleSubmit: isSubmittingForReview is true, performing validation.');
+      const validationError = validateFormForSubmission();
+      if (validationError) {
+        setTransitionError(validationError);
+        setTransitionLoading(false);
+        console.error('Validation failed during handleSubmit for submission:', validationError);
+        return false; // Stop if validation fails for review submission
+      }
+    }
+
+    console.log('Form submission started (validation passed or not a review submission).');
+    setTransitionLoading(true);
+    setTransitionError(null);
     try {
-      const capitalizedPriority = priority.charAt(0).toUpperCase() + priority.slice(1).toLowerCase();
-      const validLimits = limits.filter(limit => limit.type);
-      const formattedLimits = validLimits.map(limit => {
-        let limitTypeId = typeof limit.type === 'object' && limit.type.id ? limit.type.id : limit.type;
-        if (!limitTypeId) console.error('Missing limit type ID for limit:', limit);
-        return {
-          limit_type_id: limitTypeId,
-          existing_amount: limit.existingAmount || "0",
-          existing_tenor: limit.existingTenor || "0",
-          proposed_amount: limit.proposedAmount || "0",
-          proposed_tenor: limit.proposedTenor || "0",
-          comments: limit.comments || ''
-        };
-      });
+      const capitalizedPriority = priority?.charAt(0).toUpperCase() + priority?.slice(1).toLowerCase() || '';
+      
+      const validLimits = Array.isArray(limits) ? limits.filter(limit => limit.limit_type_id) : [];
+      const formattedLimits = validLimits.map(limit => ({
+        limit_type_id: limit.limit_type_id,
+        existing_amount: limit.existing_amount || "0",
+        existing_tenor: limit.existing_tenor || "0",
+        proposed_amount: limit.proposed_amount || "0",
+        proposed_tenor: limit.proposed_tenor || "0",
+        comments: limit.comments || ''
+      }));
       
       const payload = {
         title: requestTitle,
         counterparty_id: selectedCounterparty,
-        priority: capitalizedPriority, // Reverted: Serializer expects a string, not null
+        priority: capitalizedPriority,
         required_by_date: requiredByDate || null,
         description: detailedCommentsOnLimits,
         applicant_name: relationshipManager,
         limit_requests: formattedLimits,
-        credit_request_form: {
-          guarantor_name: selectedGuarantor,
-          guarantor_cif: guarantorCIF,
-          revenue_last_12m: revenueLast12Months,
-          revenue_projected_12m: revenueProjected12Months,
-          projected_rorwa_percent: projectedRorwa,
-          country_risk_limit_available: countryRiskLimitAvailable === 'Yes',
-          relationship_comments: relationshipComments,
-          most_senior_contact: mostSeniorContact,
-          last_client_visit_date: lastClientVisitDate || null, // Send null if date is empty
-          legal_documentation: legalDocumentType,
-          positive_legal_opinion: positiveLegalOpinion === 'Yes',
-          financial_statements_received: financialStatementsReceived,
-          interim_statements_available: interimStatementsAvailable,
-          account_executive: accountExecutive,
-          senior_business_sponsor: selectedBusinessSponsor,
-          second_business_sponsor: selectedSecondBusinessSponsor,
-          high_priority_justification: justificationForHighPriority
-        }
       };
-      payload.form_data = { ...payload.credit_request_form, title: requestTitle, priority: capitalizedPriority, required_by_date: requiredByDate, date_form_started: dateFormStarted, date_form_completed: dateFormCompleted, reference_number: requestNumber, documents: documents.map(doc => ({ name: doc.name, file: doc.file, description: doc.description || ''})) };
-      
+
+      const creditRequestFormData = {
+        guarantor_name: selectedGuarantor,
+        guarantor_cif: guarantorCIF,
+        revenue_last_12m: revenueLast12Months,
+        revenue_projected_12m: revenueProjected12Months,
+        projected_rorwa_percent: projectedRorwa,
+        country_risk_limit_available: countryRiskLimitAvailable === 'Yes',
+        relationship_comments: relationshipComments,
+        most_senior_contact: mostSeniorContact,
+        last_client_visit_date: lastClientVisitDate || null,
+        legal_documentation: legalDocumentType,
+        positive_legal_opinion: positiveLegalOpinion === 'Yes',
+        financial_statements_received: financialStatementsReceived,
+        interim_statements_available: interimStatementsAvailable,
+        account_executive: accountExecutive,
+        senior_business_sponsor: selectedBusinessSponsor,
+        second_business_sponsor: selectedSecondBusinessSponsor,
+        high_priority_justification: justificationForHighPriority,
+        title: requestTitle, 
+        priority: capitalizedPriority, 
+        required_by_date: requiredByDate, 
+        date_form_started: dateFormStarted,
+        date_form_completed: dateFormCompleted,
+        reference_number: requestNumber, 
+        documents: documents.map(doc => ({ name: doc.name, file_id: doc.id, description: doc.description || ''}))
+      };
+      payload.form_data = creditRequestFormData;
+
       const { post, patch } = await import('../../services/api');
       let response;
+
       if (editMode && id) {
         console.log(`Updating existing credit application with ID: ${id}`);
         response = await patch(`/api/credit/credit-applications/${id}/`, payload);
@@ -412,41 +474,41 @@ const CreditRequestForm = (props) => {
         if (response?.data?.id) {
           const newId = response.data.id;
           console.log(`Credit application created successfully with ID: ${newId}`);
-          navigate(`/credit-requests/${newId}/edit`); // Match the defined edit route
+          setTransitionLoading(false);
+          navigate(`/credit-requests/${newId}/edit`);
           return true; 
         } else {
           console.error('Error: New credit application POST request did not return an ID.');
           setTransitionError('Failed to save new application: No ID received.');
+          setTransitionLoading(false);
           return false;
         }
       }
-      
-      console.log('API response (PATCH or non-navigating POST):', response.data);
+
+      console.log('API response (PATCH):', response.data);
       if (response?.data?.id) {
         console.log(`Credit application saved/updated with ID: ${response.data.id}`);
-        if (response.data.workflow_instance) {
-          const instanceId = typeof response.data.workflow_instance === 'object' ? 
-            response.data.workflow_instance.id : response.data.workflow_instance;
-          console.log(`Setting/Updating workflow instance ID: ${instanceId}`);
-          setWorkflowInstanceId(instanceId); // This will trigger the useEffect to fetch the instance
-          // No need to await fetchWorkflowInstance here, useEffect will handle it.
+        if (response.data.workflow_instance_id) { 
+          console.log(`Setting/Updating workflow instance ID: ${response.data.workflow_instance_id}`);
+          setWorkflowInstanceId(response.data.workflow_instance_id);
         }
-        // If it's a PATCH, we also want to refetch the main credit application data
-        // to ensure all fields (including any computed ones or versioning) are up-to-date.
         if (editMode && id) {
-            setRefetchTrigger(prev => prev + 1); // This will trigger fetchCreditApplication
+            setRefetchTrigger(prev => prev + 1);
         }
+        setTransitionLoading(false);
         return true;
       } else {
         console.error('Error: Save/Update request did not return a valid ID or data.');
         setTransitionError('Failed to save application: Invalid response from server.');
+        setTransitionLoading(false);
         return false;
       }
     } catch (err) {
-      console.error('Error in form submission:', err);
+      console.error('Error during form submission:', err);
+      setTransitionLoading(false);
       let errorDetailMessage = 'Failed to save application. Please try again.';
       if (err.response?.data) {
-        console.log('Raw err.response.data from server:', JSON.stringify(err.response.data)); // Log raw error
+        console.log('Raw err.response.data from server:', JSON.stringify(err.response.data));
         if (typeof err.response.data === 'string') {
           errorDetailMessage = err.response.data;
         } else if (err.response.data.detail && typeof err.response.data.detail === 'string') {
@@ -454,29 +516,23 @@ const CreditRequestForm = (props) => {
         } else if (typeof err.response.data === 'object') {
           const messages = [];
           for (const key in err.response.data) {
-            if (Array.isArray(err.response.data[key])) {
-              messages.push(`${key}: ${err.response.data[key].join(' ')}`);
-            } else if (typeof err.response.data[key] === 'string') { // Handle direct string errors for a key
-              messages.push(`${key}: ${err.response.data[key]}`);
-            }
+            messages.push(`${key}: ${err.response.data[key].join ? err.response.data[key].join(', ') : err.response.data[key]}`);
           }
-          if (messages.length > 0) {
-            errorDetailMessage = messages.join('; ');
-          } else if (err.message) { // Fallback if object parsing yielded no specific messages
-            errorDetailMessage = err.message;
-          }
+          errorDetailMessage = messages.join('; ');
+        } else if (err.message) { 
+          errorDetailMessage = err.message;
         }
-      } else if (err.message) {
+      } else if (err.message) { 
         errorDetailMessage = err.message;
+      } else {
+        errorDetailMessage = 'An unknown error occurred during submission.';
       }
       setTransitionError(errorDetailMessage);
       return false;
-    } finally {
-      // setTransitionLoading(false); // Loading state handled by caller
     }
-  };
+  }; // End of handleSubmit
 
-  // Fetch counterparties
+  // Fetch Counterparties
   useEffect(() => {
     async function fetchCounterparties() {
       setLoadingCounterparties(true);
@@ -487,13 +543,13 @@ const CreditRequestForm = (props) => {
         setCounterparties(response.data);
       } catch (err) {
         setCounterpartyError(err.message);
-        setCounterparties([]);
+        setCounterparties([]); // Clear counterparties on error
       } finally {
         setLoadingCounterparties(false);
       }
     }
     fetchCounterparties();
-  }, []);
+  }, []); // Empty dependency array to run once on mount
 
   // Fetch Business Sponsors
   useEffect(() => {
