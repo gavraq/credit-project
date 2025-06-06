@@ -488,7 +488,7 @@ const CreditRequestForm = (props) => {
       const validLimits = Array.isArray(limits) ? limits.filter(limit => limit.type) : [];
       console.log('handleSubmit - Filtered validLimits:', JSON.stringify(validLimits, null, 2));
       const formattedLimits = validLimits.map(limit => ({
-        limit_type_id: limit.type, // Use limit.type directly as it's the ID string
+        limit_type_id: limit.type.id, // Use limit.type.id as it's an object
         existing_amount: limit.existingAmount || "0",
         existing_tenor: limit.existingTenor || "0",
         proposed_amount: limit.proposedAmount || "0",

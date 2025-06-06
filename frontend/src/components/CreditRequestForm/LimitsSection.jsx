@@ -44,10 +44,12 @@ const LimitsSection = ({
                 <tr key={limit.id}>
                   <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>
                     <select
-                      value={limit.type}
+                      value={limit.type?.id || ''} // Use the ID from the object for the value
                       onChange={e => {
+                        const selectedId = e.target.value;
+                        const fullLimitType = limitTypes.find(lt => lt.id === selectedId);
                         const updated = [...limits];
-                        updated[idx].type = e.target.value;
+                        updated[idx].type = fullLimitType || null; // Store the full object or null
                         setLimits(updated);
                       }}
                       style={{ width: '100%', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, padding: '0.25rem' }}
