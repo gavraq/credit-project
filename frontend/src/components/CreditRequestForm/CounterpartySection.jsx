@@ -14,6 +14,8 @@ const CounterpartySection = ({
   setSelectedGuarantor,
   guarantorCIF,
   setGuarantorCIF,
+  selectedGuarantorName, // Accept prop
+  setSelectedGuarantorName, // Accept prop
   requestTitle,
   setRequestTitle,
   requestNumber,
@@ -76,6 +78,7 @@ const CounterpartySection = ({
               setSelectedGuarantor(e.target.value);
               const found = counterparties.find(cp => String(cp.id) === e.target.value);
               setGuarantorCIF(found ? found.cif_number : '');
+              setSelectedGuarantorName(found ? found.name : ''); // Set guarantor name
             }}
             colors={colors}
           />

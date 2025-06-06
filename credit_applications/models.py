@@ -133,6 +133,7 @@ class CreditRequestForm(models.Model):
     workflow_instance = models.ForeignKey(WorkflowInstance, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_request_forms')
     
     # Counterparty Information
+    counterparty_cif = models.CharField(max_length=50, blank=True, null=True) # Added field
     guarantor_name = models.CharField(max_length=255, blank=True, null=True)
     guarantor_cif = models.CharField(max_length=50, blank=True, null=True)
     

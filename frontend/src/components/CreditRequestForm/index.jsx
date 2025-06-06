@@ -29,8 +29,6 @@ const CreditRequestForm = (props) => {
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const [workflowInstanceId, setWorkflowInstanceId] = useState(null);
 
-  // Debug mode toggle
-  const [showDebugTools, setShowDebugTools] = useState(false);
 
   // Basic form fields
   const [dateFormStarted, setDateFormStarted] = useState(() => new Date().toISOString().slice(0, 16));
@@ -44,6 +42,7 @@ const CreditRequestForm = (props) => {
   const [counterpartyCIF, setCounterpartyCIF] = useState('');
   const [selectedGuarantor, setSelectedGuarantor] = useState('');
   const [guarantorCIF, setGuarantorCIF] = useState('');
+  const [selectedGuarantorName, setSelectedGuarantorName] = useState(''); // Added state for guarantor name
   const [loadingCounterparties, setLoadingCounterparties] = useState(true);
   const [counterpartyError, setCounterpartyError] = useState(null);
 
@@ -60,10 +59,6 @@ const CreditRequestForm = (props) => {
     }
   ]);
   
-  // Debug: Log limits state changes
-  useEffect(() => {
-    console.log('Limits state updated:', limits);
-  }, [limits]);
 
   const [limitTypes, setLimitTypes] = useState([]);
   const [loadingLimitTypes, setLoadingLimitTypes] = useState(true);
@@ -181,12 +176,31 @@ const CreditRequestForm = (props) => {
         const formData = creditApp.credit_request_form;
         if (formData) {
           console.log('Populating from formData (creditApp.credit_request_form):', formData);
+          setCounterpartyCIF(formData.counterparty_cif || ''); // Populate counterparty_cif from credit_request_form
+
           // Counterparty Section (Guarantor)
-          setSelectedGuarantor(formData.guarantor_name || '');
-          setGuarantorCIF(formData.guarantor_cif || '');
+          const guarantorNameFromData = formData.guarantor_name || '';
+          const guarantorCifFromData = formData.guarantor_cif || '';
+
+          setSelectedGuarantorName(guarantorNameFromData);
+          setGuarantorCIF(guarantorCifFromData);
+
+          if ((guarantorNameFromData || guarantorCifFromData) && counterparties.length > 0) {
+            const matchedGuarantor = counterparties.find(
+              c => (guarantorNameFromData && c.name === guarantorNameFromData) || 
+                   (guarantorCifFromData && c.cif_number === guarantorCifFromData)
+            );
+            if (matchedGuarantor) {
+              setSelectedGuarantor(matchedGuarantor.id);
+            } else {
+              setSelectedGuarantor(''); // Reset if no match
+            }
+          } else {
+            setSelectedGuarantor(''); // Reset if no name/CIF from formData or no counterparties loaded
+          }
           
           // Limits Section (additional fields, not the table itself)
-          setCountryRiskLimitAvailable(formData.country_risk_limit_available ? 'Yes' : 'No');
+          setCountryRiskLimitAvailable(formData.country_risk_limit_available ? 'yes' : 'no'); // Changed to lowercase
           // detailedCommentsOnLimits is already set from creditApp.description, if it's duplicated in form_data, this would be the place
 
           // Relationship Section
@@ -237,8 +251,65 @@ const CreditRequestForm = (props) => {
       }
     }
     
-    fetchCreditApplication();
-  }, [id, refetchTrigger]);
+    if (id) {
+      fetchCreditApplication();
+    }
+    // The else block (reset logic) is removed from here and moved to a new useEffect.
+  }, [id, refetchTrigger, counterparties]);
+
+  // New useEffect for resetting form states when 'id' is not present (new form)
+  useEffect(() => {
+    if (!id) {
+      console.log('Resetting form for new application (id is null).');
+      // Reset all form states for a new application
+      setRequestTitle('');
+      setSelectedCounterparty('');
+      setCounterpartyCIF(''); // Reset counterparty CIF for new form
+      setPriority('Medium');
+      setRequiredByDate('');
+      setDetailedCommentsOnLimits(''); // This is mapped to creditApp.description
+      setRelationshipManager(''); // This is mapped to creditApp.applicant_name
+
+      // Initialize dateFormStarted for new forms to current date/time
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const day = now.getDate().toString().padStart(2, '0');
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      setDateFormStarted(`${year}-${month}-${day}T${hours}:${minutes}`);
+      
+      setRequestNumber(''); // Clear request number for new form
+
+      setLimits([{ id: Date.now(), type: '', existingAmount: '', existingTenor: '', proposedAmount: '', proposedTenor: '', comments: '' }]);
+      
+      setSelectedGuarantor('');
+      setSelectedGuarantorName('');
+      setGuarantorCIF('');
+
+      setCountryRiskLimitAvailable('No'); // Default for new form
+      setRevenueLast12Months('');
+      setRevenueProjected12Months('');
+      setProjectedRorwa('');
+      setMostSeniorContact('');
+      setLastClientVisitDate('');
+      setRelationshipComments('');
+      setLegalDocumentType('');
+      setPositiveLegalOpinion('No'); // Default for new form
+      setFinancialStatementsReceived(false); // Default for new form
+      setInterimStatementsAvailable(false); // Default for new form
+      setAccountExecutive('');
+      setSelectedBusinessSponsor('');
+      setSelectedSecondBusinessSponsor('');
+      setJustificationForHighPriority('');
+      
+      setWorkflowInstanceId(null); // Clear workflow instance ID for new form
+      setCurrentState(''); // Or set to an initial state for new forms if applicable
+      setAllowedTransitions([]);
+      setTransitionError(null); // Clear any previous errors
+      // Ensure all relevant states are reset here
+    }
+  }, [id]); // This effect runs only when 'id' changes (or on initial mount)
 
   // Fetch workflow instance data
   const fetchWorkflowInstance = async (instanceId) => {
@@ -412,35 +483,29 @@ const CreditRequestForm = (props) => {
     setTransitionLoading(true);
     setTransitionError(null);
     try {
+      console.log('handleSubmit - Initial limits state:', JSON.stringify(limits, null, 2));
       const capitalizedPriority = priority?.charAt(0).toUpperCase() + priority?.slice(1).toLowerCase() || '';
-      
-      const validLimits = Array.isArray(limits) ? limits.filter(limit => limit.limit_type_id) : [];
+      const validLimits = Array.isArray(limits) ? limits.filter(limit => limit.type) : [];
+      console.log('handleSubmit - Filtered validLimits:', JSON.stringify(validLimits, null, 2));
       const formattedLimits = validLimits.map(limit => ({
-        limit_type_id: limit.limit_type_id,
-        existing_amount: limit.existing_amount || "0",
-        existing_tenor: limit.existing_tenor || "0",
-        proposed_amount: limit.proposed_amount || "0",
-        proposed_tenor: limit.proposed_tenor || "0",
+        limit_type_id: limit.type, // Use limit.type directly as it's the ID string
+        existing_amount: limit.existingAmount || "0",
+        existing_tenor: limit.existingTenor || "0",
+        proposed_amount: limit.proposedAmount || "0",
+        proposed_tenor: limit.proposedTenor || "0",
         comments: limit.comments || ''
       }));
-      
-      const payload = {
-        title: requestTitle,
-        counterparty_id: selectedCounterparty,
-        priority: capitalizedPriority,
-        required_by_date: requiredByDate || null,
-        description: detailedCommentsOnLimits,
-        applicant_name: relationshipManager,
-        limit_requests: formattedLimits,
-      };
+      console.log('handleSubmit - Formatted limits for payload:', JSON.stringify(formattedLimits, null, 2));
 
+      // Define creditRequestFormData BEFORE payload
       const creditRequestFormData = {
-        guarantor_name: selectedGuarantor,
+        counterparty_cif: counterpartyCIF, // Added field
+        guarantor_name: selectedGuarantorName, // Use selectedGuarantorName
         guarantor_cif: guarantorCIF,
         revenue_last_12m: revenueLast12Months,
         revenue_projected_12m: revenueProjected12Months,
         projected_rorwa_percent: projectedRorwa,
-        country_risk_limit_available: countryRiskLimitAvailable === 'Yes',
+        country_risk_limit_available: typeof countryRiskLimitAvailable === 'string' && countryRiskLimitAvailable.toLowerCase() === 'yes',
         relationship_comments: relationshipComments,
         most_senior_contact: mostSeniorContact,
         last_client_visit_date: lastClientVisitDate || null,
@@ -452,15 +517,25 @@ const CreditRequestForm = (props) => {
         senior_business_sponsor: selectedBusinessSponsor,
         second_business_sponsor: selectedSecondBusinessSponsor,
         high_priority_justification: justificationForHighPriority,
-        title: requestTitle, 
-        priority: capitalizedPriority, 
-        required_by_date: requiredByDate, 
-        date_form_started: dateFormStarted,
         date_form_completed: dateFormCompleted,
         reference_number: requestNumber, 
         documents: documents.map(doc => ({ name: doc.name, file_id: doc.id, description: doc.description || ''}))
       };
-      payload.form_data = creditRequestFormData;
+      
+      // Now define payload, using creditRequestFormData
+      const payload = {
+        title: requestTitle,
+        counterparty_id: selectedCounterparty,
+        priority: capitalizedPriority,
+        required_by_date: requiredByDate || null,
+        description: detailedCommentsOnLimits,
+        applicant_name: relationshipManager,
+        limit_requests: formattedLimits,
+        credit_request_form: creditRequestFormData // Correctly included and defined
+      };
+
+
+      console.log('handleSubmit - Final payload to be sent:', JSON.stringify(payload, null, 2));
 
       const { post, patch } = await import('../../services/api');
       let response;
@@ -787,6 +862,8 @@ const CreditRequestForm = (props) => {
             setSelectedGuarantor={setSelectedGuarantor}
             guarantorCIF={guarantorCIF}
             setGuarantorCIF={setGuarantorCIF}
+            selectedGuarantorName={selectedGuarantorName} // Pass state
+            setSelectedGuarantorName={setSelectedGuarantorName} // Pass setter
             requestTitle={requestTitle}
             setRequestTitle={setRequestTitle}
             requestNumber={requestNumber}
@@ -915,131 +992,6 @@ const CreditRequestForm = (props) => {
             colors={colors}
           />
         </FormSection>
-        
-        {/* Debug toggle button */}
-        <div style={{ textAlign: 'center', margin: '2rem 0 0.5rem' }}>
-          <button 
-            type="button"
-            onClick={() => setShowDebugTools(!showDebugTools)}
-            style={{ 
-              backgroundColor: 'transparent', 
-              border: '1px solid #ccc', 
-              borderRadius: '4px',
-              padding: '0.25rem 0.5rem',
-              fontSize: '0.75rem',
-              color: '#666'
-            }}
-          >
-            {showDebugTools ? 'Hide Debug Tools' : 'Show Debug Tools'}
-          </button>
-        </div>
-        
-        {/* Debug section - only shown when showDebugTools is true */}
-        {showDebugTools && (
-          <DebugPanel
-            id={id}
-            workflowInstance={workflowInstanceId} // Pass as workflowInstance prop
-            setWorkflowInstanceId={setWorkflowInstanceId}
-            currentState={currentState}
-            allowedTransitions={allowedTransitions}
-            fetchWorkflowInstance={fetchWorkflowInstance}
-            fetchCreditApp={async () => {
-              try {
-                if (!id) {
-                  alert('No credit application ID available');
-                  return;
-                }
-                
-                const { get } = await import('../../services/api');
-                const response = await get(`/api/credit/credit-applications/${id}/`);
-                console.log('DEBUG: Credit application data:', response.data);
-                
-                // Set the workflow instance ID if available
-                if (response.data.workflow_instance) {
-                  const instanceId = typeof response.data.workflow_instance === 'object' ? 
-                    response.data.workflow_instance.id : response.data.workflow_instance;
-                  console.log(`DEBUG: Workflow instance ID from credit app: ${instanceId}`);
-                  setWorkflowInstanceId(instanceId);
-                  
-                  // Also fetch the workflow instance to get current state and transitions
-                  fetchWorkflowInstance(instanceId);
-                } else {
-                  console.log('DEBUG: No workflow instance found for this credit application');
-                }
-                
-                alert(`Fetched credit application: ${response.data.title}`);
-              } catch (error) {
-                console.error('DEBUG: Error fetching credit application:', error);
-                alert('Error fetching credit application: ' + (error.response?.data?.detail || error.message || 'Unknown error'));
-              }
-            }}
-            createWorkflowInstance={async () => {
-              try {
-                if (!id) {
-                  alert('No credit application ID available');
-                  return;
-                }
-                
-                // Show loading state
-                const button = document.getElementById('create-workflow-btn');
-                if (button) button.textContent = 'Creating workflow instance...';
-                
-                const { patch, get } = await import('../../services/api');
-                
-                // First, create a workflow instance
-                console.log('DEBUG: Creating workflow instance for credit application:', id);
-                
-                // We'll use the patch endpoint to update the credit application
-                // This will trigger the backend to create a workflow instance if it doesn't exist
-                const payload = {
-                  // This will trigger the workflow instance creation in the backend
-                  create_workflow_instance: true
-                };
-                
-                console.log('DEBUG: Sending payload to create workflow instance:', payload);
-                
-                try {
-                  const response = await patch(`/api/credit/credit-applications/${id}/`, payload);
-                  console.log('DEBUG: Update response:', response.data);
-                } catch (patchError) {
-                  console.error('DEBUG: Error in PATCH request:', patchError);
-                  console.error('DEBUG: Error response:', patchError.response?.data);
-                  throw patchError;
-                }
-                
-                // Now fetch the updated credit application to get the workflow instance ID
-                try {
-                  const updatedResponse = await get(`/api/credit/credit-applications/${id}/`);
-                  console.log('DEBUG: Updated credit application:', updatedResponse.data);
-                  
-                  if (updatedResponse.data.workflow_instance) {
-                    const instanceId = typeof updatedResponse.data.workflow_instance === 'object' ? 
-                      updatedResponse.data.workflow_instance.id : updatedResponse.data.workflow_instance;
-                    console.log(`DEBUG: New workflow instance ID: ${instanceId}`);
-                    setWorkflowInstanceId(instanceId);
-                    alert(`Created workflow instance with ID: ${instanceId}`);
-                    
-                    // Refresh the page to show the updated workflow state
-                    window.location.reload();
-                  } else {
-                    console.error('DEBUG: Failed to create workflow instance');
-                    alert('Failed to create workflow instance - no workflow instance ID returned');
-                  }
-                } catch (getError) {
-                  console.error('DEBUG: Error fetching updated credit application:', getError);
-                  throw getError;
-                }
-              } catch (error) {
-                console.error('DEBUG: Error creating workflow instance:', error);
-                alert('Error creating workflow instance: ' + (error.response?.data?.detail || error.message || 'Unknown error'));
-              } finally {
-                // Reset button state
-                const button = document.getElementById('create-workflow-btn');
-                if (button) button.textContent = 'TEST: Create Workflow Instance';
-              }
-            }}
-          />
-        )}
       </form>
     </div>
   );

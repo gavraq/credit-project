@@ -1,6 +1,7 @@
 import uuid
+import logging # Added import
 from rest_framework import serializers
-from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm
+from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm, CreditRequestForm # Ensure CreditRequestForm is available for DoesNotExist
 
 class LimitTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,6 +44,7 @@ class CreditRequestFormSerializer(serializers.ModelSerializer):
         model = CreditRequestForm
         fields = [
             'id', 'credit_application', 'workflow_instance',
+            'counterparty_cif', # Added field
             'guarantor_name', 'guarantor_cif',
             'revenue_last_12m', 'revenue_projected_12m', 'projected_rorwa_percent',
             'country_risk_limit_available', 'kyc_approval_status',
@@ -125,6 +127,8 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         # or might need similar treatment if they also have strict parent FK requirements.
         # For now, focusing on limit_requests as it's the reported issue.
         credit_request_form_data = validated_data.pop('credit_request_form', None)
+        logger = logging.getLogger(__name__)
+        logger.error(f"DEBUGGING VIEWSET CREATE - credit_request_form_data after pop: {credit_request_form_data}") # TEMP: Changed to error for visibility
         credit_review_form_data = validated_data.pop('credit_review_form', None)
         business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
         legal_review_form_data = validated_data.pop('legal_review_form', None)
@@ -166,9 +170,16 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         
         # Create credit request form if data provided
         if credit_request_form_data:
-            CreditRequestForm.objects.create(credit_application=credit_app, **credit_request_form_data)
+            logger.info(f"VIEWSET CREATE - Creating CreditRequestForm with data: {credit_request_form_data}") # ADDED LOGGING
+            crf_instance = CreditRequestForm.objects.create(credit_application=credit_app, **credit_request_form_data)
+            logger.error(f"[CREATE] CreditRequestForm instance created with ID: {crf_instance.id}") # Existing log
+            logger.error(f"[CREATE POST-SAVE] CRF Instance counterparty_cif: {crf_instance.counterparty_cif}")
+            logger.error(f"[CREATE POST-SAVE] CRF Instance country_risk_limit_available: {crf_instance.country_risk_limit_available}")
         else:
-            CreditRequestForm.objects.create(credit_application=credit_app)
+            logger.info("VIEWSET CREATE - credit_request_form_data is None, creating empty CreditRequestForm.") # Existing log
+            crf_instance = CreditRequestForm.objects.create(credit_application=credit_app)
+            logger.error(f"[CREATE POST-SAVE - DEFAULT] CRF Instance counterparty_cif: {crf_instance.counterparty_cif}")
+            logger.error(f"[CREATE POST-SAVE - DEFAULT] CRF Instance country_risk_limit_available: {crf_instance.country_risk_limit_available}")
         
         # Create credit review form if data provided
         if credit_review_form_data:
@@ -191,7 +202,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
         legal_review_form_data = validated_data.pop('legal_review_form', None)
         credit_questionnaire_form_data = validated_data.pop('credit_questionnaire_form', None)
-        limit_requests_data = validated_data.pop('limit_requests', [])
+        validated_data.pop('limit_requests', None)  # Ensure super().update doesn't process; data will be sourced from initial_data
 
         model_field_names = {f.name for f in instance._meta.fields}
         parent_validated_data = {
@@ -225,9 +236,12 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
 
 
         if 'limit_requests' in self.initial_data:
-
-            instance.limit_requests.all().delete()
-            for i, lr_data in enumerate(limit_requests_data):
+            # Get the raw limit requests data from the initial submission
+            current_limits_data = self.initial_data.get('limit_requests', [])
+            
+            instance.limit_requests.all().delete() # Delete existing ones
+            # Iterate over the raw data from the client, not what might (or might not) have passed full parent validation
+            for i, lr_data in enumerate(current_limits_data):
                 try:
                     limit_type_id = None
                     limit_type_name = None
@@ -406,11 +420,9 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             if hasattr(obj, 'credit_request_form'):
                 return obj.credit_request_form.form_data
         except Exception as e:
-            print(f"Error retrieving legacy form_data: {e}")
-        return {}
+            return {}
         
     def to_representation(self, instance):
-        # Get the standard representation
         representation = super().to_representation(instance)
         
         # ALWAYS include limit_requests in the representation
@@ -422,11 +434,9 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         if limit_requests.exists():
             limit_serializer = LimitRequestSerializer(limit_requests, many=True)
             representation['limit_requests'] = limit_serializer.data
-            print(f"Added {len(limit_requests)} limit requests to representation")
         else:
             # Even if no limit requests exist, ensure the field is present as an empty list
             representation['limit_requests'] = []
-            print("No limit requests found for this credit application")
         
         # Generate a reference number if not present
         if not representation.get('reference_number'):
@@ -444,8 +454,4 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             instance.reference_number = representation['reference_number']
             instance.save(update_fields=['reference_number'])
         
-        # Debug: Log what's in the representation
-        print(f"Representation includes {len(representation.get('limit_requests', []))} limit requests")
-            
         return representation
-
