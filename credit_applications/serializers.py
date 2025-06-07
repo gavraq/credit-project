@@ -234,6 +234,25 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
                 if crf_create_serializer.is_valid(raise_exception=True):
                     crf_create_serializer.save(credit_application=instance) # Associate with parent
 
+        raw_credit_review_form_data = self.initial_data.get('credit_review_form', None)
+        if raw_credit_review_form_data:
+            data_for_review_serializer = {'form_data': raw_credit_review_form_data}
+            try:
+                review_form_instance = instance.credit_review_form
+            except CreditReviewForm.DoesNotExist:
+                review_form_instance = None
+            except AttributeError: 
+                review_form_instance = None
+
+            if review_form_instance:
+                review_serializer = CreditReviewFormSerializer(review_form_instance, data=data_for_review_serializer, partial=True)
+                if review_serializer.is_valid(raise_exception=True):
+                    review_serializer.save()
+            else:
+                # Create new CreditReviewForm instance
+                review_create_serializer = CreditReviewFormSerializer(data=data_for_review_serializer)
+                if review_create_serializer.is_valid(raise_exception=True):
+                    review_create_serializer.save(credit_application=instance)
 
         if 'limit_requests' in self.initial_data:
             # Get the raw limit requests data from the initial submission

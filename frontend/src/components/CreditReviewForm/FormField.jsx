@@ -93,24 +93,24 @@ const FormField = ({
           marginTop: '0.25rem'
         }}>
           {options.map(option => (
-            <div key={option.value} style={{ 
-              display: 'flex', 
-              alignItems: 'center' 
-            }}>
-              <input
-                type="radio"
-                checked={value === option.value}
-                onChange={onChange}
-                value={option.value}
-                name={name}
-                style={{ 
-                  marginRight: '0.5rem',
-                  width: '1rem',
-                  height: '1rem'
-                }}
-              />
-              <span style={{ fontSize: '0.875rem' }}>{option.label}</span>
-            </div>
+              <div key={option.value} style={{ 
+                display: 'flex', 
+                alignItems: 'center' 
+              }}>
+                <input
+                  type="radio"
+                  checked={value === option.value}
+                  onChange={onChange}
+                  value={option.value}
+                  name={name}
+                  style={{ 
+                    marginRight: '0.5rem',
+                    width: '1rem',
+                    height: '1rem'
+                  }}
+                />
+                <span style={{ fontSize: '0.875rem' }}>{option.label}</span>
+              </div>
           ))}
         </div>
       ) : (
