@@ -10,13 +10,18 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from backend.permissions import RolePermission
 from workflow_engine.models import WorkflowInstance, StateLog
+from rest_framework_simplejwt.views import TokenObtainPairView as SimpleJWTTokenObtainPairView
 from .serializers import (
+    MyTokenObtainPairSerializer,
     WorkflowInstanceSerializer,
     StateLogSerializer,
     WorkflowTransitionSerializer,
     UserListSerializer
 )
 from .models import User
+
+class MyTokenObtainPairView(SimpleJWTTokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
 
 class WorkflowInstanceTransitionView(APIView):
     permission_classes = [IsAuthenticated, RolePermission]

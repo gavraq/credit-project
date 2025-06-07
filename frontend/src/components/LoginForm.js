@@ -15,7 +15,7 @@ const LoginForm = () => {
     dispatch(loginStart());
     try {
       const data = await loginApi(username, password);
-      dispatch(loginSuccess({ token: data.token, user: data.user }));
+      dispatch(loginSuccess({ access: data.access, refresh: data.refresh, user: data.user }));
     } catch (err) {
       dispatch(loginFailure(err.response?.data?.detail || 'Login failed'));
     }

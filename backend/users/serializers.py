@@ -41,6 +41,23 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'department']
 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims if needed, e.g.:
+        # token['username'] = user.username
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # Add user data to the response
+        serializer = UserListSerializer(self.user, context=self.context) # Use UserListSerializer
+        data['user'] = serializer.data
+        return data
+
 class WorkflowTransitionSerializer(serializers.Serializer):
     transition_code = serializers.CharField()
     comments = serializers.CharField(required=False, allow_blank=True)

@@ -3,7 +3,23 @@ import { logout as logoutService } from '../services/auth';
 
 const token = localStorage.getItem('jwt');
 const refreshToken = localStorage.getItem('jwt_refresh');
-const user = token ? JSON.parse(atob(token.split('.')[1])) : null;
+let user = null;
+const storedUserDetails = localStorage.getItem('user_details');
+if (storedUserDetails) {
+  try {
+    user = JSON.parse(storedUserDetails);
+  } catch (e) {
+    console.error('Error parsing stored user details:', e);
+    localStorage.removeItem('user_details'); // Clear corrupted data
+  }
+} else if (token) {
+  // Fallback to decoding from token if no separate user_details, though this won't have full name
+  try {
+    user = JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    console.error('Error parsing user from token:', e);
+  }
+}
 
 const initialState = {
   token: token || null,
@@ -24,9 +40,10 @@ const authSlice = createSlice({
     },
     loginSuccess(state, action) {
       state.loading = false;
-      state.token = action.payload.token;
+      state.token = action.payload.access; // simplejwt uses 'access' for the access token
       state.refreshToken = action.payload.refresh;
       state.user = action.payload.user;
+      localStorage.setItem('user_details', JSON.stringify(action.payload.user));
       state.isAuthenticated = true;
       // Note: We're now storing tokens in the auth service instead of here
       // This ensures consistent token management across the application
@@ -39,6 +56,7 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.user = null;
+      localStorage.removeItem('user_details');
       state.isAuthenticated = false;
       // Call the logout service to handle token removal and redirection
       logoutService();

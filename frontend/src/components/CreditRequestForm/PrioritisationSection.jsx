@@ -11,6 +11,9 @@ const PrioritisationSection = ({
   setAccountExecutive,
   relationshipManager,
   setRelationshipManager,
+  relationshipManagersList,
+  loadingRelationshipManagers,
+  relationshipManagerError,
   businessSponsors,
   loadingBusinessSponsors,
   businessSponsorError,
@@ -54,13 +57,25 @@ const PrioritisationSection = ({
           onChange={(e) => setAccountExecutive(e.target.value)}
           colors={colors}
         />
-        <FormField 
-          label="Relationship Manager" 
-          placeholder="Enter relationship manager" 
-          value={relationshipManager}
-          onChange={(e) => setRelationshipManager(e.target.value)}
-          colors={colors}
-        />
+        {loadingRelationshipManagers ? (
+          <div style={{ color: '#888', fontSize: '0.95rem' }}>Loading relationship managers...</div>
+        ) : relationshipManagerError ? (
+          <div style={{ color: 'red', fontSize: '0.95rem' }}>Error: {relationshipManagerError}</div>
+        ) : (
+          <FormField
+            label="Relationship Manager"
+            type="select"
+            value={relationshipManager} // This will be an ID
+            onChange={(e) => setRelationshipManager(e.target.value)}
+            options={[
+              { value: '', label: relationshipManagersList.length === 0 ? 'No relationship managers found' : 'Select relationship manager' },
+              ...relationshipManagersList.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))
+            ]}
+            placeholder="Select relationship manager"
+            colors={colors}
+            required // Assuming this field should be required, adjust if not
+          />
+        )}
         
         {/* Senior Business Sponsor Dropdown */}
         {loadingBusinessSponsors ? (

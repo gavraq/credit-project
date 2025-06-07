@@ -10,9 +10,9 @@ export async function login(username, password) {
   
   // Return token in the expected format for the rest of the app
   return {
-    token: response.data.access,
+    access: response.data.access, // Use 'access' key
     refresh: response.data.refresh,
-    user: { username }, // Optionally, fetch user details separately if needed
+    user: response.data.user,    // Return the full user object from the API response
   };
 }
 

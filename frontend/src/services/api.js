@@ -186,4 +186,17 @@ export const performWorkflowTransition = async (workflowInstanceId, transitionCo
   }
 };
 
+// Function to fetch users by role
+export const fetchUsersByRole = async (roleName) => {
+  try {
+    const encodedRoleName = encodeURIComponent(roleName);
+    // Use the existing endpoint /api/users/?role=<role_name>
+    const response = await get(`/api/users/?role=${encodedRoleName}`);
+    return response.data; // Assuming the response is an array of user objects
+  } catch (error) {
+    console.error(`Error fetching users for role ${roleName}:`, error);
+    throw error;
+  }
+};
+
 export default api;

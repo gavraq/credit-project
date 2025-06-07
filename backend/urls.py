@@ -16,16 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from backend.users.views import MyTokenObtainPairView # Import the custom view
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
+    # TokenObtainPairView, # Comment out or remove the default import
     TokenRefreshView,
 )
 from backend.views import ProtectedHelloView
-from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView, WorkflowInstanceDetailView, WorkflowInstanceListView
+from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView, WorkflowInstanceDetailView, WorkflowInstanceListView # MyTokenObtainPairView is now imported above
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'), # Use the custom view
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/hello/', ProtectedHelloView.as_view(), name='protected_hello'),
     path('api/workflow-instances/', WorkflowInstanceListView.as_view(), name='workflow_instance_list'),

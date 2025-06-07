@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { fetchUsersByRole } from '../../services/api';
 
 import TopNavBar from '../TopNavBar';
 import LogoutButton from '../LogoutButton';
@@ -86,10 +87,13 @@ const CreditRequestForm = (props) => {
   const [accountExecutive, setAccountExecutive] = useState('');
   const [relationshipManager, setRelationshipManager] = useState('');
   const [businessSponsors, setBusinessSponsors] = useState([]);
+  const [relationshipManagersList, setRelationshipManagersList] = useState([]);
   const [selectedBusinessSponsor, setSelectedBusinessSponsor] = useState('');
   const [selectedSecondBusinessSponsor, setSelectedSecondBusinessSponsor] = useState('');
-  const [loadingBusinessSponsors, setLoadingBusinessSponsors] = useState(true);
+  const [loadingBusinessSponsors, setLoadingBusinessSponsors] = useState(false);
+  const [loadingRelationshipManagers, setLoadingRelationshipManagers] = useState(false);
   const [businessSponsorError, setBusinessSponsorError] = useState(null);
+  const [relationshipManagerError, setRelationshipManagerError] = useState(null);
   const [justificationForHighPriority, setJustificationForHighPriority] = useState('');
 
   // Document uploads
@@ -628,21 +632,42 @@ const CreditRequestForm = (props) => {
 
   // Fetch Business Sponsors
   useEffect(() => {
-    async function fetchBusinessSponsors() {
+    const loadBusinessSponsors = async () => {
       setLoadingBusinessSponsors(true);
       setBusinessSponsorError(null);
       try {
-        const { get } = await import('../../services/api');
-        const response = await get('/api/users/?role=business_sponsor');
-        setBusinessSponsors(response.data);
+        const sponsors = await fetchUsersByRole('business_sponsor');
+        setBusinessSponsors(sponsors || []);
       } catch (err) {
-        setBusinessSponsorError(err.message);
-        setBusinessSponsors([]);
+        console.error('Error fetching business sponsors:', err);
+        setBusinessSponsorError(err.message || 'Failed to load business sponsors');
+        setBusinessSponsors([]); // Clear sponsors on error
       } finally {
         setLoadingBusinessSponsors(false);
       }
-    }
-    fetchBusinessSponsors();
+    };
+    loadBusinessSponsors();
+  }, []);
+
+  // Fetch Relationship Managers
+  useEffect(() => {
+    const loadRelationshipManagers = async () => {
+      setLoadingRelationshipManagers(true);
+      setRelationshipManagerError(null);
+      try {
+        // Assuming 'Relationship Manager' is the correct role name string for the backend.
+        // Adjust if it's 'relationship_manager' or similar.
+        const managers = await fetchUsersByRole('Relationship Manager'); 
+        setRelationshipManagersList(managers || []);
+      } catch (err) {
+        console.error('Error fetching relationship managers:', err);
+        setRelationshipManagerError(err.message || 'Failed to load relationship managers');
+        setRelationshipManagersList([]);
+      } finally {
+        setLoadingRelationshipManagers(false);
+      }
+    };
+    loadRelationshipManagers();
   }, []);
 
   // Fetch limit types
@@ -952,7 +977,10 @@ const CreditRequestForm = (props) => {
             setRequiredByDate={setRequiredByDate}
             accountExecutive={accountExecutive}
             setAccountExecutive={setAccountExecutive}
-            relationshipManager={relationshipManager}
+            relationshipManager={relationshipManager} // This will now be an ID
+            relationshipManagersList={relationshipManagersList}
+            loadingRelationshipManagers={loadingRelationshipManagers}
+            relationshipManagerError={relationshipManagerError}
             setRelationshipManager={setRelationshipManager}
             businessSponsors={businessSponsors}
             loadingBusinessSponsors={loadingBusinessSponsors}
