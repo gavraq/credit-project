@@ -84,7 +84,7 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, mainWor
 
         if (crForm.form_data) {
           const reviewFormData = crForm.form_data;
-          setCreditReviewer(reviewFormData.credit_reviewer || user?.name || '');
+          setCreditReviewer(reviewFormData.credit_reviewer || (user ? `${user.first_name} ${user.last_name}`.trim() : ''));
           setAssignedAnalyst(reviewFormData.assigned_analyst || '');
           setDelegatedAuthority(reviewFormData.delegated_authority || '');
           setNeedQuestionnaire(reviewFormData.need_questionnaire || 'no');
@@ -118,7 +118,7 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, mainWor
       setLoadingAnalysts(true);
       try {
         const analysts = await fetchUsersByRole('Credit Analyst');
-        setCreditAnalysts(analysts.map(analyst => ({ value: analyst.id, label: analyst.username })));
+        setCreditAnalysts(analysts); // Store the full analyst objects
       } catch (analystError) {
         console.error('Failed to fetch credit analysts:', analystError);
         // Optionally set an error state for analysts loading

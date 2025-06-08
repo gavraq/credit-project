@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchUsersByRole } from '../../services/api';
 
@@ -91,11 +91,39 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
   const [relationshipManagersList, setRelationshipManagersList] = useState([]);
   const [selectedBusinessSponsor, setSelectedBusinessSponsor] = useState('');
   const [selectedSecondBusinessSponsor, setSelectedSecondBusinessSponsor] = useState('');
+  const [seniorBusinessSponsorName, setSeniorBusinessSponsorName] = useState('');
+  const [secondBusinessSponsorName, setSecondBusinessSponsorName] = useState('');
   const [loadingBusinessSponsors, setLoadingBusinessSponsors] = useState(false);
   const [loadingRelationshipManagers, setLoadingRelationshipManagers] = useState(false);
   const [businessSponsorError, setBusinessSponsorError] = useState(null);
   const [relationshipManagerError, setRelationshipManagerError] = useState(null);
   const [justificationForHighPriority, setJustificationForHighPriority] = useState('');
+
+  useEffect(() => {
+    if (selectedBusinessSponsor && businessSponsors.length > 0) {
+      const sponsor = businessSponsors.find(s => s.id === selectedBusinessSponsor);
+      if (sponsor) {
+        setSeniorBusinessSponsorName(sponsor.name || `${sponsor.first_name || ''} ${sponsor.last_name || ''}`.trim());
+      } else {
+        setSeniorBusinessSponsorName(''); // ID selected but not found in list
+      }
+    } else if (!selectedBusinessSponsor) {
+      setSeniorBusinessSponsorName(''); // No ID selected
+    }
+  }, [selectedBusinessSponsor, businessSponsors]);
+
+  useEffect(() => {
+    if (selectedSecondBusinessSponsor && businessSponsors.length > 0) {
+      const sponsor = businessSponsors.find(s => s.id === selectedSecondBusinessSponsor);
+      if (sponsor) {
+        setSecondBusinessSponsorName(sponsor.name || `${sponsor.first_name || ''} ${sponsor.last_name || ''}`.trim());
+      } else {
+        setSecondBusinessSponsorName(''); // ID selected but not found in list
+      }
+    } else if (!selectedSecondBusinessSponsor) {
+      setSecondBusinessSponsorName(''); // No ID selected
+    }
+  }, [selectedSecondBusinessSponsor, businessSponsors]);
 
   // Document uploads
   const [documents, setDocuments] = useState([]);
@@ -128,7 +156,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
 
   // Fetch credit application on mount
   // Consolidated data population logic
-  async function populateFormDataLocal(appData) {
+  const populateFormDataLocal = useCallback(async (appData) => {
     if (!appData) {
       console.warn('CreditRequestForm: populateFormDataLocal called with no appData');
       // Potentially reset form states here if appData is null and it's not a new form scenario
@@ -184,8 +212,11 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
       setFinancialStatementsReceived(formData.financial_statements_received || false);
       setInterimStatementsAvailable(formData.interim_statements_available || false);
       setAccountExecutive(formData.account_executive || '');
-      setSelectedBusinessSponsor(formData.senior_business_sponsor || '');
-      setSelectedSecondBusinessSponsor(formData.second_business_sponsor || '');
+      setSeniorBusinessSponsorName(formData.senior_business_sponsor_name || '');
+      setSelectedBusinessSponsor(formData.senior_business_sponsor_id || '');
+
+      setSecondBusinessSponsorName(formData.second_business_sponsor_name || '');
+      setSelectedSecondBusinessSponsor(formData.second_business_sponsor_id || '');
       setJustificationForHighPriority(formData.high_priority_justification || '');
     }
 
@@ -203,7 +234,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
     // These fetches are in their own useEffects, which should re-run if their dependencies (like 'id') change.
     // Or, if they need to be explicitly called after populateFormDataLocal, ensure they are.
     // For simplicity, we assume their existing useEffects will handle re-fetching if 'id' is stable and data comes from prop.
-  }
+  }, []); // Empty dependency array for useCallback as it only sets state and doesn't depend on other changing values for its definition.
 
   // Main data loading useEffect
   useEffect(() => {
@@ -284,7 +315,6 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
       setInterimStatementsAvailable(false); // Default for new form
       setAccountExecutive('');
       setSelectedBusinessSponsor('');
-      setSelectedSecondBusinessSponsor('');
       setJustificationForHighPriority('');
       
       setWorkflowInstanceId(null); // Clear workflow instance ID for new form
@@ -356,7 +386,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
     setTransitionLoading(true);
     setTransitionError(null);
 
-    // If it's a new form (no id from URL params) and no workflow instance yet
+    // If it's a new form (no ID from URL params) and no workflow instance yet
     if (!id && !workflowInstanceId) {
       const confirmSave = window.confirm(
         "This is a new application. It must be saved before it can be submitted. Would you like to save it now?"
@@ -449,7 +479,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
       const validLimits = Array.isArray(limits) ? limits.filter(limit => limit.type) : [];
       console.log('handleSubmit - Filtered validLimits:', JSON.stringify(validLimits, null, 2));
       const formattedLimits = validLimits.map(limit => ({
-        limit_type_id: limit.type.id, // Use limit.type.id as it's an object
+        limit_type_id: limit.type.id,
         existing_amount: limit.existingAmount || "0",
         existing_tenor: limit.existingTenor || "0",
         proposed_amount: limit.proposedAmount || "0",
@@ -458,10 +488,9 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
       }));
       console.log('handleSubmit - Formatted limits for payload:', JSON.stringify(formattedLimits, null, 2));
 
-      // Define creditRequestFormData BEFORE payload
       const creditRequestFormData = {
-        counterparty_cif: counterpartyCIF, // Added field
-        guarantor_name: selectedGuarantorName, // Use selectedGuarantorName
+        counterparty_cif: counterpartyCIF,
+        guarantor_name: selectedGuarantorName,
         guarantor_cif: guarantorCIF,
         revenue_last_12m: revenueLast12Months,
         revenue_projected_12m: revenueProjected12Months,
@@ -475,15 +504,16 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
         financial_statements_received: financialStatementsReceived,
         interim_statements_available: interimStatementsAvailable,
         account_executive: accountExecutive,
-        senior_business_sponsor: selectedBusinessSponsor,
-        second_business_sponsor: selectedSecondBusinessSponsor,
+        senior_business_sponsor_id: selectedBusinessSponsor,
+        senior_business_sponsor_name: seniorBusinessSponsorName,
+        second_business_sponsor_id: selectedSecondBusinessSponsor,
+        second_business_sponsor_name: secondBusinessSponsorName,
         high_priority_justification: justificationForHighPriority,
         date_form_completed: dateFormCompleted,
-        reference_number: requestNumber, 
+        reference_number: requestNumber,
         documents: documents.map(doc => ({ name: doc.name, file_id: doc.id, description: doc.description || ''}))
       };
       
-      // Now define payload, using creditRequestFormData
       const payload = {
         title: requestTitle,
         counterparty_id: selectedCounterparty,
@@ -492,9 +522,8 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
         description: detailedCommentsOnLimits,
         applicant_name: relationshipManager,
         limit_requests: formattedLimits,
-        credit_request_form: creditRequestFormData // Correctly included and defined
+        credit_request_form: creditRequestFormData
       };
-
 
       console.log('handleSubmit - Final payload to be sent:', JSON.stringify(payload, null, 2));
 
@@ -504,40 +533,40 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
       if (editMode && id) {
         console.log(`Updating existing credit application with ID: ${id}`);
         response = await patch(`/api/credit/credit-applications/${id}/`, payload);
+        // After successful PATCH, update state and return true
+        if (response?.data?.id) {
+          console.log(`Credit application updated successfully with ID: ${response.data.id}`);
+          if (response.data.workflow_instance_id) {
+            console.log(`Updating workflow instance ID: ${response.data.workflow_instance_id}`);
+            setWorkflowInstanceId(response.data.workflow_instance_id);
+          }
+          setRefetchTrigger(prev => prev + 1); // Trigger refetch for updated data
+          setTransitionLoading(false);
+          return true;
+        } else {
+          // This case might indicate a successful HTTP status but unexpected response body
+          console.error('Error: Update request did not return a valid ID or data, or response was unexpected.');
+          setTransitionError('Failed to update application: Invalid response from server.');
+          setTransitionLoading(false);
+          return false;
+        }
       } else {
         console.log('Creating new credit application');
         response = await post('/api/credit/credit-applications/', payload);
         if (response?.data?.id) {
           const newId = response.data.id;
           console.log(`Credit application created successfully with ID: ${newId}`);
+          // For new creations, we navigate, and handleTransition will likely not proceed further in this call.
+          // The workflowInstanceId will be set on the new page after navigation and data fetch.
           setTransitionLoading(false);
-          navigate(`/credit-requests/${newId}/edit`);
-          return true; 
+          navigate(`/credit-requests/${newId}/edit`); 
+          return true; // Indicate success, though navigation happens
         } else {
           console.error('Error: New credit application POST request did not return an ID.');
           setTransitionError('Failed to save new application: No ID received.');
           setTransitionLoading(false);
           return false;
         }
-      }
-
-      console.log('API response (PATCH):', response.data);
-      if (response?.data?.id) {
-        console.log(`Credit application saved/updated with ID: ${response.data.id}`);
-        if (response.data.workflow_instance_id) { 
-          console.log(`Setting/Updating workflow instance ID: ${response.data.workflow_instance_id}`);
-          setWorkflowInstanceId(response.data.workflow_instance_id);
-        }
-        if (editMode && id) {
-            setRefetchTrigger(prev => prev + 1);
-        }
-        setTransitionLoading(false);
-        return true;
-      } else {
-        console.error('Error: Save/Update request did not return a valid ID or data.');
-        setTransitionError('Failed to save application: Invalid response from server.');
-        setTransitionLoading(false);
-        return false;
       }
     } catch (err) {
       console.error('Error during form submission:', err);

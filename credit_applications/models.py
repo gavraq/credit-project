@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from workflow_engine.models import WorkflowInstance
+from django.conf import settings
 
 class Counterparty(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -159,8 +160,10 @@ class CreditRequestForm(models.Model):
     
     # Stakeholders
     account_executive = models.CharField(max_length=255, blank=True)
-    senior_business_sponsor = models.CharField(max_length=255, blank=True)
-    second_business_sponsor = models.CharField(max_length=255, blank=True, null=True)
+    senior_business_sponsor_name = models.CharField(max_length=255, blank=True, null=True) # Renamed, was senior_business_sponsor
+    senior_business_sponsor_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='crf_senior_sponsors')
+    second_business_sponsor_name = models.CharField(max_length=255, blank=True, null=True) # Renamed, was second_business_sponsor
+    second_business_sponsor_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='crf_second_sponsors')
     
     # Additional Information
     high_priority_justification = models.TextField(blank=True)

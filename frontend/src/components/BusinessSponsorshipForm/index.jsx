@@ -31,6 +31,8 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
   const [keyRisksAndMitigants, setKeyRisksAndMitigants] = useState('');
   const [formStartDate, setFormStartDate] = useState('');
   const [formCompletionDate, setFormCompletionDate] = useState('');
+  const [secondSponsorName, setSecondSponsorName] = useState('');
+  const [secondSponsorComments, setSecondSponsorComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState(''); // For potential reject transitions
 
   const colors = {
@@ -55,48 +57,62 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
   useEffect(() => {
     const populateFormDataLocal = (appData) => {
       if (!appData) {
-        console.warn('populateFormDataLocal called with no appData');
+        console.warn('BusinessSponsorshipForm populateFormDataLocal: called with no appData');
         return;
       }
 
-      // Set the main credit application data for the form's context
-      setCreditApplication(appData); 
+      setCreditApplication(appData); // Set the main credit application data for context
 
+      // Extract potential data sources
+      const crPrioritisationData = appData.credit_request_form?.form_data?.prioritisation_sponsorship;
       const bsFormContainer = appData.business_sponsorship_form;
+      const bsFormData = bsFormContainer?.form_data;
+
+      // Set common form fields (dates, rationale, etc.) and workflow states
       if (bsFormContainer) {
         setBsWorkflowInstanceId(bsFormContainer.workflow_instance_id || null);
         setCurrentBsWorkflowState(bsFormContainer.workflow_state_name || null);
         setAllowedBsTransitionsList(bsFormContainer.available_transitions || []);
 
-        const bsFormData = bsFormContainer.form_data;
         if (bsFormData) {
-          setSponsorName(bsFormData.sponsor_name || '');
+          // Existing BusinessSponsorshipForm data found, use it or fallback to CR data for sponsors
+          setSponsorName(bsFormData.sponsor_name || crPrioritisationData?.senior_business_sponsor_name || '');
           setSponsorshipRationale(bsFormData.sponsorship_rationale || '');
           setKeyRisksAndMitigants(bsFormData.key_risks_and_mitigants || '');
           setFormStartDate(bsFormData.form_start_date || new Date().toISOString().split('T')[0]);
           setFormCompletionDate(bsFormData.form_completion_date || '');
+          setSecondSponsorName(bsFormData.second_sponsor_name || crPrioritisationData?.second_business_sponsor_name || '');
+          setSecondSponsorComments(bsFormData.second_sponsor_comments || crPrioritisationData?.second_business_sponsor_comments || '');
           setRejectionReason(bsFormData.rejection_reason || '');
         } else {
-          // If form_data is null/undefined, set defaults for a new sub-form
+          // No specific bsFormData, but bsFormContainer exists (e.g., workflow initiated but form not saved).
+          // Treat as new form content, populate from CR data for sponsors.
           setFormStartDate(new Date().toISOString().split('T')[0]);
-          setSponsorName('');
-          setSponsorshipRationale('');
-          setKeyRisksAndMitigants('');
+          setSponsorName(crPrioritisationData?.senior_business_sponsor_name || '');
+          setSponsorshipRationale(''); // Specific to this form
+          setKeyRisksAndMitigants(''); // Specific to this form
           setFormCompletionDate('');
+          setSecondSponsorName(crPrioritisationData?.second_business_sponsor_name || '');
+          setSecondSponsorComments(crPrioritisationData?.second_business_sponsor_comments || '');
           setRejectionReason('');
         }
       } else {
-        // If business_sponsorship_form container doesn't exist, treat as a new sub-form scenario
+        // No bsFormContainer at all. This is a completely new BusinessSponsorshipForm instance.
+        // Populate from CR data for sponsors and set defaults for other fields.
         setFormStartDate(new Date().toISOString().split('T')[0]);
-        setSponsorName('');
+        setSponsorName(crPrioritisationData?.senior_business_sponsor_name || '');
         setSponsorshipRationale('');
         setKeyRisksAndMitigants('');
         setFormCompletionDate('');
+        setSecondSponsorName(crPrioritisationData?.second_business_sponsor_name || '');
+        setSecondSponsorComments(crPrioritisationData?.second_business_sponsor_comments || '');
         setRejectionReason('');
+        // Initialize workflow states for a new sub-form
         setBsWorkflowInstanceId(null);
         setCurrentBsWorkflowState(null); // Or an initial state like 'Draft'
-        setAllowedBsTransitionsList([]); // Or initial transitions for a new sub-form
+        setAllowedBsTransitionsList([]);
       }
+      // setLoading(false); // Typically handled by the useEffect that calls this function
     };
 
     if (initialCreditApplication) {
@@ -136,6 +152,8 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
       key_risks_and_mitigants: keyRisksAndMitigants,
       form_start_date: formStartDate,
       form_completion_date: isDraft ? formCompletionDate : new Date().toISOString().split('T')[0],
+      second_sponsor_name: secondSponsorName,
+      second_sponsor_comments: secondSponsorComments,
       // Include other fields as necessary
     };
     if (rejectionReason && !isDraft) { // Only include rejection reason if it's relevant for a non-draft submission
@@ -144,9 +162,7 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
 
 
     const payload = {
-      form_data: {
-        business_sponsorship_data: businessSponsorshipPayload
-      }
+      form_data: businessSponsorshipPayload
       // Add create_workflow_instance: true if this save should trigger workflow creation
       // This might be needed if the BusinessSponsorshipForm record itself is created on this save
       // and its workflow needs to be initialized.
@@ -251,15 +267,33 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
       }}>
         <form onSubmit={handleSubmit}>
           <FormSection title="Sponsorship Details" description="Provide details about the business sponsorship.">
-            <FormField
-              label="Sponsor Name / Department"
-              type="text"
-              placeholder="Enter sponsor name or department"
-              value={sponsorName}
-              onChange={(e) => setSponsorName(e.target.value)}
-              required={true}
-              colors={colors}
-            />
+                <FormField
+                  label="Sponsor Name"
+                  type="text"
+                  placeholder="Enter sponsor name (auto-populated from Credit Request)"
+                  value={sponsorName}
+                  onChange={(e) => setSponsorName(e.target.value)}
+                  colors={colors}
+                  required
+                  // Assuming this might be read-only if strictly auto-populated, or editable if it can be overridden.
+                  // For now, keeping it editable.
+                />
+                <FormField
+                  label="Optional Second Senior Business Sponsor Name"
+                  type="text"
+                  placeholder="Enter second sponsor name (auto-populated from Credit Request)"
+                  value={secondSponsorName}
+                  onChange={(e) => setSecondSponsorName(e.target.value)}
+                  colors={colors}
+                />
+                <FormField
+                  label="Comments (Second Sponsor)"
+                  type="textarea"
+                  placeholder="Enter comments for the second sponsor"
+                  value={secondSponsorComments}
+                  onChange={(e) => setSecondSponsorComments(e.target.value)}
+                  colors={colors}
+                />
             <FormField
               label="Sponsorship Rationale"
               type="textarea"
