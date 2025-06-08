@@ -176,25 +176,14 @@ const RequestTrackingDashboard = () => {
                       <IconButton size="small" color="primary">
                         <Visibility fontSize="small" />
                       </IconButton>
-                      {r.workflow_state?.code === 'CREDIT_PAPER_CREDIT_REVIEW_PENDING' ? (
-                        <IconButton 
-                          size="small" 
-                          color="secondary" 
-                          onClick={() => navigate(`/credit-review/${r.id}`)}
-                          title="Review Credit Application"
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      ) : (
-                        <IconButton 
-                          size="small" 
-                          color="secondary" 
-                          onClick={() => navigate(`/credit-requests/${r.id}/edit`)}
-                          title="Edit Credit Request"
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      )}
+                      <IconButton 
+                        size="small" 
+                        color="secondary" 
+                        onClick={() => navigate(`/credit-requests/${r.id}/edit`)}
+                        title={r.workflow_state?.code === 'CREDIT_PAPER_CREDIT_REVIEW_PENDING' ? "Review Credit Application" : "Edit/View Application"}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))

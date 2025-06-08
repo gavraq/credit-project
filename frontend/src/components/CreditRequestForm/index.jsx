@@ -16,17 +16,17 @@ import PrioritisationSection from './PrioritisationSection';
 import DocumentsSection from './DocumentsSection';
 import DebugPanel from './DebugPanel';
 
-const CreditRequestForm = (props) => {
+const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWorkflowStep = 1 }) => {
   const { id } = useParams();
   const navigate = useNavigate(); // Added for navigation
-  const editMode = props.editMode || !!id;
+  const editMode = !!id || !!initialCreditApplication; // Edit mode if ID or initial data is present
   
   // Workflow state logic
-  const [workflowInstance, setWorkflowInstance] = useState(null);
   const [currentState, setCurrentState] = useState('');
   const [allowedTransitions, setAllowedTransitions] = useState([]);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
+  const [loading, setLoading] = useState(true); // Added loading state
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const [workflowInstanceId, setWorkflowInstanceId] = useState(null);
 
@@ -126,140 +126,119 @@ const CreditRequestForm = (props) => {
   }, [id]);
 
   // Fetch credit application on mount
+  // Consolidated data population logic
+  async function populateFormDataLocal(appData) {
+    if (!appData) {
+      console.warn('CreditRequestForm: populateFormDataLocal called with no appData');
+      // Potentially reset form states here if appData is null and it's not a new form scenario
+      return;
+    }
+    console.log('Populating form with data:', appData);
+
+    // Populate direct CreditApplication fields
+    setRequestTitle(appData.title || '');
+    setSelectedCounterparty(appData.counterparty?.id || '');
+    setPriority(appData.priority || 'Medium');
+    setRequiredByDate(appData.required_by_date || '');
+    setDetailedCommentsOnLimits(appData.description || '');
+    setRelationshipManager(appData.applicant_name || '');
+    setDateFormStarted(appData.date_form_started || (appData.created_at ? new Date(appData.created_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)));
+    setRequestNumber(appData.request_number || `CR-TEMP-${appData.id || 'NEW'}`);
+
+    // Populate limits
+    if (appData.limit_requests && Array.isArray(appData.limit_requests) && appData.limit_requests.length > 0) {
+      const fetchedLimits = appData.limit_requests.map((limit, index) => ({
+        id: limit.id || Date.now() + index,
+        type: limit.limit_type, // Expecting full object or ID string
+        existingAmount: limit.existing_amount || '',
+        existingTenor: limit.existing_tenor || '',
+        proposedAmount: limit.proposed_amount || '',
+        proposedTenor: limit.proposed_tenor || '',
+        comments: limit.comments || ''
+      }));
+      setLimits(fetchedLimits);
+    } else {
+      setLimits([{ id: Date.now(), type: '', existingAmount: '', existingTenor: '', proposedAmount: '', proposedTenor: '', comments: '' }]);
+    }
+
+    const formData = appData.credit_request_form;
+    if (formData) {
+      console.log('Populating from formData (appData.credit_request_form):', formData);
+      setCounterpartyCIF(formData.counterparty_cif || '');
+      const guarantorNameFromData = formData.guarantor_name || '';
+      const guarantorCifFromData = formData.guarantor_cif || '';
+      setSelectedGuarantorName(guarantorNameFromData);
+      setGuarantorCIF(guarantorCifFromData);
+      // setSelectedGuarantor logic might need counterparties to be loaded first - handle in dependent useEffect or after counterparties fetch
+
+      setCountryRiskLimitAvailable(formData.country_risk_limit_available ? 'yes' : 'no');
+      setRevenueLast12Months(formData.revenue_last_12m || '');
+      setRevenueProjected12Months(formData.revenue_projected_12m || '');
+      setProjectedRorwa(formData.projected_rorwa_percent || '');
+      setMostSeniorContact(formData.most_senior_contact || '');
+      setLastClientVisitDate(formData.last_client_visit_date || '');
+      setRelationshipComments(formData.relationship_comments || '');
+      setLegalDocumentType(formData.legal_documentation || '');
+      setPositiveLegalOpinion(formData.positive_legal_opinion ? 'Yes' : 'No');
+      setFinancialStatementsReceived(formData.financial_statements_received || false);
+      setInterimStatementsAvailable(formData.interim_statements_available || false);
+      setAccountExecutive(formData.account_executive || '');
+      setSelectedBusinessSponsor(formData.senior_business_sponsor || '');
+      setSelectedSecondBusinessSponsor(formData.second_business_sponsor || '');
+      setJustificationForHighPriority(formData.high_priority_justification || '');
+    }
+
+    if (appData.workflow_instance_id) {
+      setWorkflowInstanceId(appData.workflow_instance_id);
+    }
+    if (appData.workflow_state) {
+      setCurrentState(appData.workflow_state.name || '');
+    }
+    if (appData.available_transitions) {
+      setAllowedTransitions(appData.available_transitions || []);
+    }
+
+    // Trigger dependent data fetches that might rely on counterparty ID or other main data
+    // These fetches are in their own useEffects, which should re-run if their dependencies (like 'id') change.
+    // Or, if they need to be explicitly called after populateFormDataLocal, ensure they are.
+    // For simplicity, we assume their existing useEffects will handle re-fetching if 'id' is stable and data comes from prop.
+  }
+
+  // Main data loading useEffect
   useEffect(() => {
-    async function fetchCreditApplication() {
-      if (!id) return; // Don't fetch if no ID (new application)
-      
-      try {
-        const { get } = await import('../../services/api');
-        console.log(`Fetching credit application with ID: ${id}`);
-        const response = await get(`/api/credit/credit-applications/${id}/`);
-        const creditApp = response.data;
-        console.log('Fetched credit application:', creditApp);
-        
-        // Update form fields with credit application data
-        // Populate direct CreditApplication fields
-        setRequestTitle(creditApp.title || '');
-        setSelectedCounterparty(creditApp.counterparty?.id || '');
-        // Ensure priority is correctly capitalized for display if necessary, or handle in component
-        setPriority(creditApp.priority || 'Medium'); 
-        setRequiredByDate(creditApp.required_by_date || '');
-        setDetailedCommentsOnLimits(creditApp.description || '');
-        setRelationshipManager(creditApp.applicant_name || ''); // Assuming applicant_name is the RM
-        setDateFormStarted(creditApp.date_form_started || (creditApp.created_at ? new Date(creditApp.created_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)));
-        setRequestNumber(creditApp.request_number || `CR-TEMP-${id}`); // Populate request number
+    async function loadData() {
+      setLoading(true);
+      setTransitionError(null); // Clear previous errors
 
-        // Populate limits
-        if (creditApp.limit_requests && Array.isArray(creditApp.limit_requests) && creditApp.limit_requests.length > 0) {
-          const fetchedLimits = creditApp.limit_requests.map((limit, index) => ({
-            id: limit.id || Date.now() + index, // Ensure unique ID for React keys
-            type: limit.limit_type,    // Use the full limit_type object for the dropdown
-            existingAmount: limit.existing_amount || '',
-            existingTenor: limit.existing_tenor || '',
-            proposedAmount: limit.proposed_amount || '',
-            proposedTenor: limit.proposed_tenor || '',
-            comments: limit.comments || ''
-          }));
-          setLimits(fetchedLimits);
-        } else {
-          // Reset to default if no limits are fetched, or keep existing if preferred
-          setLimits([
-            {
-              id: Date.now(),
-              type: '',
-              existingAmount: '',
-              existingTenor: '',
-              proposedAmount: '',
-              proposedTenor: '',
-              comments: ''
-            }
-          ]);
+      if (initialCreditApplication) {
+        console.log('CreditRequestForm: Populating form with initialCreditApplication prop.');
+        await populateFormDataLocal(initialCreditApplication);
+        setLoading(false);
+      } else if (id) {
+        console.log(`CreditRequestForm: Fetching credit application with ID: ${id} as initial prop was not provided.`);
+        try {
+          const { get } = await import('../../services/api');
+          const response = await get(`/api/credit/credit-applications/${id}/`);
+          const fetchedData = response.data;
+          console.log('CreditRequestForm: Fetched credit application via API:', fetchedData);
+          await populateFormDataLocal(fetchedData);
+        } catch (error) {
+          console.error(`CreditRequestForm: Error fetching credit application ${id}:`, error);
+          setTransitionError(`Failed to load application data for ID ${id}. Error: ${error.message}`);
         }
-
-        // Populate from credit_request_form (assuming it's nested as creditApp.credit_request_form)
-        const formData = creditApp.credit_request_form;
-        if (formData) {
-          console.log('Populating from formData (creditApp.credit_request_form):', formData);
-          setCounterpartyCIF(formData.counterparty_cif || ''); // Populate counterparty_cif from credit_request_form
-
-          // Counterparty Section (Guarantor)
-          const guarantorNameFromData = formData.guarantor_name || '';
-          const guarantorCifFromData = formData.guarantor_cif || '';
-
-          setSelectedGuarantorName(guarantorNameFromData);
-          setGuarantorCIF(guarantorCifFromData);
-
-          if ((guarantorNameFromData || guarantorCifFromData) && counterparties.length > 0) {
-            const matchedGuarantor = counterparties.find(
-              c => (guarantorNameFromData && c.name === guarantorNameFromData) || 
-                   (guarantorCifFromData && c.cif_number === guarantorCifFromData)
-            );
-            if (matchedGuarantor) {
-              setSelectedGuarantor(matchedGuarantor.id);
-            } else {
-              setSelectedGuarantor(''); // Reset if no match
-            }
-          } else {
-            setSelectedGuarantor(''); // Reset if no name/CIF from formData or no counterparties loaded
-          }
-          
-          // Limits Section (additional fields, not the table itself)
-          setCountryRiskLimitAvailable(formData.country_risk_limit_available ? 'yes' : 'no'); // Changed to lowercase
-          // detailedCommentsOnLimits is already set from creditApp.description, if it's duplicated in form_data, this would be the place
-
-          // Relationship Section
-          setRevenueLast12Months(formData.revenue_last_12m || '');
-          setRevenueProjected12Months(formData.revenue_projected_12m || '');
-          setProjectedRorwa(formData.projected_rorwa_percent || '');
-          setMostSeniorContact(formData.most_senior_contact || '');
-          setLastClientVisitDate(formData.last_client_visit_date || '');
-          setRelationshipComments(formData.relationship_comments || '');
-
-          // Legal Section
-          setLegalDocumentType(formData.legal_documentation || '');
-          setPositiveLegalOpinion(formData.positive_legal_opinion ? 'Yes' : 'No');
-          setFinancialStatementsReceived(formData.financial_statements_received || false);
-          setInterimStatementsAvailable(formData.interim_statements_available || false);
-
-          // Prioritisation Section
-          setAccountExecutive(formData.account_executive || '');
-          // relationshipManager is already set from creditApp.applicant_name
-          setSelectedBusinessSponsor(formData.senior_business_sponsor || '');
-          setSelectedSecondBusinessSponsor(formData.second_business_sponsor || '');
-          setJustificationForHighPriority(formData.high_priority_justification || '');
-          // priority and requiredByDate are already set from creditApp direct fields
-        }
-        
-        // Check if the credit application has a workflow instance
-        if (creditApp.workflow_instance_id) {
-          console.log(`Setting workflow instance ID from creditApp.workflow_instance_id: ${creditApp.workflow_instance_id}`);
-          setWorkflowInstanceId(creditApp.workflow_instance_id);
-        } else {
-          console.error('Credit application response does not contain workflow_instance_id. Cannot set workflowInstanceId.');
-        }
-
-        // Set workflow state directly from the credit application response
-        // This part can remain as is, as workflow_state and available_transitions are separate top-level keys
-        if (creditApp.workflow_state) {
-          console.log('Setting current state from credit application:', creditApp.workflow_state);
-          setCurrentState(creditApp.workflow_state.name || '');
-        }
-        
-        if (creditApp.available_transitions) {
-          console.log('Setting allowed transitions from credit application:', creditApp.available_transitions);
-          setAllowedTransitions(creditApp.available_transitions || []);
-        }
-      } catch (error) {
-        console.error(`Error fetching credit application ${id}:`, error);
-        setTransitionError(`Failed to load application data for ID ${id}. Please try refreshing. Error: ${error.message}`);
+        setLoading(false);
+      } else {
+        // This is a new application (no ID, no initial data).
+        // Form fields should be in their initial state from useState.
+        // The separate useEffect for when `!id` (lines 263-280 in previous view) handles resetting fields for a new form.
+        console.log('CreditRequestForm: New application form (no id and no initialCreditApplication). Relying on initial states and reset useEffect.');
+        setLoading(false);
       }
     }
-    
-    if (id) {
-      fetchCreditApplication();
-    }
-    // The else block (reset logic) is removed from here and moved to a new useEffect.
-  }, [id, refetchTrigger, counterparties]);
+
+    loadData();
+    // Other specific data fetches (counterparties, limit types etc.) have their own useEffects and should trigger based on their dependencies.
+  }, [id, initialCreditApplication, refetchTrigger, populateFormDataLocal]); // Added populateFormDataLocal to dependencies as it's now defined outside and used.
 
   // New useEffect for resetting form states when 'id' is not present (new form)
   useEffect(() => {
@@ -315,33 +294,6 @@ const CreditRequestForm = (props) => {
     }
   }, [id]); // This effect runs only when 'id' changes (or on initial mount)
 
-  // Fetch workflow instance data
-  const fetchWorkflowInstance = async (instanceId) => {
-    try {
-      if (!instanceId) {
-        console.log('DEBUG: No workflow instance ID provided to fetchWorkflowInstance');
-        return;
-      }
-      console.log(`DEBUG: Fetching full workflow instance object: ${instanceId}`);
-      const { get } = await import('../../services/api');
-      const response = await get(`/api/workflow-instances/${instanceId}/`);
-      console.log('DEBUG: Full workflow instance object data:', response.data);
-      setWorkflowInstance(response.data); // Set the full workflow instance object
-    } catch (error) {
-      console.error('DEBUG: Error in fetchWorkflowInstance (fetching full instance object):', error);
-      // Consider setting an error state if this specific fetch fails,
-      // as it's important for enabling transitions.
-      setTransitionError('Failed to load essential workflow instance details. Transitions may be disabled.');
-    }
-  };
-
-  // Fetch workflow instance when workflowInstanceId changes
-  useEffect(() => {
-    if (workflowInstanceId) {
-      fetchWorkflowInstance(workflowInstanceId);
-    }
-  }, [workflowInstanceId, refetchTrigger]); // Added refetchTrigger dependency
-
   // Handler for transition button click
   const validateFormForSubmission = () => {
     const missingFields = [];
@@ -353,22 +305,35 @@ const CreditRequestForm = (props) => {
       missingFields.push('Justification for High Priority');
     }
     if (!requiredByDate) missingFields.push('Required By Date');
-    
     // Check limits (the state variable for limit requests is `limits`)
     if (!limits || limits.length === 0) {
       missingFields.push('At least one Limit Request');
+      console.log('validateFormForSubmission: No limits found or limits array is empty.');
     } else {
-      // Optional: Deeper validation for each limit can be added here
-      // For example, ensure each limit has a type, proposed amount, and tenor
+      console.log('validateFormForSubmission: Validating limits. Current limits state:', JSON.parse(JSON.stringify(limits))); // Deep log of entire limits array
+      // Validate each limit based on the `limits` state structure
       limits.forEach((limit, index) => {
-        if (!limit.limit_type_id) missingFields.push(`Limit Request ${index + 1}: Type`); // Corrected
-        if (limit.proposed_amount === undefined || limit.proposed_amount === null || limit.proposed_amount === '') missingFields.push(`Limit Request ${index + 1}: Proposed Amount`); // Corrected
-        if (!limit.proposed_tenor) missingFields.push(`Limit Request ${index + 1}: Proposed Tenor`); // Corrected
+        console.log(`validateFormForSubmission: Validating Limit ${index + 1} raw data:`, JSON.parse(JSON.stringify(limit)));
+        // Robust checks for non-empty string values or valid objects for type
+        const typeIsValid = limit.type && (typeof limit.type === 'object' ? limit.type.id : String(limit.type).trim() !== '');
+        const proposedAmountIsValid = limit.proposedAmount !== null && limit.proposedAmount !== undefined && String(limit.proposedAmount).trim() !== '';
+        const proposedTenorIsValid = limit.proposedTenor !== null && limit.proposedTenor !== undefined && String(limit.proposedTenor).trim() !== '';
+        console.log(`validateFormForSubmission: Limit ${index + 1} - type: '${JSON.stringify(limit.type)}', proposedAmount: '${limit.proposedAmount}', proposedTenor: '${limit.proposedTenor}'`);
+        console.log(`validateFormForSubmission: Limit ${index + 1} - typeIsValid: ${typeIsValid}, proposedAmountIsValid: ${proposedAmountIsValid}, proposedTenorIsValid: ${proposedTenorIsValid}`);
+
+        if (!typeIsValid) {
+            missingFields.push(`Limit Request ${index + 1}: Type`);
+        }
+        if (!proposedAmountIsValid) {
+            missingFields.push(`Limit Request ${index + 1}: Proposed Amount`);
+        }
+        if (!proposedTenorIsValid) {
+            missingFields.push(`Limit Request ${index + 1}: Proposed Tenor`);
+        }
       });
     }
 
     // TODO: Add validation for documents if they are mandatory for submission
-
     if (missingFields.length > 0) {
       return `Submission failed: Please fill in the following required fields: ${missingFields.join(', ')}.`;
     }
@@ -391,7 +356,7 @@ const CreditRequestForm = (props) => {
     setTransitionError(null);
 
     // If it's a new form (no id from URL params) and no workflow instance yet
-    if (!id && !workflowInstance?.id) {
+    if (!id && !workflowInstanceId) {
       const confirmSave = window.confirm(
         "This is a new application. It must be saved before it can be submitted. Would you like to save it now?"
       );
@@ -426,37 +391,28 @@ const CreditRequestForm = (props) => {
         return;
       }
 
-      if (!workflowInstance?.id) {
-        console.error('Workflow instance ID not available after save. Aborting transition.');
-        setTransitionError('Failed to retrieve workflow details after saving. Cannot perform transition.');
+      if (!workflowInstanceId) {
+        console.error('Error submitting form for review: No workflow instance ID available after save.');
+        setTransitionError('Error: No workflow instance ID available. Please try saving as draft again.');
         setTransitionLoading(false);
         return;
       }
-      
-      const isSubWorkflow = currentState.includes('CREDIT_REQUEST');
-      let finalTransitionCode = transitionCode;
-      
-      if (isSubWorkflow && currentState.includes('DRAFT')) {
-        finalTransitionCode = 'CR_TR_5';
-        console.log('Using CR_TR_5 for Credit Request sub-workflow transition');
-      } else if (!isSubWorkflow && currentState.includes('CREDIT_PAPER_CREDIT_REQUEST')) {
-        finalTransitionCode = 'PP_TR_1';
-        console.log('Using PP_TR_1 for Credit Paper parent workflow transition');
-      }
-      
-      console.log(`Performing transition ${finalTransitionCode} on workflow instance ${workflowInstance.id}`);
-      const result = await performWorkflowTransition(
-        workflowInstance.id, 
-        finalTransitionCode,
-        `Transition performed from Credit Request Form UI. Transition code: ${finalTransitionCode}`
-      );
-      
-      console.log('Transition result:', result);
-      alert(`Successfully performed transition: ${finalTransitionCode}`);
-      setRefetchTrigger(prev => prev + 1); // Trigger refetch of workflow instance
-      
-      if (isSubWorkflow && result && result.detail === 'Transition performed successfully.') {
-        console.log('Sub-workflow transition successful. Parent workflow may need to be transitioned next.');
+
+      // The 'transitionCode' parameter is expected to be the correct code for the current state,
+      // as it's derived from the 'available_transitions' list provided by the backend.
+      console.log(`Attempting to perform transition: ${transitionCode} on workflow instance ${workflowInstanceId} with comments: "${comments}"`);
+      const response = await performWorkflowTransition(workflowInstanceId, transitionCode, comments);
+
+      console.log('Transition API response:', response);
+
+      if (response && response.detail && response.detail.includes('Transition performed successfully')) {
+        console.log(`Successfully performed action: ${transitionCode}`); // Keep a console log for success
+        setRefetchTrigger(prev => prev + 1); // Trigger refetch to update workflow state and available transitions
+        navigate('/'); // Navigate to homepage/dashboard on success
+      } else {
+        const errorMessage = response?.detail || response?.error || 'Failed to perform transition. Unknown error.'; // Check response.detail for error messages too
+        console.error('Transition failed:', errorMessage);
+        setTransitionError(`Transition failed: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error performing transition:', error);
@@ -862,8 +818,15 @@ const CreditRequestForm = (props) => {
       
       <FormWizardNav 
         sectionRefs={sectionRefs} 
-        currentStep={currentStep} 
-        setCurrentStep={setCurrentStep} 
+        currentStep={mainWorkflowStep} /* Use mainWorkflowStep for overall phase */ 
+        /* setCurrentStep={setCurrentStep} // This might need to be reconciled if FormWizardNav also manages local scroll steps */
+        /* For now, assuming mainWorkflowStep is for display and local navigation is separate */
+        /* If FormWizardNav needs to *control* the main step, this interaction needs review */
+        /* We might need a different prop on FormWizardNav or adjust its internal logic */
+        /* For now, this change aims to *display* the correct overall step from ApplicationLoader */
+        /* The original currentStep and setCurrentStep were for local section navigation */
+        activeInternalStep={currentStep} /* Pass original currentStep for internal navigation */ 
+        setActiveInternalStep={setCurrentStep} /* Pass original setCurrentStep for internal navigation */
         colors={colors} 
       />
       
@@ -1012,9 +975,9 @@ const CreditRequestForm = (props) => {
             key={id || 'new_form_workflow_actions'} // Ensure remount on ID change
             transitionLoading={transitionLoading}
             transitionError={transitionError}
-            onSubmit={handleSubmit} /* Changed from handleSubmit to onSubmit to match WorkflowActions expectations */
-            handleTransition={handleTransition}
-            workflowInstance={workflowInstance}
+            onSubmit={handleSubmit} /* This is correct, maps to handleSubmit in CreditRequestForm */
+            workflowInstanceId={workflowInstanceId} // This prop is correctly added
+            handleTransition={handleTransition} // CORRECTED to use the actual function name 'handleTransition'
             currentState={currentState}
             allowedTransitions={allowedTransitions || []}
             colors={colors}

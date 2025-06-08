@@ -4,33 +4,23 @@ import axios from 'axios';
 
 const WorkflowActions = ({ 
   onSubmit, 
-  formRef, 
-  workflowInstance,
-  currentState,
-  allowedTransitions = [],
-  transitionLoading,
-  transitionError,
-  handleTransition,
+  // formRef, // Consider if formRef is still needed if onSubmit is primary
+  workflowInstanceId, // CHANGED from workflowInstance
+  currentState, // Prop for current state name
+  allowedTransitions = [], // Prop for available transitions
+  transitionLoading, // Prop for parent's transition loading state
+  transitionError,   // Prop for parent's transition error message
+  handleTransition,  // Prop for parent's function to call for a transition
   colors
 }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [workflowState, setWorkflowState] = useState(null);
-  const [availableTransitions, setAvailableTransitions] = useState([]);
   const navigate = useNavigate();
-  const params = useParams();
-  const location = useLocation();
-  console.log('WorkflowActions rendered/updated. Props received - workflowInstance:', workflowInstance, 'currentState:', currentState, 'allowedTransitions:', allowedTransitions);
+  // const params = useParams(); // Not used
+  // const location = useLocation(); // Not used
+  console.log('WorkflowActions rendered/updated. Props received - workflowInstanceId:', workflowInstanceId, 'currentState:', currentState, 'allowedTransitions:', allowedTransitions);
   
-  // Use the provided workflow state and transitions
-  useEffect(() => {
-    if (currentState) {
-      setWorkflowState(currentState);
-    }
-    if (allowedTransitions && allowedTransitions.length > 0) {
-      setAvailableTransitions(allowedTransitions);
-    }
-  }, [currentState, allowedTransitions]);
+  // Directly use props: currentState, allowedTransitions. Internal state for these is removed.
   
   const handleSubmitForm = async (event) => {
     if (event) {
@@ -46,10 +36,13 @@ const WorkflowActions = ({
       // First, save the form data using the provided onSubmit handler
       if (onSubmit) {
         console.log('Calling onSubmit to save form data');
-        const submitResult = await onSubmit(event);
-        if (!submitResult) {
-          throw new Error('Form submission failed');
+        const submitResult = await onSubmit(event); // onSubmit is handleSubmit in CreditRequestForm
+        // Assuming onSubmit (parent's handleSubmit) now returns an object like { success: true } or { success: false, error: 'message' }
+        // or throws an error on failure.
+        if (submitResult && submitResult.success === false) { 
+          throw new Error(submitResult.error || 'Form save failed before transition');
         }
+        // If onSubmit throws, it will be caught by the catch block.
       } else if (formRef && formRef.current) {
         console.log('Submitting form via formRef');
         formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
@@ -59,32 +52,34 @@ const WorkflowActions = ({
       }
       
       // Check if we have a workflow instance
-      console.log('WorkflowActions.handleSubmitForm: Checking workflowInstance prop:', workflowInstance);
-      if (!workflowInstance) {
-        throw new Error('No workflow instance available');
+      // The parent (e.g., CreditRequestForm) is responsible for having the workflowInstanceId.
+      // The parent's handleTransition function will use its own workflowInstanceId.
+
+      // Find the appropriate transition code for 'Submit for Review'.
+      // This logic might need to be more robust or configurable depending on actual transition names/codes.
+      const submitTransition = allowedTransitions.find(
+        t => (t.name && t.name.toLowerCase().includes('submit')) || 
+             (t.code && (t.code === 'CR_TR_5' || t.code.toLowerCase().includes('submit'))) // Example codes
+      );
+
+      if (!submitTransition) {
+        console.error('WorkflowActions: "Submit for Review" transition not found in allowedTransitions:', allowedTransitions);
+        throw new Error('"Submit for Review" action is not currently available.');
       }
-      
-      const instanceId = typeof workflowInstance === 'object' ? 
-        workflowInstance.id : workflowInstance;
-      
-      console.log(`Using workflow instance: ${instanceId}`);
-      
-      // Perform the workflow transition
-      console.log('Transitioning workflow with code PP_TR_1');
-      const transitionPayload = {
-        transition_code: 'PP_TR_1',
-        comments: 'Moving to credit review pending'
-      };
-      
-      const { post } = await import('../../services/api');
-      const transitionUrl = `/api/workflow-instances/${instanceId}/transition/`;
-      console.log(`Making POST request to: ${transitionUrl} with payload:`, transitionPayload);
-      
-      const transitionResponse = await post(transitionUrl, transitionPayload);
-      console.log('Transition response:', transitionResponse.data);
-      
-      // Navigate to dashboard without alert
-      navigate('/');
+
+      console.log(`WorkflowActions: Found submit transition: ${submitTransition.code}. Calling handleTransition.`);
+      if (handleTransition) {
+        // Call the parent's handleTransition function
+        // It will use its own workflowInstanceId and perform the API call.
+        await handleTransition(submitTransition.code, 'Submitted for review'); // Pass the dynamic code
+        
+        // Navigation should ideally be handled by the parent form after a successful transition,
+        // or based on the result of handleTransition.
+        // navigate('/'); // Consider removing navigation from here or making it conditional.
+      } else {
+        console.error('WorkflowActions: handleTransition prop is not provided.');
+        throw new Error('Cannot perform transition: handler not available.');
+      }
     } catch (error) {
       console.error('Error submitting form for review:', error);
       console.error('Error details:', error.response?.data || 'No response data');

@@ -43,10 +43,14 @@ class LimitRequestSerializer(serializers.ModelSerializer):
         ]
 
 class CreditRequestFormSerializer(serializers.ModelSerializer):
+    workflow_instance_id = serializers.SerializerMethodField()
+    workflow_state_name = serializers.SerializerMethodField()
+    available_transitions = serializers.SerializerMethodField()
+
     class Meta:
         model = CreditRequestForm
         fields = [
-            'id', 'credit_application', 'workflow_instance',
+            'id', 'credit_application',
             'counterparty_cif', # Added field
             'guarantor_name', 'guarantor_cif',
             'revenue_last_12m', 'revenue_projected_12m', 'projected_rorwa_percent',
@@ -57,21 +61,149 @@ class CreditRequestFormSerializer(serializers.ModelSerializer):
             'account_executive', 'senior_business_sponsor', 'second_business_sponsor',
             'high_priority_justification',
             'form_data', 
-            'created_at', 'updated_at'
+            'created_at', 'updated_at',
+            'workflow_instance_id', 'workflow_state_name', 'available_transitions'
         ]
-        read_only_fields = ['id', 'credit_application', 'workflow_instance', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'credit_application', 'created_at', 'updated_at']
+
+    def get_workflow_instance_id(self, obj):
+        if obj.workflow_instance:
+            return obj.workflow_instance.id
+        return None
+
+    def get_workflow_state_name(self, obj):
+        if obj.workflow_instance and obj.workflow_instance.current_state:
+            return obj.workflow_instance.current_state.name
+        return None
+
+    def get_available_transitions(self, obj):
+        if obj.workflow_instance:
+            if hasattr(obj.workflow_instance, 'get_allowed_transitions'):
+                try:
+                    user = self.context.get('request').user if self.context.get('request') else None
+                    if user:
+                        transitions = obj.workflow_instance.get_allowed_transitions(user)
+                        return [
+                            {
+                                'id': str(t.id),
+                                'code': t.code,
+                                'name': t.name,
+                                'to_state': {
+                                    'id': str(t.to_state.id),
+                                    'code': t.to_state.code,
+                                    'name': t.to_state.name
+                                }
+                            } for t in transitions
+                        ]
+                except Exception as e:
+                    # Consider logging this exception
+                    print(f"Error getting available transitions for CreditRequestForm {obj.id}: {e}")
+        return []
 
 class CreditReviewFormSerializer(serializers.ModelSerializer):
+    workflow_instance_id = serializers.SerializerMethodField()
+    workflow_state_name = serializers.SerializerMethodField()
+    available_transitions = serializers.SerializerMethodField()
+
     class Meta:
         model = CreditReviewForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at']
+        fields = ['id', 'form_data', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+    def get_workflow_instance_id(self, obj):
+        # Assuming CreditReviewForm has a 'workflow_instance' foreign key or one-to-one field
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
+            return obj.workflow_instance.id
+        return None
+
+    def get_workflow_state_name(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
+            return obj.workflow_instance.current_state.name
+        return None
+
+    def get_available_transitions(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
+            if hasattr(obj.workflow_instance, 'get_allowed_transitions'):
+                try:
+                    user = self.context.get('request').user if self.context.get('request') else None
+                    if user:
+                        transitions = obj.workflow_instance.get_allowed_transitions(user)
+                        return [
+                            {
+                                'id': str(t.id),
+                                'code': t.code,
+                                'name': t.name,
+                                'to_state': {
+                                    'id': str(t.to_state.id),
+                                    'code': t.to_state.code,
+                                    'name': t.to_state.name
+                                }
+                            } for t in transitions
+                        ]
+                except Exception as e:
+                    # Consider logging this exception
+                    print(f"Error getting available transitions for CreditReviewForm {obj.id}: {e}")
+        return []
+
 class BusinessSponsorshipFormSerializer(serializers.ModelSerializer):
+    workflow_instance_id = serializers.SerializerMethodField()
+    workflow_state_name = serializers.SerializerMethodField()
+    available_transitions = serializers.SerializerMethodField()
+
     class Meta:
         model = BusinessSponsorshipForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at']
+        fields = [
+            'id', 'form_data', 'created_at', 'updated_at', 
+            'workflow_instance_id', 'workflow_state_name', 'available_transitions'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_workflow_instance_id(self, obj):
+        if obj.workflow_instance:
+            return obj.workflow_instance.id
+        return None
+
+    def get_workflow_state_name(self, obj):
+        if obj.workflow_instance and obj.workflow_instance.current_state:
+            return obj.workflow_instance.current_state.name
+        return None
+
+    def get_available_transitions(self, obj):
+        # Adapted from CreditApplicationSerializer.get_available_transitions
+        # print(f"BS Form Serializer: Getting available transitions for BS form {obj.id}")
+        if obj.workflow_instance:
+            # print(f"  BS Workflow instance: {obj.workflow_instance.id}")
+            if hasattr(obj.workflow_instance, 'get_allowed_transitions'):
+                try:
+                    user = self.context.get('request').user if self.context.get('request') else None
+                    if user:
+                        transitions = obj.workflow_instance.get_allowed_transitions(user)
+                        # print(f"  BS Found {len(transitions)} available transitions for user {user.username}")
+                        # for t in transitions:
+                        #     print(f"    - {t.code}: {t.name} ({t.from_state.code} → {t.to_state.code})")
+                        return [
+                            {
+                                'id': str(t.id),
+                                'code': t.code,
+                                'name': t.name,
+                                'to_state': {
+                                    'id': str(t.to_state.id),
+                                    'code': t.to_state.code,
+                                    'name': t.to_state.name
+                                }
+                            } for t in transitions
+                        ]
+                    # else:
+                        # print("  BS No user found in context, cannot get available transitions")
+                except Exception as e:
+                    print(f"  BS Error getting available transitions: {e}")
+                    import traceback
+                    traceback.print_exc()
+            # else:
+                # print("  BS Workflow instance does not have get_allowed_transitions method")
+        # else:
+            # print(f"  BS No workflow instance found for BS form {obj.id}")
+        return []
 
 class LegalReviewFormSerializer(serializers.ModelSerializer):
     class Meta:
@@ -212,8 +344,16 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         if credit_review_form_data:
             CreditReviewForm.objects.create(credit_application=credit_app, **credit_review_form_data)
 
-        if business_sponsorship_form_data:
-            BusinessSponsorshipForm.objects.create(credit_application=credit_app, **business_sponsorship_form_data)
+        # Handle Business Sponsorship Form Data from initial_data, consistent with update method
+        raw_initial_form_data_bs = self.initial_data.get('form_data', {})
+        actual_bs_form_data_initial = raw_initial_form_data_bs.get('business_sponsorship_data', None)
+
+        if actual_bs_form_data_initial:
+            data_for_bs_serializer_create = {'form_data': actual_bs_form_data_initial}
+            bs_create_serializer = BusinessSponsorshipFormSerializer(data=data_for_bs_serializer_create)
+            if bs_create_serializer.is_valid(raise_exception=True):
+                bs_create_serializer.save(credit_application=credit_app)
+        # If no data, BusinessSponsorshipForm is not created, which is fine as it's nullable
 
         if legal_review_form_data:
             LegalReviewForm.objects.create(credit_application=credit_app, **legal_review_form_data)
@@ -280,6 +420,29 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
                 review_create_serializer = CreditReviewFormSerializer(data=data_for_review_serializer)
                 if review_create_serializer.is_valid(raise_exception=True):
                     review_create_serializer.save(credit_application=instance)
+
+        # Handle Business Sponsorship Form Data
+        raw_form_data_for_bs = self.initial_data.get('form_data', {})
+        actual_bs_form_data = raw_form_data_for_bs.get('business_sponsorship_data', None)
+
+        if actual_bs_form_data:
+            data_for_bs_serializer = {'form_data': actual_bs_form_data}
+            try:
+                bs_form_instance = instance.business_sponsorship_form
+            except BusinessSponsorshipForm.DoesNotExist:
+                bs_form_instance = None
+            except AttributeError:
+                bs_form_instance = None
+
+            if bs_form_instance:
+                bs_serializer = BusinessSponsorshipFormSerializer(bs_form_instance, data=data_for_bs_serializer, partial=True)
+                if bs_serializer.is_valid(raise_exception=True):
+                    bs_serializer.save()
+            else:
+                # Create new BusinessSponsorshipForm instance
+                bs_create_serializer = BusinessSponsorshipFormSerializer(data=data_for_bs_serializer)
+                if bs_create_serializer.is_valid(raise_exception=True):
+                    bs_create_serializer.save(credit_application=instance)
 
         if 'limit_requests' in self.initial_data:
             # Get the raw limit requests data from the initial submission

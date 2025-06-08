@@ -186,6 +186,18 @@ export const performWorkflowTransition = async (workflowInstanceId, transitionCo
   }
 };
 
+export const saveBusinessSponsorshipForm = async (id, formData) => {
+  try {
+    console.log(`Submitting business sponsorship form for ID ${id} with data:`, formData);
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting business sponsorship form:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
 // Function to fetch users by role
 export const fetchUsersByRole = async (roleName) => {
   try {

@@ -51,14 +51,14 @@ const WorkflowStatus = ({ currentStep = 1 }) => {
                 alignItems: 'center', 
                 justifyContent: 'center', 
                 borderRadius: '9999px',
-                backgroundColor: index < currentStep 
+                backgroundColor: index + 1 < currentStep 
                   ? colors.success  // success color for completed steps
-                  : index === currentStep 
+                  : index + 1 === currentStep 
                   ? colors.standardBankBlue  // brand blue for current step
                   : colors.neutral300,  // light gray for future steps
-                color: index <= currentStep ? 'white' : colors.neutral600
+                color: index + 1 <= currentStep ? 'white' : colors.neutral600
               }}>
-                {index < currentStep ? (
+                {index + 1 < currentStep ? (
                   '✓'
                 ) : (
                   index + 1
@@ -67,8 +67,8 @@ const WorkflowStatus = ({ currentStep = 1 }) => {
               <span style={{ 
                 marginTop: '0.5rem', 
                 fontSize: '0.75rem',
-                fontWeight: index === currentStep ? '500' : '400',
-                color: index === currentStep ? colors.neutral800 : colors.neutral600
+                fontWeight: index + 1 === currentStep ? '500' : '400',
+                color: index + 1 === currentStep ? colors.neutral800 : colors.neutral600
               }}>
                 {step}
               </span>
@@ -78,7 +78,7 @@ const WorkflowStatus = ({ currentStep = 1 }) => {
               <div style={{ 
                 flexGrow: 1, 
                 height: '0.25rem',
-                backgroundColor: index < currentStep ? colors.success : colors.neutral300
+                backgroundColor: index + 1 < currentStep ? colors.success : colors.neutral300
               }} />
             )}
           </React.Fragment>
