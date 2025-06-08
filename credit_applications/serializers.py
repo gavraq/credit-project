@@ -1,7 +1,10 @@
 import uuid
 import logging # Added import
 from rest_framework import serializers
-from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm, CreditRequestForm # Ensure CreditRequestForm is available for DoesNotExist
+from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm # Ensure CreditRequestForm is available for DoesNotExist
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class LimitTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -100,7 +103,31 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
     business_sponsorship_form = BusinessSponsorshipFormSerializer(required=False, allow_null=True)
     legal_review_form = LegalReviewFormSerializer(required=False, allow_null=True)
     credit_questionnaire_form = CreditQuestionnaireFormSerializer(required=False, allow_null=True)
+    applicant_name = serializers.SerializerMethodField()
     
+    def get_applicant_name(self, obj):
+        # Prioritize the snapshot stored on the model
+        if obj.applicant_name:
+            return obj.applicant_name
+
+        # Fallback: If applicant_name on model is blank, try to derive from created_by
+        user_id = obj.created_by
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+                full_name = f"{user.first_name} {user.last_name}".strip()
+                # Return current full name or username as fallback
+                return full_name if full_name else user.username
+            except User.DoesNotExist:
+                logging.warning(f"User with ID {user_id} not found for CreditApplication {obj.id} (fallback lookup).")
+                return str(user_id) # Return ID if user not found
+            except Exception as e:
+                logging.error(f"Error fetching user {user_id} for CreditApplication {obj.id} (fallback lookup): {e}")
+                return "Error: See Logs"
+        
+        # If neither applicant_name nor created_by yields a name
+        return "N/A"
+
     def validate_priority(self, value):
         """Normalize priority value to ensure proper capitalization."""
         valid_priorities = ['Low', 'Medium', 'High']

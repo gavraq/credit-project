@@ -152,7 +152,21 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         # Parent workflow for CreditApplication
         workflow_def = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
         initial_state = State.objects.get(workflow_definition=workflow_def, is_initial=True)
-        credit_app = serializer.save()
+        # Get the authenticated user and their full name
+        user = self.request.user
+        user_id_to_save = None
+        applicant_name_to_save = None
+
+        if user.is_authenticated:
+            user_id_to_save = user.id
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            applicant_name_to_save = full_name if full_name else user.username
+        
+        # Pass the user's ID for created_by and their full name for applicant_name
+        credit_app = serializer.save(
+            created_by=user_id_to_save,
+            applicant_name=applicant_name_to_save
+        )
         # Create parent workflow instance and link
         instance = WorkflowInstance.objects.create(
             workflow_definition=workflow_def,
