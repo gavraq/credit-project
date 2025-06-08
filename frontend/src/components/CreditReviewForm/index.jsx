@@ -288,7 +288,7 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, mainWor
 
   return (
     <div style={{
-      maxWidth: '1200px',
+      maxWidth: '1300px',
       margin: '0 auto',
       padding: '1rem',
       fontFamily: 'Arial, sans-serif'

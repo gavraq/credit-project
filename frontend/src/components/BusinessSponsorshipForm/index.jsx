@@ -215,7 +215,7 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
 
   return (
     <div style={{
-      maxWidth: '1200px',
+      maxWidth: '1300px',
       margin: '0 auto',
       padding: '1rem',
       backgroundColor: colors.neutral200, // Page background color

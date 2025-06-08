@@ -7,6 +7,7 @@ import LogoutButton from '../LogoutButton';
 import FormWizardNav from './FormWizardNav';
 import FormSection from './FormSection';
 import VersionControlHeader from './VersionControlHeader';
+import WorkflowStatus from '../common/WorkflowStatus'; // Import the main workflow status component
 import WorkflowActions from './WorkflowActions';
 import CounterpartySection from './CounterpartySection';
 import LimitsSection from './LimitsSection';
@@ -808,10 +809,15 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
   const [currentStep, setCurrentStep] = useState(0);
 
   return (
-    <div style={{ fontFamily: "'Inter', sans-serif", color: colors.neutral800, maxWidth: '1200px', margin: '0 auto', padding: '1.5rem' }}>
+    <div style={{ fontFamily: "'Inter', sans-serif", color: colors.neutral800, maxWidth: '1300px', margin: '0 auto', padding: '1.5rem' }}>
       <TopNavBar LogoutButton={LogoutButton} />
+
+      {/* Main Workflow Status */}
+      <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}> {/* Add some spacing */}
+        <WorkflowStatus currentStep={mainWorkflowStep} />
+      </div>
       
-      {/* Header */}
+      {/* Header (Version Control) - this could be considered the 'title block' equivalent */}
       <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', marginBottom: '1.5rem' }}>
         <VersionControlHeader colors={colors} />
       </div>
