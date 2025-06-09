@@ -34,12 +34,12 @@ SECRET_KEY = 'django-insecure-*&(_iv9_@w(vo^)7k8*mji^x@rgij!)+saxv^g1%g_#ish%3-#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'credit.gavinslater.co.uk']
 
 
 # Application definition
 
-CORS_ALLOW_ALL_ORIGINS = True  # For development only; restrict in production!
+CORS_ALLOW_ALL_ORIGINS = True  # For development only; restrict in production! Consider changing to CORS_ALLOWED_ORIGINS = ['https://credit.gavinslater.co.uk']
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
 ]
+
+CSRF_TRUSTED_ORIGINS = ['https://credit.gavinslater.co.uk']
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

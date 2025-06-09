@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const WorkflowActions = ({ 
   onSubmit, 
-  // formRef, // Consider if formRef is still needed if onSubmit is primary
+  formRef, // Consider if formRef is still needed if onSubmit is primary
   workflowInstanceId, // CHANGED from workflowInstance
   currentState, // Prop for current state name
   allowedTransitions = [], // Prop for available transitions

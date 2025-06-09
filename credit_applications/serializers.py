@@ -49,9 +49,6 @@ class CreditRequestFormSerializer(serializers.ModelSerializer):
     available_transitions = serializers.SerializerMethodField()
 
     def validate(self, data):
-        print(f"DEBUG CRF_SERIALIZER validate() - received data: {data}")
-        print(f"DEBUG CRF_SERIALIZER validate() - senior_business_sponsor_id in data: {data.get('senior_business_sponsor_id')}")
-        print(f"DEBUG CRF_SERIALIZER validate() - second_business_sponsor_id in data: {data.get('second_business_sponsor_id')}")
         return data
 
     class Meta:
@@ -394,8 +391,6 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         validated_data.pop('limit_requests', None)  # Ensure super().update doesn't process; data will be sourced from initial_data
 
         model_field_names = {f.name for f in instance._meta.fields}
-        print(f"DEBUG CCRS0 (update): validated_data keys: {list(validated_data.keys())}")
-        print(f"DEBUG CCRS1 (update): validated_data['credit_request_form'] before pop: {validated_data.get('credit_request_form')}")
         # The pop happens earlier, so let's inspect credit_request_form_data directly if it's already available
         # Or, more accurately, let's inspect what's in validated_data for 'credit_request_form' *before* it's used by the nested serializer logic.
 
@@ -418,25 +413,21 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
 
 
             if crf_instance:
-                print(f"DEBUG CCRS_UPDATE - credit_request_form_data for existing instance (before mod): {credit_request_form_data}")
                 data_for_crf_serializer = credit_request_form_data.copy()
                 if isinstance(data_for_crf_serializer.get('senior_business_sponsor_id'), User):
                     data_for_crf_serializer['senior_business_sponsor_id'] = data_for_crf_serializer['senior_business_sponsor_id'].pk
                 if isinstance(data_for_crf_serializer.get('second_business_sponsor_id'), User):
                     data_for_crf_serializer['second_business_sponsor_id'] = data_for_crf_serializer['second_business_sponsor_id'].pk
-                print(f"DEBUG CCRS_UPDATE - MODIFIED credit_request_form_data for existing instance: {data_for_crf_serializer}")
                 crf_serializer = CreditRequestFormSerializer(crf_instance, data=data_for_crf_serializer, partial=True)
                 if crf_serializer.is_valid(raise_exception=True):
                     crf_serializer.save()
             else:
-                print(f"DEBUG CCRS_UPDATE - credit_request_form_data for new instance (before mod): {credit_request_form_data}")
                 data_for_crf_serializer = credit_request_form_data.copy()
                 if isinstance(data_for_crf_serializer.get('senior_business_sponsor_id'), User):
                     data_for_crf_serializer['senior_business_sponsor_id'] = data_for_crf_serializer['senior_business_sponsor_id'].pk
                 if isinstance(data_for_crf_serializer.get('second_business_sponsor_id'), User):
                     data_for_crf_serializer['second_business_sponsor_id'] = data_for_crf_serializer['second_business_sponsor_id'].pk
                 data_for_crf_serializer.pop('credit_application', None) # Ensure this is popped for new instance data
-                print(f"DEBUG CCRS_UPDATE - MODIFIED credit_request_form_data for new instance: {data_for_crf_serializer}")
                 crf_create_serializer = CreditRequestFormSerializer(data=data_for_crf_serializer)
                 if crf_create_serializer.is_valid(raise_exception=True):
                     crf_create_serializer.save(credit_application=instance) # Associate with parent
