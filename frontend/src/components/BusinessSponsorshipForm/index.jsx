@@ -17,6 +17,8 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
   const [saveError, setSaveError] = useState(null);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
+  const [userGuidanceMessage, setUserGuidanceMessage] = useState(null);
+  const [transitionSuccessMessage, setTransitionSuccessMessage] = useState(null);
   const [creditApplication, setCreditApplication] = useState(null);
   const user = useSelector(state => state.auth.user);
 
@@ -27,13 +29,14 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
 
   // Form state
   const [sponsorName, setSponsorName] = useState('');
-  const [sponsorshipRationale, setSponsorshipRationale] = useState('');
-  const [keyRisksAndMitigants, setKeyRisksAndMitigants] = useState('');
+  const [sponsorDecision, setSponsorDecision] = useState(''); // 'approve' or 'reject'
+  const [sponsorComments, setSponsorComments] = useState('');
+  const [secondSponsorDecision, setSecondSponsorDecision] = useState(''); // 'approve' or 'reject'
+
   const [formStartDate, setFormStartDate] = useState('');
   const [formCompletionDate, setFormCompletionDate] = useState('');
   const [secondSponsorName, setSecondSponsorName] = useState('');
   const [secondSponsorComments, setSecondSponsorComments] = useState('');
-  const [rejectionReason, setRejectionReason] = useState(''); // For potential reject transitions
 
   const colors = {
     icbcRed: '#e31937',
@@ -54,148 +57,120 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
     neutral900: '#1F2933'
   };
 
+  const populateFormData = (data) => {
+    if (!data) return;
+    setCreditApplication(data); // Store the whole application object
+
+    // Populate Business Sponsorship Form specific data
+    if (data.business_sponsorship_form) {
+      const bsForm = data.business_sponsorship_form;
+      setBsWorkflowInstanceId(bsForm.workflow_instance_id || null);
+      setCurrentBsWorkflowState(bsForm.workflow_state_name || null);
+      setAllowedBsTransitionsList(bsForm.available_transitions || []);
+
+      if (bsForm.form_data) {
+        const formData = bsForm.form_data;
+        setSponsorName(formData.sponsor_name || user?.name || '');
+        setSponsorDecision(formData.sponsor_decision || '');
+        setSponsorComments(formData.sponsor_comments || '');
+        setSecondSponsorName(formData.second_sponsor_name || '');
+        setSecondSponsorDecision(formData.second_sponsor_decision || '');
+        setSecondSponsorComments(formData.second_sponsor_comments || '');
+        setFormStartDate(formData.form_start_date || new Date().toISOString().split('T')[0]);
+        setFormCompletionDate(formData.form_completion_date || '');
+      }
+    } else {
+      // If no form data exists, set defaults
+      setSponsorName(user?.name || '');
+      setFormStartDate(new Date().toISOString().split('T')[0]);
+    }
+  };
+
   useEffect(() => {
-    const populateFormDataLocal = (appData) => {
-      if (!appData) {
-        console.warn('BusinessSponsorshipForm populateFormDataLocal: called with no appData');
-        return;
-      }
-
-      setCreditApplication(appData); // Set the main credit application data for context
-
-      // Extract potential data sources
-      const crPrioritisationData = appData.credit_request_form?.form_data?.prioritisation_sponsorship;
-      const bsFormContainer = appData.business_sponsorship_form;
-      const bsFormData = bsFormContainer?.form_data;
-
-      // Set common form fields (dates, rationale, etc.) and workflow states
-      if (bsFormContainer) {
-        setBsWorkflowInstanceId(bsFormContainer.workflow_instance_id || null);
-        setCurrentBsWorkflowState(bsFormContainer.workflow_state_name || null);
-        setAllowedBsTransitionsList(bsFormContainer.available_transitions || []);
-
-        if (bsFormData) {
-          // Existing BusinessSponsorshipForm data found, use it or fallback to CR data for sponsors
-          setSponsorName(bsFormData.sponsor_name || crPrioritisationData?.senior_business_sponsor_name || '');
-          setSponsorshipRationale(bsFormData.sponsorship_rationale || '');
-          setKeyRisksAndMitigants(bsFormData.key_risks_and_mitigants || '');
-          setFormStartDate(bsFormData.form_start_date || new Date().toISOString().split('T')[0]);
-          setFormCompletionDate(bsFormData.form_completion_date || '');
-          setSecondSponsorName(bsFormData.second_sponsor_name || crPrioritisationData?.second_business_sponsor_name || '');
-          setSecondSponsorComments(bsFormData.second_sponsor_comments || crPrioritisationData?.second_business_sponsor_comments || '');
-          setRejectionReason(bsFormData.rejection_reason || '');
-        } else {
-          // No specific bsFormData, but bsFormContainer exists (e.g., workflow initiated but form not saved).
-          // Treat as new form content, populate from CR data for sponsors.
-          setFormStartDate(new Date().toISOString().split('T')[0]);
-          setSponsorName(crPrioritisationData?.senior_business_sponsor_name || '');
-          setSponsorshipRationale(''); // Specific to this form
-          setKeyRisksAndMitigants(''); // Specific to this form
-          setFormCompletionDate('');
-          setSecondSponsorName(crPrioritisationData?.second_business_sponsor_name || '');
-          setSecondSponsorComments(crPrioritisationData?.second_business_sponsor_comments || '');
-          setRejectionReason('');
-        }
-      } else {
-        // No bsFormContainer at all. This is a completely new BusinessSponsorshipForm instance.
-        // Populate from CR data for sponsors and set defaults for other fields.
-        setFormStartDate(new Date().toISOString().split('T')[0]);
-        setSponsorName(crPrioritisationData?.senior_business_sponsor_name || '');
-        setSponsorshipRationale('');
-        setKeyRisksAndMitigants('');
-        setFormCompletionDate('');
-        setSecondSponsorName(crPrioritisationData?.second_business_sponsor_name || '');
-        setSecondSponsorComments(crPrioritisationData?.second_business_sponsor_comments || '');
-        setRejectionReason('');
-        // Initialize workflow states for a new sub-form
-        setBsWorkflowInstanceId(null);
-        setCurrentBsWorkflowState(null); // Or an initial state like 'Draft'
-        setAllowedBsTransitionsList([]);
-      }
-      // setLoading(false); // Typically handled by the useEffect that calls this function
-    };
-
+    setLoading(true);
     if (initialCreditApplication) {
-      setLoading(true);
-      populateFormDataLocal(initialCreditApplication);
+      populateFormData(initialCreditApplication);
       setLoading(false);
     } else if (id) {
-      const fetchApplicationData = async () => {
-        setLoading(true);
-        setSaveError(null); // Clear previous errors
-        try {
-          const fetchedData = await fetchCreditRequest(id);
-          populateFormDataLocal(fetchedData);
-        } catch (err) {
-          console.error("Failed to fetch credit application data:", err);
-          setSaveError(`Failed to load application data: ${err.message}`);
-        } finally {
+      fetchCreditRequest(id)
+        .then(data => {
+          populateFormData(data);
+        })
+        .catch(error => {
+          console.error('Failed to fetch credit request details:', error);
+          setSaveError('Failed to load form data.');
+        })
+        .finally(() => {
           setLoading(false);
-        }
-      };
-      fetchApplicationData();
+        });
     } else {
-      // No id and no initialCreditApplication, potentially a new main application scenario (though this form is usually for existing)
+      // This case is for a brand new, unsaved application. Handled by populateFormData defaults.
+      populateFormData(null);
       setLoading(false);
-      console.warn('BusinessSponsorshipForm loaded without ID or initial data.');
     }
   }, [id, initialCreditApplication]);
 
   const handleSubmit = async (e, isDraft = false) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     setSaveLoading(true);
     setSaveError(null);
+    setUserGuidanceMessage(null);
+    setTransitionSuccessMessage(null);
 
     const businessSponsorshipPayload = {
       sponsor_name: sponsorName,
-      sponsorship_rationale: sponsorshipRationale,
-      key_risks_and_mitigants: keyRisksAndMitigants,
+      sponsor_decision: sponsorDecision,
+      sponsor_comments: sponsorComments,
+      second_sponsor_decision: secondSponsorDecision,
       form_start_date: formStartDate,
       form_completion_date: isDraft ? formCompletionDate : new Date().toISOString().split('T')[0],
       second_sponsor_name: secondSponsorName,
       second_sponsor_comments: secondSponsorComments,
-      // Include other fields as necessary
     };
-    if (rejectionReason && !isDraft) { // Only include rejection reason if it's relevant for a non-draft submission
-        businessSponsorshipPayload.rejection_reason = rejectionReason;
-    }
 
+    const bsRelatedData = {
+      form_data: businessSponsorshipPayload
+    };
+
+    if (!bsWorkflowInstanceId) {
+      bsRelatedData.create_workflow_instance = true;
+    }
 
     const payload = {
-      form_data: businessSponsorshipPayload
-      // Add create_workflow_instance: true if this save should trigger workflow creation
-      // This might be needed if the BusinessSponsorshipForm record itself is created on this save
-      // and its workflow needs to be initialized.
+      business_sponsorship_form: bsRelatedData
     };
-    
-    // If this is the first time saving BS form, it might need to create the workflow instance.
-    // The backend serializer handles creating/updating the BusinessSponsorshipForm model instance.
-    // The view might handle creating the workflow instance for it.
-    if (!bsWorkflowInstanceId) {
-        payload.create_workflow_instance = true; // Or a more specific flag if needed for BS form
-    }
-
 
     try {
       const updatedData = await saveBusinessSponsorshipForm(id, payload);
-      setCreditApplication(updatedData); // Update local state with response
+      setCreditApplication(updatedData);
 
       if (updatedData.business_sponsorship_form) {
         const bsForm = updatedData.business_sponsorship_form;
         setBsWorkflowInstanceId(bsForm.workflow_instance_id || null);
         setCurrentBsWorkflowState(bsForm.workflow_state_name || null);
-        setAllowedBsTransitionsList(bsForm.available_transitions || []);
+        setAllowedBsTransitionsList(updatedData.business_sponsorship_form.available_transitions || []);
         if (bsForm.form_data) {
             setFormCompletionDate(bsForm.form_data.form_completion_date || '');
         }
       }
-      alert(isDraft ? 'Business Sponsorship form saved as draft!' : 'Business Sponsorship form submitted!');
-      // Optionally navigate or refresh data
+      
+      // If called as part of handleWorkflowAction, the calling function will handle UI updates (messages, navigation)
+      // and further state refreshes based on the transition.
+      // For a direct draft save (isDraft=true and not part of workflow action), we might add specific success message/navigation here if needed in future.
+      return updatedData; // Return the response for promise chaining
     } catch (error) {
-      console.error('Failed to save Business Sponsorship form:', error);
       setSaveError(error.message || 'Failed to save data. Please try again.');
+      throw error; // Re-throw to be caught by handleWorkflowAction or other callers
     } finally {
-      setSaveLoading(false);
+      // If handleSubmit is called directly for a draft save (not via handleWorkflowAction),
+      // then setSaveLoading to false here. Otherwise, handleWorkflowAction controls it.
+      if (isDraft && e) { // 'e' would be present for a direct button click, null if called from handleWorkflowAction
+        setSaveLoading(false);
+        // Potentially add success message & navigation for direct draft save here if it's ever re-introduced as a standalone button
+        // For now, assuming all saves leading to UI changes are via handleWorkflowAction
+      }
     }
   };
 
@@ -205,24 +180,51 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
       return;
     }
     setTransitionLoading(true);
+    setSaveLoading(true); // Indicate saving is also in progress
     setTransitionError(null);
+    setSaveError(null);
+    setUserGuidanceMessage(null);
+    setTransitionSuccessMessage(null);
+
     try {
-      const result = await performWorkflowTransition(bsWorkflowInstanceId, { transition_code: transitionCode, comments });
-      // After successful transition, re-fetch application data to get updated workflow state and transitions
-      const data = await fetchCreditRequest(id);
-      setCreditApplication(data);
-      if (data.business_sponsorship_form) {
-        const bsForm = data.business_sponsorship_form;
-        setBsWorkflowInstanceId(bsForm.workflow_instance_id || null);
-        setCurrentBsWorkflowState(bsForm.workflow_state_name || null);
-        setAllowedBsTransitionsList(bsForm.available_transitions || []);
+      // Step 1: Save the form data by calling handleSubmit
+      // Passing false for isDraft as the draft nature is part of the transitionCode (e.g., BS_TR_1)
+      await handleSubmit(null, false); 
+
+      // Step 2: Perform the workflow transition if save was successful
+      if (!bsWorkflowInstanceId) {
+        // This check might be redundant if handleSubmit ensures workflow instance creation/retrieval
+        // or if the workflow instance is always expected to exist for any transition.
+        // For now, keeping it as a safeguard.
+        throw new Error("Business Sponsorship workflow instance not found. Save the form first or ensure it's created.");
       }
-      alert(`Action ${transitionCode} performed successfully!`);
+      // Determine the correct transition code to send.
+      // The transition object structure might differ between workflows.
+      // Some may pass the code string directly, others an object with a .code property.
+      const codeToSend = typeof transitionCode === 'object' && transitionCode !== null && transitionCode.code ? transitionCode.code : transitionCode;
+
+      if (!codeToSend) {
+        throw new Error('Transition code is missing or invalid.');
+      }
+
+      const transitionResult = await performWorkflowTransition(bsWorkflowInstanceId, codeToSend, comments);
+      
+      // Update UI based on transition result
+      // Fetch latest data to refresh form state, including new allowed transitions
+      const latestAppData = await fetchCreditRequest(id);
+      populateFormData(latestAppData); // This will update creditApplication, workflow states, and form fields
+
+      setTransitionSuccessMessage(`Action '${transitionResult.transition_name}' was successful. Navigating back to dashboard...`);
+      setTimeout(() => { navigate('/'); }, 2000);
+
     } catch (error) {
-      console.error(`Failed to perform workflow action ${transitionCode}:`, error);
-      setTransitionError(error.message || `Failed to perform action ${transitionCode}.`);
+      // Error could be from handleSubmit or performWorkflowTransition
+      const errorMessage = error.response?.data?.detail || error.message || 'An unexpected error occurred.';
+      setTransitionError(errorMessage);
+      setSaveError(errorMessage); // Also set saveError if it's a general failure
     } finally {
       setTransitionLoading(false);
+      setSaveLoading(false);
     }
   };
 
@@ -266,85 +268,120 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
         marginTop: '1.5rem'
       }}>
         <form onSubmit={handleSubmit}>
-          <FormSection title="Sponsorship Details" description="Provide details about the business sponsorship.">
-                <FormField
-                  label="Sponsor Name"
-                  type="text"
-                  placeholder="Enter sponsor name (auto-populated from Credit Request)"
-                  value={sponsorName}
-                  onChange={(e) => setSponsorName(e.target.value)}
-                  colors={colors}
-                  required
-                  // Assuming this might be read-only if strictly auto-populated, or editable if it can be overridden.
-                  // For now, keeping it editable.
-                />
-                <FormField
-                  label="Optional Second Senior Business Sponsor Name"
-                  type="text"
-                  placeholder="Enter second sponsor name (auto-populated from Credit Request)"
-                  value={secondSponsorName}
-                  onChange={(e) => setSecondSponsorName(e.target.value)}
-                  colors={colors}
-                />
-                <FormField
-                  label="Comments (Second Sponsor)"
-                  type="textarea"
-                  placeholder="Enter comments for the second sponsor"
-                  value={secondSponsorComments}
-                  onChange={(e) => setSecondSponsorComments(e.target.value)}
-                  colors={colors}
-                />
+          <FormSection title="Primary Business Sponsor" description="The primary business sponsor must approve or reject the application.">
             <FormField
-              label="Sponsorship Rationale"
-              type="textarea"
-              placeholder="Explain the rationale behind this sponsorship"
-              value={sponsorshipRationale}
-              onChange={(e) => setSponsorshipRationale(e.target.value)}
-              required={true}
+              label="Sponsor Name"
+              type="text"
+              value={sponsorName}
+              onChange={(e) => setSponsorName(e.target.value)}
+              disabled
               colors={colors}
             />
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: colors.neutral700, fontWeight: '500' }}>Decision *</label>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setSponsorDecision('approve')}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    borderRadius: '0.375rem',
+                    border: `2px solid ${sponsorDecision === 'approve' ? colors.success : colors.success}`,
+                    backgroundColor: sponsorDecision === 'approve' ? colors.success : 'white',
+                    color: sponsorDecision === 'approve' ? 'white' : colors.success,
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSponsorDecision('reject')}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    borderRadius: '0.375rem',
+                    border: `2px solid ${sponsorDecision === 'reject' ? colors.icbcRed : colors.icbcRed}`,
+                    backgroundColor: sponsorDecision === 'reject' ? colors.icbcRed : 'white',
+                    color: sponsorDecision === 'reject' ? 'white' : colors.icbcRed,
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
             <FormField
-              label="Key Risks & Mitigants"
+              label="Sponsor Comments"
               type="textarea"
-              placeholder="Identify key risks and their mitigants"
-              value={keyRisksAndMitigants}
-              onChange={(e) => setKeyRisksAndMitigants(e.target.value)}
+              placeholder="Provide comments to support your decision..."
+              value={sponsorComments}
+              onChange={(e) => setSponsorComments(e.target.value)}
+              required
               colors={colors}
             />
           </FormSection>
 
-          <FormSection title="Form Dates" description="Manage the start and completion dates of this form.">
+          <FormSection title="Second Business Sponsor (Optional)" description="An optional second sponsor can also provide their decision.">
             <FormField
-              label="Form Start Date"
-              type="date"
-              value={formStartDate}
-              onChange={(e) => setFormStartDate(e.target.value)}
+              label="Second Sponsor Name"
+              type="text"
+              placeholder="Enter second sponsor's name"
+              value={secondSponsorName}
+              onChange={(e) => setSecondSponsorName(e.target.value)}
               colors={colors}
-              disabled // Or make it editable based on your logic
             />
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: colors.neutral700, fontWeight: '500' }}>Decision</label>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setSecondSponsorDecision('approve')}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    borderRadius: '0.375rem',
+                    border: `2px solid ${secondSponsorDecision === 'approve' ? colors.success : colors.success}`,
+                    backgroundColor: secondSponsorDecision === 'approve' ? colors.success : 'white',
+                    color: secondSponsorDecision === 'approve' ? 'white' : colors.success,
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSecondSponsorDecision('reject')}
+                  style={{
+                    padding: '0.5rem 1.5rem',
+                    borderRadius: '0.375rem',
+                    border: `2px solid ${secondSponsorDecision === 'reject' ? colors.icbcRed : colors.icbcRed}`,
+                    backgroundColor: secondSponsorDecision === 'reject' ? colors.icbcRed : 'white',
+                    color: secondSponsorDecision === 'reject' ? 'white' : colors.icbcRed,
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
             <FormField
-              label="Form Completion Date"
-              type="date"
-              value={formCompletionDate}
-              onChange={(e) => setFormCompletionDate(e.target.value)}
+              label="Second Sponsor Comments"
+              type="textarea"
+              placeholder="Provide comments to support your decision..."
+              value={secondSponsorComments}
+              onChange={(e) => setSecondSponsorComments(e.target.value)}
               colors={colors}
-              disabled // Usually set on final submission
             />
           </FormSection>
 
-          {/* Rejection Reason Field (conditionally show based on workflow) */}
-          {allowedBsTransitionsList.some(t => t.name.toLowerCase().includes('reject')) && (
-             <FormSection title="Rejection Details" description="Provide details if rejecting.">
-                <FormField 
-                  label="Rejection Reason" 
-                  type="textarea" 
-                  placeholder="If rejecting, please provide detailed reasons" 
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  colors={colors}
-                />
-            </FormSection>
-          )}
+
 
           {saveError && (
             <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: colors.redLight, color: colors.icbcRed, borderRadius: '0.375rem', fontSize: '0.875rem' }}>
@@ -352,26 +389,21 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem' }}>
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/')}
               style={{ backgroundColor: 'white', color: colors.neutral800, border: `1px solid ${colors.neutral400}`, padding: '0.5rem 1rem', borderRadius: '0.375rem', cursor: 'pointer' }}
             >
               Back to Dashboard
             </button>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                type="button" // Changed to type="button" to prevent form submission
-                onClick={(e) => handleSubmit(e, true)} // Pass true for isDraft
-                disabled={saveLoading || transitionLoading}
-                style={{ backgroundColor: 'white', border: `1px solid ${colors.neutral400}`, color: colors.neutral800, padding: '0.5rem 1rem', borderRadius: '0.375rem', cursor: (saveLoading || transitionLoading) ? 'not-allowed' : 'pointer' }}
-              >
-                {saveLoading && !transitionLoading ? 'Saving...' : 'Save as Draft'}
-              </button>
-              
               {allowedBsTransitionsList && allowedBsTransitionsList.map(transition => {
                 const isRejectTransition = transition.name.toLowerCase().includes('reject') || transition.code.toLowerCase().includes('reject');
+                const isDisabledByLogic = isRejectTransition 
+                  ? (sponsorDecision !== 'reject' && secondSponsorDecision !== 'reject') 
+                  : (sponsorDecision !== 'approve');
+
                 return (
                   <button
                     type="button"
@@ -379,22 +411,28 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
                     onClick={() => {
                       let comments = '';
                       if (isRejectTransition) {
-                        if (!rejectionReason) {
-                          alert('Please provide a rejection reason to perform this action.');
+                        if (sponsorDecision !== 'reject' && secondSponsorDecision !== 'reject') {
+                          setUserGuidanceMessage('A rejection decision must be selected by at least one sponsor.');
                           return;
                         }
-                        comments = rejectionReason;
+                        comments = sponsorDecision === 'reject' ? sponsorComments : secondSponsorComments;
+                      } else {
+                        if (sponsorDecision !== 'approve') {
+                          setUserGuidanceMessage('The primary sponsor must approve the application to submit for analysis.');
+                          return;
+                        }
                       }
                       handleWorkflowAction(transition.code, comments);
                     }}
-                    disabled={saveLoading || transitionLoading || (isRejectTransition && !rejectionReason)}
+                    disabled={saveLoading || transitionLoading || isDisabledByLogic}
                     style={{
                       backgroundColor: isRejectTransition ? colors.icbcRed : colors.standardBankBlue,
                       border: 'none',
                       color: 'white',
                       padding: '0.5rem 1rem',
                       borderRadius: '0.375rem',
-                      cursor: (saveLoading || transitionLoading || (isRejectTransition && !rejectionReason)) ? 'not-allowed' : 'pointer',
+                      cursor: (saveLoading || transitionLoading || isDisabledByLogic) ? 'not-allowed' : 'pointer',
+                      opacity: (saveLoading || transitionLoading || isDisabledByLogic) ? 0.7 : 1,
                     }}
                   >
                     {transitionLoading ? 'Processing...' : transition.name}
@@ -404,6 +442,16 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
             </div>
           </div>
           
+          {userGuidanceMessage && (
+            <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: colors.blueLight, color: colors.standardBankBlue, borderRadius: '0.375rem', fontSize: '0.875rem', border: `1px solid ${colors.standardBankBlue}` }}>
+              {userGuidanceMessage}
+            </div>
+          )}
+          {transitionSuccessMessage && (
+            <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#E6FFFA', color: '#2F855A', borderRadius: '0.375rem', fontSize: '0.875rem', border: `1px solid #38A169` }}>
+              {transitionSuccessMessage}
+            </div>
+          )}
           {transitionError && (
             <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: colors.redLight, color: colors.icbcRed, borderRadius: '0.375rem', fontSize: '0.875rem' }}>
               Transition Error: {transitionError}
