@@ -4,6 +4,7 @@ import { fetchCreditRequest } from '../services/api';
 import CreditRequestForm from './CreditRequestForm/index';
 import CreditReviewForm from './CreditReviewForm/index';
 import BusinessSponsorshipForm from './BusinessSponsorshipForm/index';
+import CreditQuestionnaireForm from './CreditQuestionnaireForm/index';
 import TopNavBar from './TopNavBar'; // Assuming TopNavBar is used on these pages
 import LogoutButton from './LogoutButton'; // Assuming LogoutButton is part of TopNavBar
 
@@ -74,6 +75,10 @@ const ApplicationLoader = () => {
     console.log('[ApplicationLoader] Routing to BusinessSponsorshipForm');
     FormComponentToRender = BusinessSponsorshipForm;
     mainWorkflowStep = 3; // 'Business Sponsorship' is step 3
+  } else if (workflowStateCode === 'CREDIT_PAPER_ANALYSIS_PENDING') {
+    console.log('[ApplicationLoader] Routing to CreditQuestionnaireForm');
+    FormComponentToRender = CreditQuestionnaireForm;
+    mainWorkflowStep = 4; // Assuming 'Credit Analysis / Questionnaire' is step 4
   } else if (workflowStateCode === 'CREDIT_PAPER_CREDIT_REVIEW_PENDING') {
     console.log('[ApplicationLoader] Routing to CreditReviewForm');
     FormComponentToRender = CreditReviewForm;

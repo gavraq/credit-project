@@ -180,7 +180,12 @@ const RequestTrackingDashboard = () => {
                         size="small" 
                         color="secondary" 
                         onClick={() => navigate(`/credit-requests/${r.id}/edit`)}
-                        title={r.workflow_state?.code === 'CREDIT_PAPER_CREDIT_REVIEW_PENDING' ? "Review Credit Application" : "Edit/View Application"}
+                        title={
+                        r.workflow_state?.code === 'CREDIT_PAPER_CREDIT_REVIEW_PENDING' ? "Review Credit Application" :
+                        r.workflow_state?.code === 'CREDIT_PAPER_ANALYSIS_PENDING' ? "Complete Credit Questionnaire" :
+                        r.workflow_state?.code === 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING' ? "Complete Business Sponsorship" :
+                        "Edit/View Application"
+                      }
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>

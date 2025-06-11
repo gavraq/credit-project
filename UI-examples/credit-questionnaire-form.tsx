@@ -1,26 +1,16 @@
 import React, { useState } from 'react';
 
 const CreditQuestionnaireForm = () => {
+  const [activeTab, setActiveTab] = useState('general');
+  
   // Brand colors
   const colors = {
     icbcRed: '#e31937',
     standardBankBlue: '#0c4da2',
     redLight: '#fde8eb',
-    blueLight: '#e6edf7',
-    success: '#38B2AC',
-    warning: '#F6AD55',
-    error: '#E53E3E',
-    neutral100: '#FFFFFF',
-    neutral200: '#F5F7FA',
-    neutral300: '#E4E7EB',
-    neutral400: '#CBD2D9',
-    neutral500: '#9AA5B1',
-    neutral600: '#7B8794',
-    neutral700: '#4A5568',
-    neutral800: '#323F4B',
-    neutral900: '#1F2933'
+    blueLight: '#e6edf7'
   };
-  
+
   // Workflow Status Component
   const WorkflowStatus = ({ currentStep = 3 }) => {
     const steps = [
@@ -33,55 +23,35 @@ const CreditQuestionnaireForm = () => {
     ];
     
     return (
-      <div style={{ padding: '1rem 0' }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between' 
-        }}>
+      <div className="py-4">
+        <div className="flex items-center justify-between">
           {steps.map((step, index) => (
             <React.Fragment key={step}>
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center' 
-              }}>
-                <div style={{ 
-                  width: '2rem', 
-                  height: '2rem', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  borderRadius: '9999px',
-                  backgroundColor: index < currentStep 
-                    ? colors.success  // success color for completed steps
+              <div className="flex flex-col items-center">
+                <div className={`w-8 h-8 flex items-center justify-center rounded-full ${
+                  index < currentStep 
+                    ? 'bg-teal-500' 
                     : index === currentStep 
-                    ? colors.standardBankBlue  // brand blue for current step
-                    : colors.neutral300,  // light gray for future steps
-                  color: index <= currentStep ? 'white' : colors.neutral600
-                }}>
+                    ? 'bg-blue-600' 
+                    : 'bg-gray-300'
+                } ${index <= currentStep ? 'text-white' : 'text-gray-500'}`}>
                   {index < currentStep ? (
                     '✓'
                   ) : (
-                    index + 1
+                    <span>{index + 1}</span>
                   )}
                 </div>
-                <span style={{ 
-                  marginTop: '0.5rem', 
-                  fontSize: '0.75rem',
-                  fontWeight: index === currentStep ? '500' : '400',
-                  color: index === currentStep ? colors.neutral800 : colors.neutral600
-                }}>
+                <span className={`mt-2 text-xs ${
+                  index === currentStep ? 'font-medium text-gray-800' : 'text-gray-500'
+                }`}>
                   {step}
                 </span>
               </div>
               
               {index < steps.length - 1 && (
-                <div style={{ 
-                  flexGrow: 1, 
-                  height: '0.25rem',
-                  backgroundColor: index < currentStep ? colors.success : colors.neutral300
-                }} />
+                <div className={`flex-grow h-1 ${
+                  index < currentStep ? 'bg-teal-500' : 'bg-gray-300'
+                }`} />
               )}
             </React.Fragment>
           ))}
@@ -89,139 +59,61 @@ const CreditQuestionnaireForm = () => {
       </div>
     );
   };
-  
-  // State for active tab
-  const [activeTab, setActiveTab] = useState('businessModel');
-  
+
   // Form Field Component
-  const FormField = ({ label, type = "text", placeholder, required = false, options = [], value, onChange, name }) => {
+  const FormField = ({ label, type = "text", placeholder, required = false }) => {
     return (
-      <div style={{ marginBottom: '1rem' }}>
-        {label && (
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '0.25rem', 
-            fontSize: '0.875rem', 
-            fontWeight: '500', 
-            color: colors.neutral700 
-          }}>
-            {label} {required && <span style={{ color: colors.icbcRed }}>*</span>}
-          </label>
-        )}
+      <div className="mb-4">
+        <label className="block mb-1 text-sm font-medium text-gray-700">
+          {label} {required && <span className="text-red-600">*</span>}
+        </label>
         
         {type === "textarea" ? (
           <textarea
-            style={{ 
-              marginTop: '0.25rem',
-              display: 'block',
-              width: '100%',
-              borderRadius: '0.375rem',
-              border: `1px solid ${colors.neutral400}`,
-              padding: '0.5rem',
-              fontSize: '0.875rem',
-              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-            }}
+            className="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm shadow-sm"
             placeholder={placeholder}
             rows={3}
-            value={value || ""}
-            onChange={onChange}
-            name={name}
           />
         ) : type === "select" ? (
           <select
-            style={{ 
-              marginTop: '0.25rem',
-              display: 'block',
-              width: '100%',
-              borderRadius: '0.375rem',
-              border: `1px solid ${colors.neutral400}`,
-              padding: '0.5rem',
-              fontSize: '0.875rem',
-              background: 'white',
-              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-            }}
-            value={value || ""}
-            onChange={onChange}
-            name={name}
+            className="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm bg-white shadow-sm"
           >
-            <option value="">{placeholder}</option>
-            {options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+            <option value="">{placeholder || "Select an option"}</option>
+            <option value="1">Option 1</option>
+            <option value="2">Option 2</option>
+            <option value="3">Option 3</option>
           </select>
         ) : type === "checkbox" ? (
-          <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
+          <div className="mt-2 flex items-center">
             <input
               type="checkbox"
-              style={{ 
-                height: '1rem', 
-                width: '1rem',
-                borderRadius: '0.25rem',
-                borderColor: colors.neutral400
-              }}
-              checked={value || false}
-              onChange={onChange}
-              name={name}
-              id={name}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600"
             />
-            <label 
-              htmlFor={name}
-              style={{ 
-                marginLeft: '0.5rem',
-                fontSize: '0.875rem',
-                color: colors.neutral700 
-              }}
-            >
+            <label className="ml-2 text-sm text-gray-700">
               {placeholder}
             </label>
           </div>
         ) : (
           <input
             type={type}
-            style={{ 
-              marginTop: '0.25rem',
-              display: 'block',
-              width: '100%',
-              borderRadius: '0.375rem',
-              border: `1px solid ${colors.neutral400}`,
-              padding: '0.5rem',
-              fontSize: '0.875rem',
-              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-            }}
+            className="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm shadow-sm"
             placeholder={placeholder}
-            value={value || ""}
-            onChange={onChange}
-            name={name}
           />
         )}
       </div>
     );
   };
-  
+
   // Form Section Component
   const FormSection = ({ title, description, children }) => {
     return (
-      <div style={{ 
-        border: `1px solid ${colors.neutral300}`, 
-        borderRadius: '0.375rem', 
-        padding: '1.5rem',
-        marginBottom: '1.5rem'
-      }}>
-        <h3 style={{ 
-          fontSize: '1.125rem', 
-          fontWeight: '600', 
-          marginBottom: '0.5rem'
-        }}>
+      <div className="border border-gray-300 rounded-md p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-2">
           {title}
         </h3>
         
         {description && (
-          <p style={{ 
-            color: colors.neutral600, 
-            marginBottom: '1rem'
-          }}>
+          <p className="text-gray-500 mb-4">
             {description}
           </p>
         )}
@@ -234,70 +126,27 @@ const CreditQuestionnaireForm = () => {
   // Version Control Header Component
   const VersionControlHeader = () => {
     return (
-      <div style={{ 
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '1.5rem'
-      }}>
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ 
-              fontWeight: '500',
-              marginRight: '0.5rem' 
-            }}>
-              Version:
-            </span>
-            <span style={{ 
-              backgroundColor: colors.neutral200,
-              color: colors.neutral800,
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              padding: '0.125rem 0.625rem'
-            }}>
+          <div className="flex items-center">
+            <span className="font-medium mr-2">Version:</span>
+            <span className="bg-gray-100 text-gray-800 rounded-full text-xs font-medium px-2.5 py-0.5">
               Draft - v0.2
             </span>
           </div>
-          <p style={{ 
-            fontSize: '0.75rem',
-            color: colors.neutral600,
-            marginTop: '0.25rem'
-          }}>
-            Last saved: May 7, 2025, 11:30 AM
+          <p className="text-xs text-gray-500 mt-1">
+            Last saved: May 6, 2025, 09:30 AM
           </p>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button style={{ 
-            display: 'inline-flex',
-            alignItems: 'center',
-            backgroundColor: 'white',
-            border: `1px solid ${colors.neutral400}`,
-            color: colors.neutral800,
-            padding: '0.375rem 0.625rem',
-            borderRadius: '0.375rem',
-            fontSize: '0.75rem',
-            fontWeight: '500',
-            cursor: 'pointer'
-          }}>
-            <span style={{ marginRight: '0.25rem' }}>↓</span>
+        <div className="flex items-center gap-3">
+          <button className="flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium">
+            <span className="mr-1">↓</span>
             Save Version
           </button>
           
-          <button style={{ 
-            display: 'inline-flex',
-            alignItems: 'center',
-            backgroundColor: 'white',
-            border: `1px solid ${colors.neutral400}`,
-            color: colors.neutral800,
-            padding: '0.375rem 0.625rem',
-            borderRadius: '0.375rem',
-            fontSize: '0.75rem',
-            fontWeight: '500',
-            cursor: 'pointer'
-          }}>
-            <span style={{ marginRight: '0.25rem' }}>👁</span>
+          <button className="flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium">
+            <span className="mr-1">👁</span>
             View History
           </button>
         </div>
@@ -305,195 +154,43 @@ const CreditQuestionnaireForm = () => {
     );
   };
 
-  // State for form fields
-  const [formData, setFormData] = useState({
-    // Business Model
-    businessModelDetails: "",
-    keySuppliersCustomers: "",
-    
-    // Trading Activity
-    tradingActivityRationale: "",
-    tradingFlowDrivers: "",
-    positionSizeDeterminants: "",
-    tradingPolicyGovernance: "",
-    
-    // Risk Management
-    hedgeEffectiveness: "",
-    hedgeAccountingApproach: "",
-    stressTestingMethodology: "",
-    varMethodology: "",
-    riskManagementSystem: "",
-    
-    // Liquidity
-    cashManagementApproach: "",
-    notionalPositionDetails: "",
-    liquidityManagement: "",
-    bankingRelationships: "",
-    
-    // References
-    accountExecutiveName: "John Smith",
-    relationshipManagerName: "Michael Chen",
-  });
-
-  // Handle form field changes
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
-  };
-
-  // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form submitted:", formData);
-    // Add form submission logic here
-  };
-  
-  // Sample data for the credit request
-  const creditRequestData = {
-    requestId: 'CR-2025-0123',
-    title: 'ABC Corporation - Credit Limit Increase',
-    counterparty: 'ABC Corporation',
-    submissionDate: '2025-05-01',
-    requiredByDate: '2025-05-20',
-    priority: 'High'
-  };
-
-  // Tabs for the questionnaire
-  const tabs = [
-    { id: 'businessModel', label: 'Business Model' },
-    { id: 'tradingActivity', label: 'Trading Activities' },
-    { id: 'riskManagement', label: 'Risk Management' },
-    { id: 'liquidity', label: 'Funding & Liquidity' }
-  ];
-
   return (
-    <div style={{ 
-      fontFamily: "'Inter', sans-serif", 
-      color: colors.neutral800,
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '1.5rem'
-    }}>
-      {/* Header */}
-      <div style={{ 
-        backgroundColor: 'white',
-        padding: '1.5rem',
-        borderRadius: '0.5rem',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-        marginBottom: '1.5rem'
-      }}>
-        <div style={{ 
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <h1 style={{ 
-                fontSize: '1.875rem', 
-                fontWeight: 'bold',
-                marginRight: '1rem',
-                marginBottom: 0
-              }}>
-                Credit Questionnaire
-              </h1>
-              <span style={{ 
-                backgroundColor: '#dbeafe',
-                color: '#1e40af',
-                borderRadius: '9999px',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                padding: '0.25rem 0.75rem'
-              }}>
-                {creditRequestData.requestId}
-              </span>
-            </div>
-            <p style={{ 
-              marginTop: '0.25rem',
-              fontSize: '0.875rem',
-              color: colors.neutral600
-            }}>
-              {creditRequestData.title} - Analysis Phase
-            </p>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button style={{ 
-              backgroundColor: 'white',
-              border: `1px solid ${colors.neutral400}`,
-              color: colors.neutral800,
-              padding: '0.5rem 1rem',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer'
-            }}>
-              Save as Draft
-            </button>
-            
-            <button 
-              onClick={handleSubmit}
-              style={{ 
-                backgroundColor: colors.standardBankBlue,
-                border: 'none',
-                color: 'white',
-                padding: '0.5rem 1rem',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                cursor: 'pointer'
-              }}
-            >
-              Submit for Review
-            </button>
-          </div>
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
+        <div className="flex items-center">
+          <h1 className="text-2xl font-bold mr-4">Credit Questionnaire</h1>
+          <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
+            CR-2025-0124
+          </span>
         </div>
+        <p className="text-sm text-gray-500 mt-1">
+          ABC Corporation - Analysis Phase
+        </p>
       </div>
       
-      {/* Workflow Status */}
-      <div style={{ 
-        backgroundColor: 'white',
-        padding: '1.5rem',
-        borderRadius: '0.5rem',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-        marginBottom: '1.5rem'
-      }}>
+      <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
         <WorkflowStatus currentStep={3} />
       </div>
       
-      {/* Form content */}
-      <div style={{ 
-        backgroundColor: 'white',
-        padding: '1.5rem',
-        borderRadius: '0.5rem',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-      }}>
+      <div className="bg-white rounded-lg p-6 shadow-sm">
         <VersionControlHeader />
         
-        {/* Questionnaire Tabs */}
-        <div style={{ 
-          display: 'flex',
-          borderBottom: `1px solid ${colors.neutral300}`,
-          marginBottom: '1.5rem'
-        }}>
-          {tabs.map((tab) => (
+        {/* Tabs for Questionnaire Sections */}
+        <div className="flex border-b border-gray-200 mb-6">
+          {[
+            { id: 'general', label: 'Business Model' },
+            { id: 'trading', label: 'Trading Activities' },
+            { id: 'risk', label: 'Risk Management' },
+            { id: 'funding', label: 'Funding & Liquidity' }
+          ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '0.75rem 1.25rem',
-                backgroundColor: 'transparent',
-                border: 'none',
-                borderBottom: '2px solid',
-                borderBottomColor: activeTab === tab.id ? colors.standardBankBlue : 'transparent',
-                color: activeTab === tab.id ? colors.standardBankBlue : colors.neutral600,
-                fontWeight: '500',
-                fontSize: '0.875rem',
-                cursor: 'pointer'
-              }}
+              className={`py-3 px-5 border-b-2 text-sm font-medium ${
+                activeTab === tab.id 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-gray-500'
+              }`}
             >
               {tab.label}
             </button>
@@ -501,7 +198,7 @@ const CreditQuestionnaireForm = () => {
         </div>
         
         {/* Business Model Tab Content */}
-        {activeTab === 'businessModel' && (
+        {activeTab === 'general' && (
           <FormSection 
             title="Business Model Overview" 
             description="Provide details on the counterparty's business model and operations."
@@ -509,9 +206,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Business Model Details" 
               type="textarea" 
-              name="businessModelDetails"
-              value={formData.businessModelDetails}
-              onChange={handleChange}
               placeholder="Describe the counterparty's core business model, key products/services, and market position"
               required={true}
             />
@@ -519,9 +213,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Key Suppliers and Customers" 
               type="textarea" 
-              name="keySuppliersCustomers"
-              value={formData.keySuppliersCustomers}
-              onChange={handleChange}
               placeholder="List major suppliers and customers, including concentration percentages if available"
               required={true}
             />
@@ -529,7 +220,7 @@ const CreditQuestionnaireForm = () => {
         )}
         
         {/* Trading Activities Tab Content */}
-        {activeTab === 'tradingActivity' && (
+        {activeTab === 'trading' && (
           <FormSection 
             title="Trading Activities" 
             description="Provide details on the counterparty's trading activities and rationale."
@@ -537,9 +228,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Trading Activity Rationale" 
               type="textarea" 
-              name="tradingActivityRationale"
-              value={formData.tradingActivityRationale}
-              onChange={handleChange}
               placeholder="Explain the business rationale behind the counterparty's trading activities"
               required={true}
             />
@@ -547,9 +235,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Trading Flow Drivers" 
               type="textarea" 
-              name="tradingFlowDrivers"
-              value={formData.tradingFlowDrivers}
-              onChange={handleChange}
               placeholder="Describe the key drivers of trading flows and volumes"
               required={true}
             />
@@ -557,9 +242,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Position Size Determinants" 
               type="textarea" 
-              name="positionSizeDeterminants"
-              value={formData.positionSizeDeterminants}
-              onChange={handleChange}
               placeholder="Explain how position sizes are determined and what limits are in place"
               required={true}
             />
@@ -567,9 +249,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Trading Policy & Governance" 
               type="textarea" 
-              name="tradingPolicyGovernance"
-              value={formData.tradingPolicyGovernance}
-              onChange={handleChange}
               placeholder="Describe the governance structure and oversight of trading activities"
               required={true}
             />
@@ -577,7 +256,7 @@ const CreditQuestionnaireForm = () => {
         )}
         
         {/* Risk Management Tab Content */}
-        {activeTab === 'riskManagement' && (
+        {activeTab === 'risk' && (
           <FormSection 
             title="Risk Management" 
             description="Provide details on the counterparty's risk management approach."
@@ -585,9 +264,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Hedge Effectiveness" 
               type="textarea" 
-              name="hedgeEffectiveness"
-              value={formData.hedgeEffectiveness}
-              onChange={handleChange}
               placeholder="Describe how the effectiveness of hedges is measured and monitored"
               required={true}
             />
@@ -595,9 +271,6 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Hedge Accounting Approach" 
               type="textarea" 
-              name="hedgeAccountingApproach"
-              value={formData.hedgeAccountingApproach}
-              onChange={handleChange}
               placeholder="Explain the accounting treatment for hedging activities"
               required={true}
             />
@@ -605,57 +278,28 @@ const CreditQuestionnaireForm = () => {
             <FormField 
               label="Stress Testing Methodology" 
               type="textarea" 
-              name="stressTestingMethodology"
-              value={formData.stressTestingMethodology}
-              onChange={handleChange}
               placeholder="Detail the stress testing approaches used to assess risk exposures"
               required={true}
             />
             
-            <div style={{ 
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '1.5rem',
-              marginTop: '1.5rem'
-            }}>
+            <div className="grid grid-cols-2 gap-6 mt-4">
               <FormField 
                 label="Value at Risk (VaR) Methodology" 
                 type="select" 
-                name="varMethodology"
-                value={formData.varMethodology}
-                onChange={handleChange}
                 placeholder="Select methodology"
-                options={[
-                  { value: "historical", label: "Historical Simulation" },
-                  { value: "parametric", label: "Parametric (Variance-Covariance)" },
-                  { value: "monte_carlo", label: "Monte Carlo Simulation" },
-                  { value: "none", label: "Not Applicable" }
-                ]} 
               />
               
               <FormField 
                 label="Risk Management System" 
                 type="select" 
-                name="riskManagementSystem"
-                value={formData.riskManagementSystem}
-                onChange={handleChange}
                 placeholder="Select system"
-                options={[
-                  { value: "murex", label: "Murex" },
-                  { value: "calypso", label: "Calypso" },
-                  { value: "openlink", label: "OpenLink" },
-                  { value: "finastra", label: "Finastra" },
-                  { value: "custom", label: "Custom In-house System" },
-                  { value: "other", label: "Other" },
-                  { value: "none", label: "None" }
-                ]} 
               />
             </div>
           </FormSection>
         )}
         
         {/* Funding & Liquidity Tab Content */}
-        {activeTab === 'liquidity' && (
+        {activeTab === 'funding' && (
           <>
             <FormSection 
               title="Funding & Liquidity" 
@@ -664,9 +308,6 @@ const CreditQuestionnaireForm = () => {
               <FormField 
                 label="Cash Management Approach" 
                 type="textarea" 
-                name="cashManagementApproach"
-                value={formData.cashManagementApproach}
-                onChange={handleChange}
                 placeholder="Describe how cash positions are managed across the organization"
                 required={true}
               />
@@ -674,9 +315,6 @@ const CreditQuestionnaireForm = () => {
               <FormField 
                 label="Notional Position Details" 
                 type="textarea" 
-                name="notionalPositionDetails"
-                value={formData.notionalPositionDetails}
-                onChange={handleChange}
                 placeholder="Provide details on typical notional position sizes and distribution"
                 required={true}
               />
@@ -684,9 +322,6 @@ const CreditQuestionnaireForm = () => {
               <FormField 
                 label="Liquidity Management" 
                 type="textarea" 
-                name="liquidityManagement"
-                value={formData.liquidityManagement}
-                onChange={handleChange}
                 placeholder="Explain liquidity management strategies and contingency planning"
                 required={true}
               />
@@ -694,134 +329,38 @@ const CreditQuestionnaireForm = () => {
               <FormField 
                 label="Banking Relationships" 
                 type="textarea" 
-                name="bankingRelationships"
-                value={formData.bankingRelationships}
-                onChange={handleChange}
                 placeholder="List key banking relationships and credit facilities"
                 required={true}
               />
             </FormSection>
             
-            <div style={{ 
-              backgroundColor: colors.blueLight,
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              alignItems: 'flex-start'
-            }}>
-              <span style={{ 
-                marginRight: '0.75rem',
-                fontSize: '1.25rem',
-                color: colors.standardBankBlue
-              }}>
-                ℹ️
-              </span>
-              <p style={{ 
-                fontSize: '0.875rem',
-                color: colors.standardBankBlue,
-                margin: 0
-              }}>
+            <div className="bg-blue-50 p-4 rounded-lg mb-6 flex items-start">
+              <div className="text-blue-600 mr-3 flex-shrink-0 mt-0.5">ℹ️</div>
+              <p className="text-sm text-blue-800">
                 Please attach the latest liquidity reports and covenant compliance certificates if available. Supporting documentation can be uploaded by clicking the "Attach Document" button below.
               </p>
             </div>
             
-            <button style={{ 
-              display: 'inline-flex',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              border: `1px solid ${colors.neutral400}`,
-              color: colors.neutral800,
-              padding: '0.5rem 1rem',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              marginBottom: '1.5rem'
-            }}>
-              <span style={{ marginRight: '0.5rem' }}>📎</span>
+            <button className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium mb-6">
+              <span className="mr-2">📎</span>
               Attach Document
             </button>
           </>
         )}
         
-        {/* Request Information */}
-        <FormSection 
-          title="Reference Information" 
-          description="Account Executive and Relationship Manager details."
-        >
-          <div style={{ 
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1.5rem'
-          }}>
-            <FormField 
-              label="Account Executive Name" 
-              name="accountExecutiveName"
-              value={formData.accountExecutiveName}
-              onChange={handleChange}
-              disabled={true}
-            />
-            
-            <FormField 
-              label="Relationship Manager Name" 
-              name="relationshipManagerName"
-              value={formData.relationshipManagerName}
-              onChange={handleChange}
-              disabled={true}
-            />
-          </div>
-        </FormSection>
-        
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          marginTop: '2rem' 
-        }}>
-          <button style={{ 
-            display: 'inline-flex',
-            alignItems: 'center',
-            backgroundColor: 'white',
-            color: colors.neutral800,
-            fontWeight: '500',
-            fontSize: '0.875rem',
-            padding: '0.5rem 1rem',
-            borderRadius: '0.375rem',
-            border: `1px solid ${colors.neutral400}`,
-            cursor: 'pointer'
-          }}>
-            <span style={{ marginRight: '0.5rem' }}>←</span>
-            Back to Dashboard
+        <div className="flex justify-between mt-8">
+          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium">
+            <span className="mr-2">←</span>
+            Back
           </button>
           
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button style={{ 
-              backgroundColor: 'white',
-              border: `1px solid ${colors.neutral400}`,
-              color: colors.neutral800,
-              padding: '0.5rem 1rem',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer'
-            }}>
+          <div className="flex gap-4">
+            <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium">
               Save as Draft
             </button>
             
-            <button 
-              onClick={handleSubmit}
-              style={{ 
-                backgroundColor: colors.standardBankBlue,
-                border: 'none',
-                color: 'white',
-                padding: '0.5rem 1rem',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                cursor: 'pointer'
-              }}
-            >
-              Submit for Review
+            <button className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium">
+              Submit Questionnaire
             </button>
           </div>
         </div>

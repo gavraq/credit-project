@@ -231,10 +231,47 @@ class LegalReviewFormSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class CreditQuestionnaireFormSerializer(serializers.ModelSerializer):
+    workflow_instance_id = serializers.SerializerMethodField()
+    workflow_state_name = serializers.SerializerMethodField()
+    available_transitions = serializers.SerializerMethodField()
+
     class Meta:
         model = CreditQuestionnaireForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at']
+        fields = ['id', 'form_data', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_workflow_instance_id(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
+            return str(obj.workflow_instance.id)
+        return None
+
+    def get_workflow_state_name(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
+            return obj.workflow_instance.current_state.name
+        return None
+
+    def get_available_transitions(self, obj):
+        request = self.context.get('request')
+        user = request.user if request else None
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and user:
+            try:
+                transitions = obj.workflow_instance.get_allowed_transitions(user)
+                return [
+                    {
+                        'id': str(t.id),
+                        'code': t.code,
+                        'name': t.name,
+                        'to_state': {
+                            'id': str(t.to_state.id),
+                            'code': t.to_state.code,
+                            'name': t.to_state.name
+                        }
+                    } for t in transitions
+                ]
+            except Exception as e:
+                # You might want to log this error
+                pass
+        return []
 
 class CreditApplicationSerializer(serializers.ModelSerializer):
     counterparty = CounterpartySerializer(read_only=True)
@@ -253,9 +290,18 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
     credit_review_form = CreditReviewFormSerializer(required=False, allow_null=True)
     business_sponsorship_form = BusinessSponsorshipFormSerializer(required=False, allow_null=True)
     legal_review_form = LegalReviewFormSerializer(required=False, allow_null=True)
-    credit_questionnaire_form = CreditQuestionnaireFormSerializer(required=False, allow_null=True)
+    credit_questionnaire_form = serializers.SerializerMethodField()
     applicant_name = serializers.SerializerMethodField()
     
+    def get_credit_questionnaire_form(self, obj):
+        if hasattr(obj, 'credit_questionnaire_form'): # Corrected attribute name
+            serializer = CreditQuestionnaireFormSerializer(
+                obj.credit_questionnaire_form,
+                context=self.context
+            )
+            return serializer.data
+        return None
+
     def get_applicant_name(self, obj):
         # Prioritize the snapshot stored on the model
         if obj.applicant_name:

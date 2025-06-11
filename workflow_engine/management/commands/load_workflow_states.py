@@ -112,8 +112,8 @@ WORKFLOWS.append({
         {'code': 'CREDIT_QUESTIONNAIRE_SUBMITTED', 'name': 'Submitted', 'description': 'Submitted state for Credit Questionnaire', 'is_initial': False, 'is_terminal': True},
     ],
     'transitions': [
-        {'code': 'CQ_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_questionnaire', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
-        {'code': 'CQ_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_questionnaire', 'description': 'Credit Analyst submits draft for progress', 'conditions': {}},
+        {'code': 'CQ_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'allowed_roles': ['credit_analyst', 'Relationship Manager'], 'system_action': 'edit_credit_questionnaire', 'description': 'User saves form as draft', 'conditions': {}},
+        {'code': 'CQ_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'allowed_roles': ['credit_analyst', 'Relationship Manager'], 'system_action': 'submit_credit_questionnaire', 'description': 'User submits draft for progress', 'conditions': {}},
         {'code': 'CQ_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'to_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_questionnaire', 'description': 'Credit Analyst saves form as draft from in progress', 'conditions': {}},
         {'code': 'CQ_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'to_code': 'CREDIT_QUESTIONNAIRE_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_questionnaire', 'description': 'Credit Analyst submits Credit Questionnaire', 'conditions': {}},
     ]

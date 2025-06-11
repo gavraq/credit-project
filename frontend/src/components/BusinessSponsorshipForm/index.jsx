@@ -61,28 +61,65 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
     if (!data) return;
     setCreditApplication(data); // Store the whole application object
 
-    // Populate Business Sponsorship Form specific data
-    if (data.business_sponsorship_form) {
-      const bsForm = data.business_sponsorship_form;
-      setBsWorkflowInstanceId(bsForm.workflow_instance_id || null);
-      setCurrentBsWorkflowState(bsForm.workflow_state_name || null);
-      setAllowedBsTransitionsList(bsForm.available_transitions || []);
+    // Pre-populate sponsor names from CreditRequestForm if available
+    let initialSponsorName = '';
+    let initialSecondSponsorName = '';
 
-      if (bsForm.form_data) {
-        const formData = bsForm.form_data;
-        setSponsorName(formData.sponsor_name || user?.name || '');
-        setSponsorDecision(formData.sponsor_decision || '');
-        setSponsorComments(formData.sponsor_comments || '');
-        setSecondSponsorName(formData.second_sponsor_name || '');
-        setSecondSponsorDecision(formData.second_sponsor_decision || '');
-        setSecondSponsorComments(formData.second_sponsor_comments || '');
-        setFormStartDate(formData.form_start_date || new Date().toISOString().split('T')[0]);
-        setFormCompletionDate(formData.form_completion_date || '');
-      }
+    if (data.credit_request_form) {
+      initialSponsorName = data.credit_request_form.senior_business_sponsor_name || '';
+      initialSecondSponsorName = data.credit_request_form.second_business_sponsor_name || '';
+    }
+    
+    // Set initial state for sponsor names based on CreditRequestForm
+    // These might be overridden by BusinessSponsorshipForm's own saved data later if it exists
+    setSponsorName(initialSponsorName);
+    setSecondSponsorName(initialSecondSponsorName);
+
+    // Populate Business Sponsorship Form specific data (which might override the above if already saved)
+    if (data.business_sponsorship_form && data.business_sponsorship_form.form_data) {
+      const bsFormData = data.business_sponsorship_form.form_data;
+      
+      // If BS form has its own saved sponsor_name, it takes precedence. Otherwise, keep pre-populated.
+      setSponsorName(bsFormData.sponsor_name || initialSponsorName || user?.name || ''); 
+      setSponsorDecision(bsFormData.sponsor_decision || '');
+      setSponsorComments(bsFormData.sponsor_comments || '');
+      
+      // If BS form has its own saved second_sponsor_name, it takes precedence. Otherwise, keep pre-populated.
+      setSecondSponsorName(bsFormData.second_sponsor_name || initialSecondSponsorName || ''); 
+      setSecondSponsorDecision(bsFormData.second_sponsor_decision || '');
+      setSecondSponsorComments(bsFormData.second_sponsor_comments || '');
+      
+      setFormStartDate(bsFormData.form_start_date || new Date().toISOString().split('T')[0]);
+      setFormCompletionDate(bsFormData.form_completion_date || '');
+      
+      // Populate BS workflow specific data
+      setBsWorkflowInstanceId(data.business_sponsorship_form.workflow_instance_id || null);
+      setCurrentBsWorkflowState(data.business_sponsorship_form.workflow_state_name || null);
+      setAllowedBsTransitionsList(data.business_sponsorship_form.available_transitions || []);
+
     } else {
-      // If no form data exists, set defaults
-      setSponsorName(user?.name || '');
+      // If no business_sponsorship_form.form_data exists, ensure defaults are set using pre-populated values
+      // or fallbacks if pre-population also yielded nothing.
+      setSponsorName(initialSponsorName || user?.name || '');
+      setSecondSponsorName(initialSecondSponsorName || ''); // Default for second sponsor if not pre-populated
       setFormStartDate(new Date().toISOString().split('T')[0]);
+      // Reset other BS form specific fields if necessary
+      setSponsorDecision('');
+      setSponsorComments('');
+      setSecondSponsorDecision('');
+      setSecondSponsorComments('');
+      setFormCompletionDate('');
+
+      // Also ensure BS workflow state is reset if no bs_form data
+      if (data.business_sponsorship_form) { // Check if bs_form object exists even if form_data inside it doesn't
+        setBsWorkflowInstanceId(data.business_sponsorship_form.workflow_instance_id || null);
+        setCurrentBsWorkflowState(data.business_sponsorship_form.workflow_state_name || null);
+        setAllowedBsTransitionsList(data.business_sponsorship_form.available_transitions || []);
+      } else {
+        setBsWorkflowInstanceId(null);
+        setCurrentBsWorkflowState(null);
+        setAllowedBsTransitionsList([]);
+      }
     }
   };
 

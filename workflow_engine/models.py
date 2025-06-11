@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
+import logging
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 
@@ -64,16 +65,40 @@ class WorkflowInstance(models.Model):
 
     def get_allowed_transitions(self, user):
         from_state = self.current_state
-        transitions = self.workflow_definition.transitions.filter(from_state=from_state)
-        user_role = getattr(user.role, "name", None)
+        # Fetch all transitions from the current state
+        possible_transitions = self.workflow_definition.transitions.filter(from_state=from_state)
+        
         allowed = []
-        for t in transitions:
-            if t.allowed_roles and user_role:
-                # Normalize role strings for comparison
-                allowed_roles_norm = [r.lower().replace(" ", "_") for r in t.allowed_roles]
-                user_role_norm = user_role.lower().replace(" ", "_")
+        user_role_name = getattr(user.role, "name", None)
+
+        # === BEGIN CASCADE DEBUG LOGGING ===
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[WF DEBUG] get_allowed_transitions for user: {user} (ID: {user.id if user else 'N/A'}), Role Object: {user.role if user else 'N/A'}, Extracted Role Name: {user_role_name}")
+        logger.info(f"[WF DEBUG] Current workflow instance: {self}, Object ID: {self.object_id}, Content Type: {self.content_type}")
+        # === END CASCADE DEBUG LOGGING ===
+
+        for t in possible_transitions:
+            # Assume the transition is not permitted by role, then prove it is
+            role_permits = False
+
+            if not t.allowed_roles:  # If allowed_roles is empty or None, transition is permitted by role
+                role_permits = True
+            elif user_role_name:     # If there are allowed_roles, user must have a role and it must match
+                # Normalize role strings for comparison (stripping whitespace first is a good practice)
+                allowed_roles_norm = [r.strip().lower().replace(" ", "_") for r in t.allowed_roles]
+                user_role_norm = user_role_name.strip().lower().replace(" ", "_")
                 if user_role_norm in allowed_roles_norm:
-                    allowed.append(t)
+                    role_permits = True
+            
+            # Placeholder for checking additional conditions defined in t.conditions
+            # For now, we assume other conditions are met or not yet implemented.
+            # conditions_permit = self._check_custom_conditions(t, user) 
+            conditions_permit = True 
+
+            if role_permits and conditions_permit:
+                allowed.append(t)
+                
         return allowed
         
     def perform_transition(self, transition_code, user, comments='', system_context=None):
@@ -123,7 +148,23 @@ class WorkflowInstance(models.Model):
         self.save(update_fields=['current_state', 'updated_at'])
         
         print(f"Workflow transition: {old_state.code} -> {self.current_state.code} via {transition_code}")
-        
+
+        # Execute system action if defined for the transition
+        if transition.system_action:
+            from .actions import get_system_action_handler # Delayed import
+            import logging # Ensure logging is imported if not already
+            logger = logging.getLogger(__name__) # Ensure logger is defined
+            
+            action_handler = get_system_action_handler(transition.system_action)
+            if action_handler:
+                try:
+                    logger.info(f"Executing system action: {transition.system_action} for instance {self.id}")
+                    action_handler(self, user, transition) # Pass instance, user, and transition object
+                except Exception as e_sys_action:
+                    logger.error(f"Error executing system action '{transition.system_action}' for instance {self.id}: {e_sys_action}", exc_info=True)
+            else:
+                logger.warning(f"No handler found for system action: {transition.system_action} for instance {self.id}")
+            
         return self
 
 class StateLog(models.Model):

@@ -2,7 +2,13 @@ import React from 'react';
 
 const FormSection = ({ title, description, children }) => {
   return (
-    <div style={{ marginBottom: '2rem' }}>
+    <div style={{
+      padding: '1.5rem',
+      backgroundColor: '#FFFFFF',
+      border: '1px solid #E4E7EB',
+      borderRadius: '0.375rem',
+      marginBottom: '1.5rem'
+    }}>
       <div style={{ marginBottom: '1rem' }}>
         <h2 style={{ 
           fontSize: '1.125rem', 

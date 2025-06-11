@@ -15,6 +15,7 @@ import TopNavBar from './components/TopNavBar';
 import CreditRequestForm from './components/CreditRequestForm/index';
 import CreditReviewForm from './components/CreditReviewForm/index';
 import BusinessSponsorshipForm from './components/BusinessSponsorshipForm/index';
+import CreditQuestionnaireForm from './components/CreditQuestionnaireForm/index';
 import ApplicationLoader from './components/ApplicationLoader';
 
 function Dashboard() {

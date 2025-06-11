@@ -11,6 +11,16 @@ const FormField = ({
   name,
   colors 
 }) => {
+  // Define a fallback colors object
+  const defaultColors = {
+    neutral700: '#4A5568',
+    neutral400: '#CBD2D9',
+    icbcRed: '#e31937',
+    // Add any other colors used directly by FormField from the original colors object
+    // For now, these are the ones explicitly mentioned in the visible code for styling labels and borders.
+  };
+
+  const effectiveColors = colors || defaultColors;
   return (
     <div style={{ marginBottom: '1rem' }}>
       {label && (
@@ -19,9 +29,9 @@ const FormField = ({
           marginBottom: '0.25rem', 
           fontSize: '0.875rem', 
           fontWeight: '500', 
-          color: colors.neutral700 
+          color: effectiveColors.neutral700 
         }}>
-          {label} {required && <span style={{ color: colors.icbcRed }}>*</span>}
+          {label} {required && <span style={{ color: effectiveColors.icbcRed }}>*</span>}
         </label>
       )}
       
@@ -32,7 +42,7 @@ const FormField = ({
             display: 'block',
             width: '100%',
             borderRadius: '0.375rem',
-            border: `1px solid ${colors.neutral400}`,
+            border: `1px solid ${effectiveColors.neutral400}`,
             padding: '0.5rem',
             fontSize: '0.875rem',
             boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
@@ -50,7 +60,7 @@ const FormField = ({
             display: 'block',
             width: '100%',
             borderRadius: '0.375rem',
-            border: `1px solid ${colors.neutral400}`,
+            border: `1px solid ${effectiveColors.neutral400}`,
             padding: '0.5rem',
             fontSize: '0.875rem',
             backgroundColor: 'white',
@@ -121,7 +131,7 @@ const FormField = ({
             display: 'block',
             width: '100%',
             borderRadius: '0.375rem',
-            border: `1px solid ${colors.neutral400}`,
+            border: `1px solid ${effectiveColors.neutral400}`,
             padding: '0.5rem',
             fontSize: '0.875rem',
             boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'

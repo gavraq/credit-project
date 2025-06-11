@@ -21,7 +21,7 @@ const retryOriginalRequest = (originalRequest) => {
   return new Promise(resolve => {
     const retryRequest = (newToken) => {
       originalRequest.headers.Authorization = `Bearer ${newToken}`;
-      resolve(axios(originalRequest));
+      resolve(api(originalRequest));
     };
     refreshSubscribers.push(retryRequest);
   });
@@ -77,11 +77,21 @@ api.interceptors.response.use(
         });
         
         if (response.data.access) {
+          const newAccessToken = response.data.access;
           // Store the new token
-          localStorage.setItem('jwt', response.data.access);
-          // Notify subscribers and retry original request
-          onRefreshSuccess(response.data.access);
-          return axios(originalRequest);
+          localStorage.setItem('jwt', newAccessToken);
+          
+          // Update the default authorization header for subsequent requests
+          api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+          
+          // Update the authorization header for the original request
+          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          
+          // Notify subscribers with the new token
+          onRefreshSuccess(newAccessToken);
+
+          // Retry the original request with the updated header
+          return api(originalRequest);
         }
       } catch (refreshError) {
         // If refresh fails, redirect to login
@@ -193,6 +203,21 @@ export const saveBusinessSponsorshipForm = async (id, formData) => {
     return response.data;
   } catch (error) {
     console.error('Error submitting business sponsorship form:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+
+export const saveCreditQuestionnaireForm = async (id, formData) => {
+  try {
+    console.log(`Submitting credit questionnaire form for ID ${id} with data:`, formData);
+    // The formData is already expected to be structured with a top-level key 
+    // (e.g., { credit_questionnaire_form: { ... } }) by the component calling this.
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting credit questionnaire form:', error);
     console.error('Error response:', error.response?.data);
     throw error;
   }
