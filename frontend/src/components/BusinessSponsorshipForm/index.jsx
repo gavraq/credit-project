@@ -9,7 +9,7 @@ import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
 import Typography from '@mui/material/Typography'; // Added import
 
-const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, mainWorkflowStep = 1 }) => {
+const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, currentStep = 1 }) => {
   const { id } = useParams(); // This is credit_application_id
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -294,7 +294,7 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
       </div>
 
       {/* WorkflowStatus after title block, before form card */}
-      <WorkflowStatus currentStep={mainWorkflowStep} />
+      <WorkflowStatus currentStep={currentStep} />
 
       {/* Inner white card for the form content */}
       <div style={{

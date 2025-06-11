@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { fetchCreditRequest } from '../services/api';
 import CreditRequestForm from './CreditRequestForm/index';
 import CreditReviewForm from './CreditReviewForm/index';
@@ -10,6 +10,11 @@ import LogoutButton from './LogoutButton'; // Assuming LogoutButton is part of T
 
 const ApplicationLoader = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const formTypeFromQuery = queryParams.get('form_type');
+  const modeFromQuery = queryParams.get('mode'); // 'edit' or 'view'
+  const editMode = modeFromQuery !== 'view'; // Default to true unless explicitly 'view'
   const [creditApplication, setCreditApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,43 +67,28 @@ const ApplicationLoader = () => {
     );
   }
 
-  // Determine which form to render based on workflow state
-  const workflowStateCode = creditApplication.workflow_state?.code;
-  console.log(`[ApplicationLoader] Application ID: ${id}, Workflow State Code: ${workflowStateCode}`);
+  const formComponentMap = {
+    'creditrequestform': CreditRequestForm,
+    'creditreviewform': CreditReviewForm,
+    'businesssponsorshipform': BusinessSponsorshipForm,
+    'creditquestionnaireform': CreditQuestionnaireForm,
+    // Add other forms here as they are created, e.g., 'legalreviewform': LegalReviewForm
+  };
 
-  let mainWorkflowStep = 1; // Default to 'Credit Request'
-  let FormComponentToRender;
+  const FormComponentToRender = formTypeFromQuery ? formComponentMap[formTypeFromQuery.toLowerCase().replace(/_/g, '')] : null;
+  const mainWorkflowStep = 1; // This might need to be dynamic based on the form or state
 
-  // It's crucial to get the exact state codes from your backend workflow definition.
-  // These are examples based on previous logs.
-  if (workflowStateCode === 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING') {
-    console.log('[ApplicationLoader] Routing to BusinessSponsorshipForm');
-    FormComponentToRender = BusinessSponsorshipForm;
-    mainWorkflowStep = 3; // 'Business Sponsorship' is step 3
-  } else if (workflowStateCode === 'CREDIT_PAPER_ANALYSIS_PENDING') {
-    console.log('[ApplicationLoader] Routing to CreditQuestionnaireForm');
-    FormComponentToRender = CreditQuestionnaireForm;
-    mainWorkflowStep = 4; // Assuming 'Credit Analysis / Questionnaire' is step 4
-  } else if (workflowStateCode === 'CREDIT_PAPER_CREDIT_REVIEW_PENDING') {
-    console.log('[ApplicationLoader] Routing to CreditReviewForm');
-    FormComponentToRender = CreditReviewForm;
-    mainWorkflowStep = 2; // 'Credit Review' is step 2
-  } else {
-    // Default to CreditRequestForm for other states (e.g., DRAFT, or if state is unexpected)
-    // Or handle specific states like 'CREDIT_REQUEST_DRAFT', 'CREDIT_REQUEST_NEW_INSTANCE_PENDING_DATA_ENTRY' etc.
-    console.log('[ApplicationLoader] Defaulting to CreditRequestForm (editMode=true)');
-    FormComponentToRender = CreditRequestForm;
-    mainWorkflowStep = 1; // 'Credit Request' is step 1
+  if (!FormComponentToRender) {
+    return (
+      <>
+        <TopNavBar LogoutButton={LogoutButton} />
+        <div>Error: Could not determine which form to load. Please check the URL or go back.</div>
+      </>
+    );
   }
 
-  // Pass creditApplication data and mainWorkflowStep to the selected form component
-  // CreditRequestForm expects editMode, others might expect the full application object or specific parts.
-  // For simplicity and future flexibility, let's pass the whole creditApplication and mainWorkflowStep.
-  // Individual forms can then destructure what they need.
-  if (FormComponentToRender === CreditRequestForm) {
-    return <FormComponentToRender creditApplication={creditApplication} mainWorkflowStep={mainWorkflowStep} editMode={true} />;
-  }
-  return <FormComponentToRender creditApplication={creditApplication} mainWorkflowStep={mainWorkflowStep} />;
+  // Pass creditApplication data, mainWorkflowStep, and editMode to the selected form component.
+  return <FormComponentToRender creditApplication={creditApplication} mainWorkflowStep={mainWorkflowStep} editMode={editMode} />;
 
 };
 

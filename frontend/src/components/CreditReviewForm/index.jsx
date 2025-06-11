@@ -11,7 +11,7 @@ import WorkflowStatus from '../common/WorkflowStatus';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
 
-const CreditReviewForm = ({ creditApplication: initialCreditApplication, mainWorkflowStep = 2 }) => {
+const CreditReviewForm = ({ creditApplication: initialCreditApplication, currentStep = 2 }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -311,7 +311,7 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, mainWor
         </p>
       </div>
 
-      <WorkflowStatus currentStep={mainWorkflowStep} />
+      <WorkflowStatus currentStep={currentStep} />
 
       <div style={{
         backgroundColor: 'white',

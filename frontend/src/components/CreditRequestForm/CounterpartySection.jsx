@@ -19,7 +19,8 @@ const CounterpartySection = ({
   requestTitle,
   setRequestTitle,
   requestNumber,
-  colors
+  colors,
+  disabled
 }) => {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
@@ -30,6 +31,7 @@ const CounterpartySection = ({
         value={requestTitle}
         onChange={(e) => setRequestTitle(e.target.value)}
         colors={colors}
+        disabled={disabled}
       />
       <FormField 
         label="Request Number" 
@@ -58,6 +60,7 @@ const CounterpartySection = ({
               setCounterpartyCIF(found ? found.cif_number : '');
             }}
             colors={colors}
+            disabled={disabled}
           />
           <FormField
             label="Counterparty CIF number"
@@ -81,6 +84,7 @@ const CounterpartySection = ({
               setSelectedGuarantorName(found ? found.name : ''); // Set guarantor name
             }}
             colors={colors}
+            disabled={disabled}
           />
           <FormField
             label="Guarantor CIF number"

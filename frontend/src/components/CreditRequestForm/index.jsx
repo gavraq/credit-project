@@ -17,10 +17,9 @@ import PrioritisationSection from './PrioritisationSection';
 import DocumentsSection from './DocumentsSection';
 import DebugPanel from './DebugPanel';
 
-const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWorkflowStep = 1 }) => {
+const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWorkflowStep = 1, editMode }) => {
   const { id } = useParams();
   const navigate = useNavigate(); // Added for navigation
-  const editMode = !!id || !!initialCreditApplication; // Edit mode if ID or initial data is present
   
   // Workflow state logic
   const [currentState, setCurrentState] = useState('');
@@ -891,6 +890,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
             setRequestTitle={setRequestTitle}
             requestNumber={requestNumber}
             colors={colors}
+            disabled={!editMode}
           />
         </FormSection>
         
@@ -914,6 +914,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
             detailedCommentsOnLimits={detailedCommentsOnLimits}
             setDetailedCommentsOnLimits={setDetailedCommentsOnLimits}
             colors={colors}
+            disabled={!editMode}
           />
         </FormSection>
         
@@ -938,6 +939,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
             relationshipComments={relationshipComments}
             setRelationshipComments={setRelationshipComments}
             colors={colors}
+            disabled={!editMode}
           />
         </FormSection>
         
@@ -958,6 +960,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
             interimStatementsAvailable={interimStatementsAvailable}
             setInterimStatementsAvailable={setInterimStatementsAvailable}
             colors={colors}
+            disabled={!editMode}
           />
         </FormSection>
         
@@ -990,6 +993,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
             justificationForHighPriority={justificationForHighPriority}
             setJustificationForHighPriority={setJustificationForHighPriority}
             colors={colors}
+            disabled={!editMode}
           />
         </FormSection>
         
@@ -1003,10 +1007,11 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
             colors={colors}
             documents={documents}
             setDocuments={setDocuments}
+            disabled={!editMode}
           />
           
           {/* Always show WorkflowActions for basic form actions */}
-          <WorkflowActions
+          {editMode && <WorkflowActions
             key={id || 'new_form_workflow_actions'} // Ensure remount on ID change
             transitionLoading={transitionLoading}
             transitionError={transitionError}
@@ -1016,7 +1021,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
             currentState={currentState}
             allowedTransitions={allowedTransitions || []}
             colors={colors}
-          />
+          />}
         </FormSection>
       </form>
     </div>

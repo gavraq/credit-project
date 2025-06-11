@@ -17,6 +17,7 @@ import CreditReviewForm from './components/CreditReviewForm/index';
 import BusinessSponsorshipForm from './components/BusinessSponsorshipForm/index';
 import CreditQuestionnaireForm from './components/CreditQuestionnaireForm/index';
 import ApplicationLoader from './components/ApplicationLoader';
+import ApplicationDetails from './components/ApplicationDetails';
 
 function Dashboard() {
   return (
@@ -35,8 +36,9 @@ function MainApp() {
         <Routes>
           <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <LoginForm />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/credit-requests/new" element={<ProtectedRoute><CreditRequestForm editMode={false} /></ProtectedRoute>} />
+          <Route path="/credit-requests/new" element={<ProtectedRoute><CreditRequestForm editMode={true} /></ProtectedRoute>} />
           <Route path="/credit-requests/:id/edit" element={<ProtectedRoute><ApplicationLoader /></ProtectedRoute>} />
+          <Route path="/credit-requests/:id/details" element={<ProtectedRoute><ApplicationDetails /></ProtectedRoute>} />
         </Routes>
       </Router>
     </ThemeProvider>
