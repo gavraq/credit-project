@@ -251,7 +251,7 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication, 
         // Step 4: Navigate to dashboard if this was a submit action
         if (actualTransitionCode === 'CQ_TR_1' || actualTransitionCode === 'CQ_TR_2') {
           setTimeout(() => {
-            navigate('/dashboard');
+            navigate('/');
           }, 1500); // 1.5-second delay
         }
 
