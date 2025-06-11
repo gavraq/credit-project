@@ -1,9 +1,11 @@
 import uuid
+import logging
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
-import logging
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 class WorkflowDefinition(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
