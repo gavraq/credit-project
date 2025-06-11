@@ -71,13 +71,6 @@ class WorkflowInstance(models.Model):
         allowed = []
         user_role_name = getattr(user.role, "name", None)
 
-        # === BEGIN CASCADE DEBUG LOGGING ===
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"[WF DEBUG] get_allowed_transitions for user: {user} (ID: {user.id if user else 'N/A'}), Role Object: {user.role if user else 'N/A'}, Extracted Role Name: {user_role_name}")
-        logger.info(f"[WF DEBUG] Current workflow instance: {self}, Object ID: {self.object_id}, Content Type: {self.content_type}")
-        # === END CASCADE DEBUG LOGGING ===
-
         for t in possible_transitions:
             # Assume the transition is not permitted by role, then prove it is
             role_permits = False
