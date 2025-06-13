@@ -161,52 +161,45 @@ const authService = {
 export default authService;
 ```
 
-### 5.2 Credit Application Service
+### 5.2 Form Data Services
+
+Instead of a single, monolithic `applicationService.js`, the API services are organized by form type, each providing a generic save function that aligns with the backend's `@action` endpoints. All save functions send a flat `formData` object.
 
 ```jsx
-// frontend/src/services/applicationService.js
-import { get, post, patch } from './api';
+// frontend/src/services/api.js (or a dedicated form service file)
 
-const applicationService = {
-  getApplications: async (filters = {}) => {
-    const response = await get('/api/credit/credit-applications/', { params: filters });
-    return response.data;
-  },
-  
-  getApplication: async (id) => {
-    const response = await get(`/api/credit/credit-applications/${id}/`);
-    return response.data;
-  },
-  
-  createApplication: async (data) => {
-    const response = await post('/api/credit/credit-applications/', data);
-    return response.data;
-  },
-  
-  updateApplication: async (id, data) => {
-    const response = await patch(`/api/credit/credit-applications/${id}/`, data);
-    return response.data;
-  },
-  
-  getFormConfiguration: async (formName) => {
-    const response = await get('/api/credit/credit-applications/form_configuration/', {
-      params: { form_name: formName }
-    });
-    return response.data;
-  },
-  
-  getDropdownOptions: async (dropdownName, context = null) => {
-    const params = { dropdown_name: dropdownName };
-    if (context) {
-      params.context = context;
-    }
-    
-    const response = await get('/api/credit/credit-applications/dropdown_options/', { params });
-    return response.data;
-  }
+import { patch, post } from './api';
+
+// Used for creating any new application
+export const createCreditApplication = async (data) => {
+  const response = await post('/api/credit-applications/', data);
+  return response.data;
 };
 
-export default applicationService;
+// Used for saving an existing Credit Request form
+export const saveCreditRequestForm = async (id, data) => {
+  const response = await patch(`/api/credit-applications/${id}/save_credit_request_form/`, data);
+  return response.data;
+};
+
+// Used for saving an existing Business Sponsorship form
+export const saveBusinessSponsorshipForm = async (id, data) => {
+  const response = await patch(`/api/credit-applications/${id}/save_business_sponsorship_form/`, data);
+  return response.data;
+};
+
+// Used for saving an existing Credit Questionnaire form
+export const saveCreditQuestionnaireForm = async (id, data) => {
+  const response = await patch(`/api/credit-applications/${id}/save_credit_questionnaire_form/`, data);
+  return response.data;
+};
+
+// Used for saving an existing Legal Review form
+export const saveLegalReviewForm = async (id, data) => {
+  const response = await patch(`/api/credit-applications/${id}/save_legal_review_form/`, data);
+  return response.data;
+};
+```
 ```
 
 ### 5.3 Workflow Service

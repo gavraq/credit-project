@@ -94,6 +94,7 @@ credit_risk_workflow/
 │   │   ├── views/
 │   │   │   ├── __init__.py
 │   │   │   └── workflow_views.py
+│   │   ├── actions.py            # System actions for workflow transitions
 │   │   ├── services.py           # Workflow logic
 │   │   ├── permissions.py
 │   │   ├── urls.py
@@ -263,18 +264,17 @@ Authentication components handle user login, session management, and protected r
 
 [See Authentication Implementation Details](./Credit-Risk-Authentication-Implementation.md)
 
-### 4.3 Credit Request Form
+### 4.3 Form Data Lifecycle
 
-The Credit Request Form is a multi-section form for creating and editing credit applications.
+All forms in the application (Credit Request, Business Sponsorship, Credit Questionnaire, Legal Review) follow a unified data lifecycle pattern.
 
 #### Key Features
-- Modular section components (Counterparty, Limits, Relationship, Legal, etc.)
-- Dynamic form validation
-- Workflow integration
-- Document upload integration
-- Counterparty dropdown with auto-populated CID/CIF ID
+- Consistent frontend state management with a single `formData` object.
+- A flat data payload sent from the frontend to the backend.
+- Backend serializer-led orchestration for saving data to multiple related models.
+- Dynamic workflow action buttons based on `allowed_transitions`.
 
-[See Credit Request Form Implementation Details](./Credit-Risk-Form-Implementation.md)
+[See Form Data Lifecycle Implementation Details](./Credit-Risk-Form-Lifecycle.md)
 
 ### 4.4 Dashboard and Reporting
 
