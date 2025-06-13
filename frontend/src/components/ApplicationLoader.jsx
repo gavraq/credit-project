@@ -5,6 +5,7 @@ import CreditRequestForm from './CreditRequestForm/index';
 import CreditReviewForm from './CreditReviewForm/index';
 import BusinessSponsorshipForm from './BusinessSponsorshipForm/index';
 import CreditQuestionnaireForm from './CreditQuestionnaireForm/index';
+import LegalReviewForm from './LegalReviewForm/index'; // Added LegalReviewForm
 import TopNavBar from './TopNavBar'; // Assuming TopNavBar is used on these pages
 import LogoutButton from './LogoutButton'; // Assuming LogoutButton is part of TopNavBar
 
@@ -72,6 +73,7 @@ const ApplicationLoader = () => {
     'creditreviewform': CreditReviewForm,
     'businesssponsorshipform': BusinessSponsorshipForm,
     'creditquestionnaireform': CreditQuestionnaireForm,
+    'legalreviewform': LegalReviewForm, // Added LegalReviewForm
     // Add other forms here as they are created, e.g., 'legalreviewform': LegalReviewForm
   };
 

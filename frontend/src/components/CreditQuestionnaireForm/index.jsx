@@ -205,11 +205,18 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication, 
     setSaveLoading(true);
     setSaveError(null);
 
+    const questionnairePayload = {
+      ...formData,
+      form_start_date: formStartDate || new Date().toISOString().split('T')[0],
+      // form_completion_date is set on final submission via workflow
+    };
+
+    if (!cqWorkflowInstanceId) {
+      questionnairePayload.create_workflow_instance = true;
+    }
+
     const payload = {
-      credit_questionnaire_form: {
-        form_data: { ...formData },
-        workflow_instance_id: cqWorkflowInstanceId,
-      }
+      credit_questionnaire_form: questionnairePayload
     };
 
     try {

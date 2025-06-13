@@ -73,12 +73,29 @@ def handle_submit_business_sponsorship(workflow_instance, user, transition_obj):
             f"State: {workflow_instance.current_state.code})"
         )
 
+def handle_perform_legal_review(workflow_instance, user, transition_obj):
+    """
+    Placeholder system action for legal review transitions.
+    Currently, this action performs no specific operations beyond logging.
+    'workflow_instance' is the instance of the LegalReviewForm's workflow.
+    'user' is the user who triggered the original sub-workflow transition.
+    'transition_obj' is the Transition object that was just performed on the sub-workflow.
+    """
+    logger.info(
+        f"System action 'handle_perform_legal_review' triggered for "
+        f"sub-workflow instance {workflow_instance.id} (State: {workflow_instance.current_state.code}) "
+        f"by user {user.username} via transition {transition_obj.code}."
+    )
+    # Future logic for legal review system actions can be added here.
+    pass
+
 # Registry for all system actions
 SYSTEM_ACTIONS_REGISTRY = {
     'submit_business_sponsorship': handle_submit_business_sponsorship,
     # Example:
     # 'submit_credit_request': handle_submit_credit_request, 
     # 'submit_credit_review': handle_submit_credit_review,
+    'perform_legal_review': handle_perform_legal_review,
 }
 
 def get_system_action_handler(action_code):

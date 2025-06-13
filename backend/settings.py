@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'documents',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 CSRF_TRUSTED_ORIGINS = ['https://credit.gavinslater.co.uk']

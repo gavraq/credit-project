@@ -167,16 +167,12 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
       second_sponsor_comments: secondSponsorComments,
     };
 
-    const bsRelatedData = {
-      form_data: businessSponsorshipPayload
-    };
-
     if (!bsWorkflowInstanceId) {
-      bsRelatedData.create_workflow_instance = true;
+      businessSponsorshipPayload.create_workflow_instance = true;
     }
 
     const payload = {
-      business_sponsorship_form: bsRelatedData
+      business_sponsorship_form: businessSponsorshipPayload
     };
 
     try {

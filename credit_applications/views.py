@@ -17,7 +17,7 @@ from .models import (
 )
 from .serializers import (
     CreditApplicationSerializer, CounterpartySerializer, LimitRequestSerializer,
-    LimitTypeSerializer, CreditRequestFormSerializer
+    LimitTypeSerializer, CreditRequestFormSerializer, LegalReviewFormSerializer, CreditQuestionnaireFormSerializer, BusinessSponsorshipFormSerializer, CreditReviewFormSerializer # Added missing form serializers
 )
 
 class LimitTypeViewSet(viewsets.ModelViewSet):
@@ -266,5 +266,51 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
             "code": transition.to_state.code,
             "name": transition.to_state.name
         }})
+
+    @action(detail=True, methods=['get', 'post'], url_path='legal-review-form')
+    def legal_review_form_handler(self, request, pk=None):
+        credit_application = self.get_object()
+        try:
+            legal_review_instance = LegalReviewForm.objects.get(credit_application=credit_application)
+        except LegalReviewForm.DoesNotExist:
+            if request.method == 'GET':
+                return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+            # If POST and not found, it will be created by the serializer if data is valid
+            legal_review_instance = None 
+
+        if request.method == 'GET':
+            serializer = LegalReviewFormSerializer(legal_review_instance, context={'request': request})
+            return Response(serializer.data)
+
+        elif request.method == 'POST':
+            # For POST, we are creating or updating the form_data
+            # The frontend sends the entire form_data blob
+            # We expect the payload to be like: { "form_data": { ... } }
+            # Or directly the form_data content: { "field1": "value1", ... }
+            # The saveLegalReviewForm in frontend sends { legal_review_form: { ... actual form data ... } }
+            # So request.data will be { legal_review_form: { ... } }
+            
+            form_payload = request.data.get('legal_review_form', request.data) # Adapt to actual payload structure
+
+            # We need to ensure the LegalReviewForm model instance exists
+            if legal_review_instance is None:
+                 # Create one if it doesn't exist, associating with the credit_application
+                 # This might also be handled by serializer if 'credit_application' is a writable field
+                 # Or, ensure it's created when CreditApplication is created/specific stage is reached.
+                 # For now, let's assume it should exist or be created here.
+                legal_review_instance = LegalReviewForm.objects.create(credit_application=credit_application, form_data={})
+            
+            # The serializer expects the instance and data for update
+            # The data should primarily be the form_data field
+            serializer = LegalReviewFormSerializer(
+                legal_review_instance, 
+                data={'form_data': form_payload}, # Pass the actual form data to 'form_data' field
+                partial=True, # Allow partial updates to form_data
+                context={'request': request}
+            )
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

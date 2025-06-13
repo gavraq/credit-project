@@ -223,6 +223,20 @@ export const saveCreditQuestionnaireForm = async (id, formData) => {
   }
 };
 
+export const saveLegalReviewForm = async (id, formData) => {
+  try {
+    console.log(`Submitting legal review form for ID ${id} with data:`, formData);
+    // The formData is expected to be structured with a top-level key 
+    // (e.g., { legal_review_form: { ... } }) by the component calling this.
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting legal review form:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
 // Function to fetch users by role
 export const fetchUsersByRole = async (roleName) => {
   try {
