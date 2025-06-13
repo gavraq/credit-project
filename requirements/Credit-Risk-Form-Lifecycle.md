@@ -2,7 +2,55 @@
 
 This document provides a comprehensive overview of the form data lifecycle within the Credit Risk Workflow System, detailing the journey of data from the frontend user interface to the backend database. It covers the unified architecture for handling all major forms, including the Credit Request, Business Sponsorship, Credit Questionnaire, and Legal Review forms.
 
-## 1. Guiding Principles
+## 1. Overview of Forms in the Credit Lifecycle
+
+As defined in the Product Requirements Document (PRD v3), the complete credit risk workflow involves several distinct forms and data collection stages. This document details the unified technical architecture for handling these. The key forms and stages are:
+
+1.  **Credit Request Form**: Initiated by the Relationship Manager to start a new credit application.
+2.  **Credit Review Form**: Completed by the Credit Analyst to assess the initial request.
+3.  **Business Sponsorship Form**: Used by Business Sponsors to provide their endorsement.
+4.  **Credit Questionnaire Form**: A detailed questionnaire completed by the Relationship Manager for further due diligence.
+5.  **Legal Review Form**: Used by Legal Reviewers to analyze and comment on legal documentation.
+6.  **Credit Analysis Stage**: While not a standalone form, this involves the Credit Analyst performing in-depth analysis and recording findings, which contribute to the Credit Paper.
+7.  **Credit Paper Compilation**: The aggregation of all preceding forms and analyses into a final document.
+8.  **Credit Approval Stage**: Where final approvers record their decisions, conditions, and comments.
+
+This lifecycle document primarily focuses on the technical implementation pattern common to the fillable forms (1-5, and parts of 6 and 8 that involve structured data entry).
+
+## 2. Component Interaction Diagram
+
+The following diagram illustrates the typical flow of data and interactions between the major components involved in handling a form:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend (React Component)
+    participant API Service (api.js)
+    participant Backend (Django ViewSet)
+    participant Serializer (Django REST Framework)
+    participant Database (PostgreSQL)
+
+    User->>Frontend (React Component): Interacts with form (fills fields)
+    Frontend (React Component)->>Frontend (React Component): Updates formData state (handleChange)
+    User->>Frontend (React Component): Clicks 'Save' or 'Submit'
+    Frontend (React Component)->>API Service (api.js): Calls save[FormName]Form(id, formData)
+    API Service (api.js)->>Backend (Django ViewSet): HTTP PATCH to /api/credit-applications/{id}/save_[form_name]_form/
+    Backend (Django ViewSet)->>Serializer (Django REST Framework): get_serializer(instance, data=request.data)
+    Serializer (Django REST Framework)->>Serializer (Django REST Framework): is_valid(), save()
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): update() method orchestrates saving:
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): 1. Pops sub-form data (e.g., credit_request_form_data)
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): 2. Updates parent CreditApplication
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): 3. update_or_create() for specific sub-form model
+    Serializer (Django REST Framework)->>Database (PostgreSQL): Writes to CreditApplication table
+    Serializer (Django REST Framework)->>Database (PostgreSQL): Writes to [FormName]Form table
+    Database (PostgreSQL)-->>Serializer (Django REST Framework): Returns updated data
+    Serializer (Django REST Framework)-->>Backend (Django ViewSet): Returns serialized data
+    Backend (Django ViewSet)-->>API Service (api.js): HTTP 200 OK with updated application data
+    API Service (api.js)-->>Frontend (React Component): Returns response data
+    Frontend (React Component)->>Frontend (React Component): Updates UI (e.g., shows success, updates workflow state)
+```
+
+## 3. Guiding Principles
 
 The form implementation is guided by the following principles to ensure consistency, maintainability, and scalability:
 
@@ -12,11 +60,11 @@ The form implementation is guided by the following principles to ensure consiste
 4.  **Serializer-Led Orchestration**: The backend's `CreditApplicationSerializer` is the single point of entry for all form data. It is responsible for validating the incoming flat payload and orchestrating the creation or update of the primary `CreditApplication` and all its related sub-form models (e.g., `CreditRequestForm`, `BusinessSponsorshipForm`).
 5.  **Dynamic Workflow Actions**: All forms use a common `WorkflowActions` component (or a similar pattern) that dynamically renders buttons based on the `allowed_transitions` provided by the backend, ensuring a consistent user experience for workflow progression.
 
-## 2. Frontend Implementation
+## 4. Frontend Implementation
 
 The frontend for each form follows a consistent structure and pattern.
 
-### 2.1. Component Structure
+### 4.1. Component Structure
 
 Each form (e.g., `CreditRequestForm/index.jsx`) is responsible for:
 - Fetching all necessary data on load (e.g., the `CreditApplication` object, dropdown options).
@@ -25,7 +73,7 @@ Each form (e.g., `CreditRequestForm/index.jsx`) is responsible for:
 - Handling form submission via a generic `handleSubmit` function.
 - Managing and displaying the workflow state and available actions.
 
-### 2.2. State Management
+### 4.2. State Management
 
 A single `useState` hook manages all data for the form.
 
@@ -53,7 +101,7 @@ useEffect(() => {
 }, [data]);
 ```
 
-### 2.3. Event Handling
+### 4.3. Event Handling
 
 A generic `handleChange` function handles updates for all input types.
 
@@ -67,7 +115,7 @@ const handleChange = (e) => {
 };
 ```
 
-### 2.4. Form Submission (`handleSubmit`)
+### 4.4. Form Submission (`handleSubmit`)
 
 The `handleSubmit` function assembles a flat payload and sends it to the appropriate API service function.
 
@@ -88,7 +136,7 @@ const handleSubmit = async () => {
 };
 ```
 
-## 3. API Service Layer
+## 5. API Service Layer
 
 The frontend `api.js` service provides generic functions for saving each form type. These functions simply pass the flat `formData` object to the backend endpoint.
 
@@ -107,11 +155,11 @@ export const saveBusinessSponsorshipForm = async (id, data) => {
 // - saveLegalReviewForm
 ```
 
-## 4. Backend Implementation
+## 6. Backend Implementation
 
 The backend is designed to receive the flat payload and use the serializer layer to correctly distribute the data.
 
-### 4.1. Models
+### 6.1. Models
 
 The database schema consists of a central `CreditApplication` model linked to various sub-form models via `OneToOneField` or `ForeignKey`.
 
@@ -139,7 +187,7 @@ class BusinessSponsorshipForm(models.Model):
 # ... and so on for CreditQuestionnaireForm, LegalReviewForm
 ```
 
-### 4.2. Views (`CreditApplicationViewSet`)
+### 6.2. Views (`CreditApplicationViewSet`)
 
 The `CreditApplicationViewSet` provides dedicated `@action` endpoints for saving each form type. This approach allows for tailored logic per form while keeping the URL structure clean.
 
@@ -170,7 +218,7 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
     # ... similar actions for other forms
 ```
 
-### 4.3. Serializer Orchestration (`CreditApplicationSerializer`)
+### 6.3. Serializer Orchestration (`CreditApplicationSerializer`)
 
 The `CreditApplicationSerializer` is the heart of the backend form handling logic. Its `update` method intelligently inspects the incoming `validated_data` and delegates the creation or update of sub-form models.
 
