@@ -47,6 +47,23 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
   const [loadingCounterparties, setLoadingCounterparties] = useState(true);
   const [counterpartyError, setCounterpartyError] = useState(null);
 
+  // Effect to derive guarantor name and CIF from the selected guarantor ID
+  useEffect(() => {
+    if (selectedGuarantor && counterparties.length > 0) {
+      const guarantorDetails = counterparties.find(c => c.id === selectedGuarantor);
+      if (guarantorDetails) {
+        setSelectedGuarantorName(guarantorDetails.name);
+        setGuarantorCIF(guarantorDetails.cif_number);
+      } else {
+        setSelectedGuarantorName('');
+        setGuarantorCIF('');
+      }
+    } else {
+      setSelectedGuarantorName('');
+      setGuarantorCIF('');
+    }
+  }, [selectedGuarantor, counterparties]);
+
   // Limits information
   const [limits, setLimits] = useState([
     {
@@ -193,12 +210,8 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
     if (formData) {
       console.log('Populating from formData (appData.credit_request_form):', formData);
       setCounterpartyCIF(formData.counterparty_cif || '');
-      const guarantorNameFromData = formData.guarantor_name || '';
-      const guarantorCifFromData = formData.guarantor_cif || '';
-      setSelectedGuarantorName(guarantorNameFromData);
-      setGuarantorCIF(guarantorCifFromData);
-      // setSelectedGuarantor logic might need counterparties to be loaded first - handle in dependent useEffect or after counterparties fetch
-
+      setSelectedGuarantor(formData.guarantor || ''); // Use guarantor ID
+      setGuarantorCIF(formData.guarantor_cif || ''); // Keep for display/reference if needed, but not for saving
       setCountryRiskLimitAvailable(formData.country_risk_limit_available ? 'yes' : 'no');
       setRevenueLast12Months(formData.revenue_last_12m || '');
       setRevenueProjected12Months(formData.revenue_projected_12m || '');
@@ -211,10 +224,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
       setFinancialStatementsReceived(formData.financial_statements_received || false);
       setInterimStatementsAvailable(formData.interim_statements_available || false);
       setAccountExecutive(formData.account_executive || '');
-      setSeniorBusinessSponsorName(formData.senior_business_sponsor_name || '');
       setSelectedBusinessSponsor(formData.senior_business_sponsor_id || '');
-
-      setSecondBusinessSponsorName(formData.second_business_sponsor_name || '');
       setSelectedSecondBusinessSponsor(formData.second_business_sponsor_id || '');
       setJustificationForHighPriority(formData.high_priority_justification || '');
     }
@@ -489,28 +499,24 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
 
       const creditRequestFormData = {
         counterparty_cif: counterpartyCIF,
-        guarantor_name: selectedGuarantorName,
-        guarantor_cif: guarantorCIF,
+        guarantor: selectedGuarantor, // Use the guarantor ID
+        guarantor_cif: guarantorCIF, // Keep for display/reference if needed, but not for saving
         revenue_last_12m: revenueLast12Months,
         revenue_projected_12m: revenueProjected12Months,
         projected_rorwa_percent: projectedRorwa,
-        country_risk_limit_available: typeof countryRiskLimitAvailable === 'string' && countryRiskLimitAvailable.toLowerCase() === 'yes',
+        country_risk_limit_available: countryRiskLimitAvailable,
         relationship_comments: relationshipComments,
         most_senior_contact: mostSeniorContact,
-        last_client_visit_date: lastClientVisitDate || null,
+        last_client_visit_date: lastClientVisitDate,
         legal_documentation: legalDocumentType,
-        positive_legal_opinion: positiveLegalOpinion === 'Yes',
+        positive_legal_opinion: positiveLegalOpinion,
         financial_statements_received: financialStatementsReceived,
         interim_statements_available: interimStatementsAvailable,
         account_executive: accountExecutive,
         senior_business_sponsor_id: selectedBusinessSponsor,
-        senior_business_sponsor_name: seniorBusinessSponsorName,
         second_business_sponsor_id: selectedSecondBusinessSponsor,
-        second_business_sponsor_name: secondBusinessSponsorName,
         high_priority_justification: justificationForHighPriority,
-        date_form_completed: dateFormCompleted,
-        reference_number: requestNumber,
-        documents: documents.map(doc => ({ name: doc.name, file_id: doc.id, description: doc.description || ''}))
+        // form_data is handled dynamically below
       };
       
       const payload = {

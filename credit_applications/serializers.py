@@ -469,67 +469,59 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         return sub_processes_data
 
     def create(self, validated_data):
-        # Source limit_requests_data from validated_data
+        credit_request_form_data = validated_data.pop('credit_request_form', {})
         limit_requests_data = validated_data.pop('limit_requests', [])
 
-        # Pop data for all sub-forms from validated_data
-        credit_request_form_data = validated_data.pop('credit_request_form', None)
-        business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
-        credit_questionnaire_form_data = validated_data.pop('credit_questionnaire_form', None)
-        legal_review_form_data = validated_data.pop('legal_review_form', None)
-        credit_review_form_data = validated_data.pop('credit_review_form', None) # Assuming this might be created too
-
+        # Create the main application instance with the remaining data.
         credit_application = CreditApplication.objects.create(**validated_data)
 
-        for lr_data_item in limit_requests_data:
-            LimitRequest.objects.create(credit_application=credit_application, **lr_data_item)
+        # Create the related CreditRequestForm instance using the popped data.
+        CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
 
-        if credit_request_form_data:
-            CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
-        else:
-            # Create a default one if no data provided, if business logic requires it
-            CreditRequestForm.objects.create(credit_application=credit_application)
-        
+        # Create related LimitRequest instances.
+        for lr_data in limit_requests_data:
+            LimitRequest.objects.create(credit_application=credit_application, **lr_data)
+
+        # The following forms are handled as simple JSONFields and are not nested serializers.
+        # They are passed in the request body but not declared on the main serializer,
+        # so we retrieve them from initial_data.
+        business_sponsorship_form_data = self.initial_data.get('business_sponsorship_form', None)
         if business_sponsorship_form_data:
-            BusinessSponsorshipForm.objects.create(credit_application=credit_application, **business_sponsorship_form_data)
-        
-        if credit_questionnaire_form_data:
-            CreditQuestionnaireForm.objects.create(credit_application=credit_application, **credit_questionnaire_form_data)
-        
-        if legal_review_form_data:
-            LegalReviewForm.objects.create(credit_application=credit_application, **legal_review_form_data)
+            BusinessSponsorshipForm.objects.create(credit_application=credit_application, form_data=business_sponsorship_form_data)
 
-        if credit_review_form_data: # Handle if it can be created at this stage
-            CreditReviewForm.objects.create(credit_application=credit_application, **credit_review_form_data)
+        credit_questionnaire_form_data = self.initial_data.get('credit_questionnaire_form', None)
+        if credit_questionnaire_form_data:
+            CreditQuestionnaireForm.objects.create(credit_application=credit_application, form_data=credit_questionnaire_form_data)
+
+        legal_review_form_data = self.initial_data.get('legal_review_form', None)
+        if legal_review_form_data:
+            LegalReviewForm.objects.create(credit_application=credit_application, form_data=legal_review_form_data)
+
+        credit_review_form_data = self.initial_data.get('credit_review_form', None)
+        if credit_review_form_data:
+            CreditReviewForm.objects.create(credit_application=credit_application, form_data=credit_review_form_data)
 
         return credit_application
 
-    def update(self, instance, validated_data):
-        # Source limit_requests_data from validated_data
-        # Pop nested object keys from validated_data before updating the parent instance.
-        # This prevents DRF from trying to process them, as we handle them manually.
-        validated_data.pop('limit_requests', None)
-        validated_data.pop('credit_request_form', None)
-        validated_data.pop('business_sponsorship_form', None)
-        validated_data.pop('credit_questionnaire_form', None)
-        validated_data.pop('legal_review_form', None)
-        validated_data.pop('credit_review_form', None)
+    # ... (rest of the code remains the same)
+        # Update the parent instance with its own, non-relational fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
 
-        # Source nested data directly from the raw request payload (initial_data).
-        limit_requests_data = self.initial_data.get('limit_requests', [])
+        # For sub-forms, we pull from initial_data because they are not defined as fields on this serializer
+        # and thus won't be in validated_data.
         credit_request_form_data = self.initial_data.get('credit_request_form', None)
         business_sponsorship_form_data = self.initial_data.get('business_sponsorship_form', None)
         credit_questionnaire_form_data = self.initial_data.get('credit_questionnaire_form', None)
         legal_review_form_data = self.initial_data.get('legal_review_form', None)
         credit_review_form_data = self.initial_data.get('credit_review_form', None)
 
-        # Update the parent instance with its own validated fields
-        instance = super().update(instance, validated_data)
-
-        # Wholesale update of limit requests
-        instance.limit_requests.all().delete()
-        for lr_data_item in limit_requests_data:
-            LimitRequest.objects.create(credit_application=instance, **lr_data_item)
+        # Handle nested LimitRequests: delete existing and create new ones
+        if limit_requests_data is not None:
+            instance.limit_requests.all().delete()
+            for lr_data_item in limit_requests_data:
+                LimitRequest.objects.create(credit_application=instance, **lr_data_item)
 
         # Update or create sub-forms using the data from initial_data
         if credit_request_form_data is not None:
@@ -542,7 +534,6 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
                 try:
                     credit_request_form_data['senior_business_sponsor_id'] = User.objects.get(id=sbs_id)
                 except User.DoesNotExist:
-                    # Handle case where user might not exist, perhaps log or raise specific error
                     pass # Or raise serializers.ValidationError({'senior_business_sponsor_id': 'User not found.'})
             
             if second_sbs_id:
@@ -551,11 +542,10 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
                 except User.DoesNotExist:
                     pass # Or raise serializers.ValidationError({'second_business_sponsor_id': 'User not found.'})
 
-            # Ensure names are still part of the form_data if they were sent and are used elsewhere
-            # This part depends on whether these names are also stored/needed in the form_data JSON blob
-            # For now, we assume they are primarily for display and the FK relation is key.
-            # If they are also in form_data.prioritisation_sponsorship, that's handled by to_representation
-            # or if the frontend sends them within a form_data object (which it shouldn't for these direct fields).
+            # Handle guarantor ForeignKey
+            if 'guarantor' in credit_request_form_data:
+                guarantor_id = credit_request_form_data.pop('guarantor')
+                credit_request_form_data['guarantor_id'] = guarantor_id if guarantor_id else None
 
             CreditRequestForm.objects.update_or_create(
                 credit_application=instance,
