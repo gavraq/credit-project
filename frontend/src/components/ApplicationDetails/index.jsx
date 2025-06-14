@@ -111,19 +111,18 @@ const ApplicationDetails = () => {
                 <React.Fragment key={index}>
                   <ListItem>
                     <ListItemText 
-                      primary={process.form_type} 
-                      secondary={`Status: ${process.workflow_state || 'Not Started'}`}
+                      primary={process.form_name} 
+                      secondary={`Status: ${process.data?.workflow_state_name || 'Not Started'}`}
                     />
                     <Button 
                       variant="contained" 
                       onClick={() => {
-                        const mode = process.available_transitions?.length > 0 ? 'edit' : 'view';
-                        handleNavigate(process.form_model_name, mode);
+                        const mode = process.data?.available_transitions?.length > 0 ? 'edit' : 'view';
+                        handleNavigate(process.form_key, mode); // Use form_key
                       }}
-                      // A simple logic to decide button text. Can be enhanced.
-                      disabled={!process.form_model_name}
+                      disabled={!process.form_key} // Use form_key
                     >
-                      {process.available_transitions?.length > 0 ? 'Edit' : 'View'}
+                      {process.data?.available_transitions?.length > 0 ? 'Edit' : 'View'}
                     </Button>
                   </ListItem>
                   {index < application.sub_processes.length - 1 && <Divider />}

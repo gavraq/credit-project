@@ -38,9 +38,10 @@ sequenceDiagram
     Backend (Django ViewSet)->>Serializer (Django REST Framework): get_serializer(instance, data=request.data)
     Serializer (Django REST Framework)->>Serializer (Django REST Framework): is_valid(), save()
     Note over Serializer (Django REST Framework),Database (PostgreSQL): update() method orchestrates saving:
-    Note over Serializer (Django REST Framework),Database (PostgreSQL): 1. Pops sub-form data (e.g., credit_request_form_data)
-    Note over Serializer (Django REST Framework),Database (PostgreSQL): 2. Updates parent CreditApplication
-    Note over Serializer (Django REST Framework),Database (PostgreSQL): 3. update_or_create() for specific sub-form model
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): 1. Pops data for each sub-form
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): 2. Updates parent CreditApplication fields
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): 3. Handles FKs and saves complex forms (e.g., CreditRequestForm)
+    Note over Serializer (Django REST Framework),Database (PostgreSQL): 4. Saves simple JSONField forms (e.g., LegalReviewForm)
     Serializer (Django REST Framework)->>Database (PostgreSQL): Writes to CreditApplication table
     Serializer (Django REST Framework)->>Database (PostgreSQL): Writes to [FormName]Form table
     Database (PostgreSQL)-->>Serializer (Django REST Framework): Returns updated data
@@ -240,33 +241,56 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         ]
 
     def update(self, instance, validated_data):
-        # Pop data for each potential sub-form from the flat payload
-        credit_request_form_data = validated_data.pop('credit_request_form', None)
-        business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
-        # ... and so on for other forms
+        # Pop data for each potential sub-form from the flat payload that was passed through
+        # self.initial_data, as validated_data will have them removed by DRF's standard processing.
+        credit_request_form_data = self.initial_data.get('credit_request_form', None)
+        business_sponsorship_form_data = self.initial_data.get('business_sponsorship_form', None)
+        credit_review_form_data = self.initial_data.get('credit_review_form', None)
+        legal_review_form_data = self.initial_data.get('legal_review_form', None)
+        credit_questionnaire_form_data = self.initial_data.get('credit_questionnaire_form', None)
 
-        # Update the parent CreditApplication instance first
+        # Update the parent CreditApplication instance with its own fields first
         instance = super().update(instance, validated_data)
 
-        # If data for a sub-form exists, update or create it
+        # --- Standard Pattern for Sub-Form Updates ---
+
+        # 1. Handle complex forms with direct fields and ForeignKeys
         if credit_request_form_data is not None:
-            # Handle any ForeignKey relationships (e.g., converting UUID to User instance)
-            sbs_id = credit_request_form_data.pop('senior_business_sponsor_id', None)
-            if sbs_id:
-                credit_request_form_data['senior_business_sponsor_id'] = User.objects.get(id=sbs_id)
+            # Handle ForeignKey relationships by converting incoming IDs to model instances
+            sbs_id_val = credit_request_form_data.get('senior_business_sponsor_id')
+            if sbs_id_val:
+                try:
+                    user_instance = User.objects.get(pk=sbs_id_val)
+                    credit_request_form_data['senior_business_sponsor_id'] = user_instance
+                    credit_request_form_data['senior_business_sponsor_name'] = user_instance.get_full_name() or user_instance.username
+                except (User.DoesNotExist, ValueError):
+                    credit_request_form_data['senior_business_sponsor_id'] = None
             
+            # ... similar logic for other FKs ...
+
+            # Coerce boolean-like strings ('Yes', 'No') to actual booleans
+            boolean_fields = ['country_risk_limit_available', 'positive_legal_opinion']
+            for field in boolean_fields:
+                if field in credit_request_form_data and isinstance(credit_request_form_data[field], str):
+                    credit_request_form_data[field] = credit_request_form_data[field].lower() in ['yes', 'true']
+
             CreditRequestForm.objects.update_or_create(
                 credit_application=instance,
                 defaults=credit_request_form_data
             )
 
+        # 2. Handle simple forms that store all data in a single JSONField
         if business_sponsorship_form_data is not None:
-            BusinessSponsorshipForm.objects.update_or_create(
-                credit_application=instance,
-                defaults={'form_data': business_sponsorship_form_data}
-            )
-        
-        # ... logic for other forms ...
+            BusinessSponsorshipForm.objects.update_or_create(credit_application=instance, defaults={'form_data': business_sponsorship_form_data})
+
+        if credit_review_form_data is not None:
+            CreditReviewForm.objects.update_or_create(credit_application=instance, defaults={'form_data': credit_review_form_data})
+
+        if credit_questionnaire_form_data is not None:
+            CreditQuestionnaireForm.objects.update_or_create(credit_application=instance, defaults={'form_data': credit_questionnaire_form_data})
+
+        if legal_review_form_data is not None:
+            LegalReviewForm.objects.update_or_create(credit_application=instance, defaults={'form_data': legal_review_form_data})
 
         return instance
 ```

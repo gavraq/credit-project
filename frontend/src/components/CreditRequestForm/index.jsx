@@ -499,8 +499,8 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
 
       const creditRequestFormData = {
         counterparty_cif: counterpartyCIF,
-        guarantor: selectedGuarantor, // Use the guarantor ID
-        guarantor_cif: guarantorCIF, // Keep for display/reference if needed, but not for saving
+        guarantor_name: selectedGuarantorName, // Send the guarantor's name
+        guarantor_cif: guarantorCIF, // Send the guarantor's CIF
         revenue_last_12m: revenueLast12Months,
         revenue_projected_12m: revenueProjected12Months,
         projected_rorwa_percent: projectedRorwa,

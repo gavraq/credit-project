@@ -65,9 +65,9 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
     let initialSponsorName = '';
     let initialSecondSponsorName = '';
 
-    if (data.credit_request_form) {
-      initialSponsorName = data.credit_request_form.senior_business_sponsor_name || '';
-      initialSecondSponsorName = data.credit_request_form.second_business_sponsor_name || '';
+    if (data.credit_request_form && data.credit_request_form.form_data && data.credit_request_form.form_data.prioritisation_sponsorship) {
+      initialSponsorName = data.credit_request_form.form_data.prioritisation_sponsorship.senior_business_sponsor_name || '';
+      initialSecondSponsorName = data.credit_request_form.form_data.prioritisation_sponsorship.second_business_sponsor_name || '';
     }
     
     // Set initial state for sponsor names based on CreditRequestForm

@@ -15,7 +15,7 @@ import Tab from '@mui/material/Tab';
 import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 
-const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication, mainWorkflowStep = 4 }) => {
+const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }) => {
   const { id } = useParams(); // This is credit_application_id
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,38 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication, 
   const [transitionSuccessMessage, setTransitionSuccessMessage] = useState(null);
   const [creditApplication, setCreditApplication] = useState(null);
   const user = useSelector(state => state.auth.user);
+  const [mainWorkflowStep, setMainWorkflowStep] = useState(1);
+
+  useEffect(() => {
+    if (creditApplication && creditApplication.workflow_state?.code) {
+      const parentWorkflowStateCode = creditApplication.workflow_state.code;
+      let step = 1;
+      switch (parentWorkflowStateCode) {
+        case 'CREDIT_PAPER_CREDIT_REQUEST':
+          step = 1;
+          break;
+        case 'CREDIT_PAPER_CREDIT_REVIEW_PENDING':
+          step = 2;
+          break;
+        case 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING':
+          step = 3;
+          break;
+        case 'CREDIT_PAPER_ANALYSIS_PENDING':
+          step = 4;
+          break;
+        case 'CREDIT_PAPER_CREDIT_COMMITTEE_PAPER_PENDING':
+          step = 5;
+          break;
+        case 'CREDIT_PAPER_FINAL_APPROVAL_PENDING':
+          step = 6;
+          break;
+        default:
+          step = 1; // Or a sensible default if the state is unknown
+          break;
+      }
+      setMainWorkflowStep(step);
+    }
+  }, [creditApplication]);
 
   // Workflow state for the CreditQuestionnaireForm itself
   const [cqWorkflowInstanceId, setCqWorkflowInstanceId] = useState(null);

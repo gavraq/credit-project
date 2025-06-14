@@ -1,6 +1,7 @@
 import uuid
 import logging # Added import
 from rest_framework import serializers
+from django.db import transaction
 from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm # Ensure CreditRequestForm is available for DoesNotExist
 
 from django.contrib.auth import get_user_model
@@ -77,9 +78,10 @@ class CreditRequestFormSerializer(serializers.ModelSerializer):
         if 'prioritisation_sponsorship' not in representation['form_data'] or not isinstance(representation['form_data']['prioritisation_sponsorship'], dict):
             representation['form_data']['prioritisation_sponsorship'] = {}
 
-        representation['form_data']['prioritisation_sponsorship']['senior_business_sponsor_name'] = instance.senior_business_sponsor_name
-        representation['form_data']['prioritisation_sponsorship']['second_business_sponsor_name'] = instance.second_business_sponsor_name
-        representation['form_data']['prioritisation_sponsorship']['high_priority_justification'] = instance.high_priority_justification
+        # Ensure these names are populated even if they are None/empty on the instance, to maintain structure
+        representation['form_data']['prioritisation_sponsorship']['senior_business_sponsor_name'] = instance.senior_business_sponsor_name or ''
+        representation['form_data']['prioritisation_sponsorship']['second_business_sponsor_name'] = instance.second_business_sponsor_name or ''
+        representation['form_data']['prioritisation_sponsorship']['high_priority_justification'] = instance.high_priority_justification or ''
 
         return representation
 
@@ -236,10 +238,55 @@ class BusinessSponsorshipFormSerializer(serializers.ModelSerializer):
         return []
 
 class LegalReviewFormSerializer(serializers.ModelSerializer):
+    workflow_instance_id = serializers.SerializerMethodField()
+    workflow_state_name = serializers.SerializerMethodField()
+    available_transitions = serializers.SerializerMethodField()
+
     class Meta:
         model = LegalReviewForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'form_data', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
+
+    def get_workflow_instance_id(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
+            return str(obj.workflow_instance.id)
+        return None
+
+    def get_workflow_state_name(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
+            return obj.workflow_instance.current_state.name
+        return None
+
+    def get_available_transitions(self, obj):
+        request = self.context.get('request')
+        user = request.user if request else None
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and user:
+            try:
+                transitions = obj.workflow_instance.get_allowed_transitions(user)
+                return [
+                    {
+                        'id': str(t.id),
+                        'code': t.code,
+                        'name': t.name,
+                        'to_state': {
+                            'id': str(t.to_state.id),
+                            'code': t.to_state.code,
+                            'name': t.to_state.name
+                        }
+                    } for t in transitions
+                ]
+            except Exception as e:
+                # You might want to log this error
+                pass
+        return []
+
+    def update(self, instance, validated_data):
+        """
+        Custom update to handle saving all incoming data to the form_data JSONField.
+        """
+        instance.form_data = self.initial_data
+        instance.save(update_fields=['form_data'])
+        return instance
 
 class CreditQuestionnaireFormSerializer(serializers.ModelSerializer):
     workflow_instance_id = serializers.SerializerMethodField()
@@ -329,9 +376,8 @@ class LegalReviewFormSerializer(serializers.ModelSerializer):
 
 class CreditApplicationSerializer(serializers.ModelSerializer):
     # Nested serializers for sub-processes.
-    # Making them writable here for create/update operations directly through CreditApplication endpoint.
     credit_request_form = CreditRequestFormSerializer(required=False, allow_null=True)
-    credit_review_form = CreditReviewFormSerializer(required=False, allow_null=True) # Assuming it might be written too
+    credit_review_form = CreditReviewFormSerializer(required=False, allow_null=True)
     business_sponsorship_form = BusinessSponsorshipFormSerializer(required=False, allow_null=True)
     legal_review_form = LegalReviewFormSerializer(required=False, allow_null=True)
     credit_questionnaire_form = CreditQuestionnaireFormSerializer(required=False, allow_null=True)
@@ -347,12 +393,9 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
 
     limit_requests = LimitRequestSerializer(many=True, required=False)
     
-    # Fields for exposing parent workflow state
     workflow_instance_id = serializers.SerializerMethodField()
     workflow_state = serializers.SerializerMethodField()
     available_transitions = serializers.SerializerMethodField()
-
-    # The new "Application Hub" field
     sub_processes = serializers.SerializerMethodField()
 
     class Meta:
@@ -361,16 +404,11 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             'id', 'reference_number', 'title', 'description', 'priority', 
             'required_by_date', 'applicant_name', 'counterparty', 'counterparty_id', 'limit_requests', 
             'created_at', 'updated_at', 'submitted_at',
-            # Parent workflow fields
             'workflow_instance_id', 'workflow_state', 'available_transitions',
-            # Sub-process hub field
             'sub_processes',
-            # Individual sub-process forms (for convenience, though `sub_processes` is primary)
             'credit_request_form', 'credit_review_form', 'business_sponsorship_form',
             'legal_review_form', 'credit_questionnaire_form',
         ]
-        # Add counterparty_id to the fields list
-        fields.insert(fields.index('counterparty') + 1, 'counterparty_id')
         read_only_fields = ['id', 'created_at', 'updated_at', 'submitted_at', 'reference_number']
 
     def get_workflow_instance_id(self, obj):
@@ -406,25 +444,19 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             return []
 
     def get_sub_processes(self, obj):
-        """
-        Gathers related sub-process forms that are relevant to the current state
-        of the parent workflow, creating the "Application Hub" data structure.
-        """
         sub_processes_data = []
         parent_state_code = obj.workflow_instance.current_state.code if obj.workflow_instance and obj.workflow_instance.current_state else None
-
-        # Defines which sub-processes are active in each parent state
+        
         RELEVANT_SUB_PROCESSES_MAP = {
             'CREDIT_PAPER_CREDIT_REQUEST': ['credit_request_form'],
             'CREDIT_PAPER_CREDIT_REVIEW_PENDING': ['credit_request_form', 'credit_review_form'],
-            'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING': ['credit_request_form', 'business_sponsorship_form'],
+            'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form'],
             'CREDIT_PAPER_ANALYSIS_PENDING': [
                 'credit_request_form', 
                 'business_sponsorship_form', # Should be view-only now
                 'credit_questionnaire_form', 
                 'legal_review_form'
             ],
-            # Add other parent states and their relevant forms here
         }
 
         form_mappings = {
@@ -434,149 +466,191 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             'legal_review_form': (LegalReviewForm, LegalReviewFormSerializer, 'Legal Review'),
             'credit_questionnaire_form': (CreditQuestionnaireForm, CreditQuestionnaireFormSerializer, 'Credit Questionnaire'),
         }
-
-        relevant_forms = RELEVANT_SUB_PROCESSES_MAP.get(parent_state_code, [])
-
-        for related_name in form_mappings.keys(): # Iterate all possible forms
-            is_relevant = related_name in relevant_forms
-            
-            if hasattr(obj, related_name):
+        
+        context = self.context
+        relevant_form_keys = RELEVANT_SUB_PROCESSES_MAP.get(parent_state_code, [])
+        
+        for form_key in relevant_form_keys:
+            if form_key in form_mappings:
+                model_class, serializer_class, form_name = form_mappings[form_key]
                 try:
-                    form_instance = getattr(obj, related_name)
-                    # Pass context to nested serializer to get user for transitions
-                    serializer = form_mappings[related_name][1](form_instance, context=self.context)
-                    data = serializer.data
-                    
-                    # Determine if the form should be editable
-                    # General rule: editable if not in a terminal state (e.g., 'SUBMITTED')
-                    # And if it's a relevant form for the current parent state.
-                    workflow_state_name = data.get('workflow_state_name', '')
-                    is_submitted = 'SUBMITTED' in workflow_state_name.upper() if workflow_state_name else False
-                    is_editable = is_relevant and not is_submitted
-
+                    form_instance = getattr(obj, form_key, None)
+                    if form_instance:
+                        serializer = serializer_class(form_instance, context=context)
+                        sub_processes_data.append({
+                            'form_name': form_name,
+                            'form_key': form_key,
+                            'data': serializer.data
+                        })
+                    else:
+                        sub_processes_data.append({
+                            'form_name': form_name,
+                            'form_key': form_key,
+                            'data': None 
+                        })
+                except AttributeError:
+                    logging.warning(f"AttributeError when trying to access {form_key} on CreditApplication {obj.id}")
                     sub_processes_data.append({
-                        'form_type': form_mappings[related_name][2],
-                        'form_model_name': related_name,
-                        'id': data.get('id'),
-                        'workflow_state': workflow_state_name,
-                        'is_relevant': is_relevant,
-                        'is_editable': is_editable,
-                        'available_transitions': data.get('available_transitions', []) if is_editable else []
+                        'form_name': form_name,
+                        'form_key': form_key,
+                        'data': None
                     })
-                except Exception as e:
-                    logging.error(f"Error serializing {related_name} for application {obj.id}: {e}")
-
         return sub_processes_data
 
     def create(self, validated_data):
-        credit_request_form_data = validated_data.pop('credit_request_form', {})
+        # Pop nested data before creating the main instance
         limit_requests_data = validated_data.pop('limit_requests', [])
+        credit_request_form_data = validated_data.pop('credit_request_form', None)
+        business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
+        credit_review_form_data = validated_data.pop('credit_review_form', None)
+        legal_review_form_data = validated_data.pop('legal_review_form', None)
+        credit_questionnaire_form_data = validated_data.pop('credit_questionnaire_form', None)
 
-        # Create the main application instance with the remaining data.
+        # Create the main CreditApplication instance
         credit_application = CreditApplication.objects.create(**validated_data)
 
-        # Create the related CreditRequestForm instance using the popped data.
-        CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
-
-        # Create related LimitRequest instances.
+        # Create LimitRequest instances
         for lr_data in limit_requests_data:
             LimitRequest.objects.create(credit_application=credit_application, **lr_data)
 
-        # The following forms are handled as simple JSONFields and are not nested serializers.
-        # They are passed in the request body but not declared on the main serializer,
-        # so we retrieve them from initial_data.
-        business_sponsorship_form_data = self.initial_data.get('business_sponsorship_form', None)
+        # Create nested OneToOne forms based on their model structure
+        if credit_request_form_data:
+            # Logic from update() to handle sponsor FKs and names, adapted for create()
+            sbs_id_val = credit_request_form_data.get('senior_business_sponsor_id')
+            if sbs_id_val:
+                try:
+                    user_instance = User.objects.get(pk=sbs_id_val)
+                    credit_request_form_data['senior_business_sponsor_id'] = user_instance
+                    credit_request_form_data['senior_business_sponsor_name'] = user_instance.get_full_name() or user_instance.username
+                except (User.DoesNotExist, ValueError):
+                    credit_request_form_data['senior_business_sponsor_id'] = None
+                    credit_request_form_data['senior_business_sponsor_name'] = ''
+
+            sbs2_id_val = credit_request_form_data.get('second_business_sponsor_id')
+            if sbs2_id_val:
+                try:
+                    user_instance_2 = User.objects.get(pk=sbs2_id_val)
+                    credit_request_form_data['second_business_sponsor_id'] = user_instance_2
+                    credit_request_form_data['second_business_sponsor_name'] = user_instance_2.get_full_name() or user_instance_2.username
+                except (User.DoesNotExist, ValueError):
+                    credit_request_form_data['second_business_sponsor_id'] = None
+                    credit_request_form_data['second_business_sponsor_name'] = ''
+
+            CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
+        
         if business_sponsorship_form_data:
             BusinessSponsorshipForm.objects.create(credit_application=credit_application, form_data=business_sponsorship_form_data)
 
-        credit_questionnaire_form_data = self.initial_data.get('credit_questionnaire_form', None)
-        if credit_questionnaire_form_data:
-            CreditQuestionnaireForm.objects.create(credit_application=credit_application, form_data=credit_questionnaire_form_data)
-
-        legal_review_form_data = self.initial_data.get('legal_review_form', None)
-        if legal_review_form_data:
-            LegalReviewForm.objects.create(credit_application=credit_application, form_data=legal_review_form_data)
-
-        credit_review_form_data = self.initial_data.get('credit_review_form', None)
         if credit_review_form_data:
             CreditReviewForm.objects.create(credit_application=credit_application, form_data=credit_review_form_data)
 
+        if credit_questionnaire_form_data:
+            CreditQuestionnaireForm.objects.create(credit_application=credit_application, form_data=credit_questionnaire_form_data)
+
+        # LegalReviewForm also uses form_data
+        if legal_review_form_data:
+            LegalReviewForm.objects.create(credit_application=credit_application, form_data=legal_review_form_data)
+
         return credit_application
 
-    # ... (rest of the code remains the same)
-        # Update the parent instance with its own, non-relational fields
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
+    def update(self, instance, validated_data):
+        # CRITICAL: For nested data not defined as fields on this serializer, we must use initial_data.
+        limit_requests_data = self.initial_data.get('limit_requests')
+        credit_request_form_data = self.initial_data.get('credit_request_form')
+        business_sponsorship_form_data = self.initial_data.get('business_sponsorship_form')
+        credit_review_form_data = self.initial_data.get('credit_review_form')
+        legal_review_form_data = self.initial_data.get('legal_review_form')
+        credit_questionnaire_form_data = self.initial_data.get('credit_questionnaire_form')
 
-        # For sub-forms, we pull from initial_data because they are not defined as fields on this serializer
-        # and thus won't be in validated_data.
-        credit_request_form_data = self.initial_data.get('credit_request_form', None)
-        business_sponsorship_form_data = self.initial_data.get('business_sponsorship_form', None)
-        credit_questionnaire_form_data = self.initial_data.get('credit_questionnaire_form', None)
-        legal_review_form_data = self.initial_data.get('legal_review_form', None)
-        credit_review_form_data = self.initial_data.get('credit_review_form', None)
+        # Remove nested serializer data from validated_data before calling super().update()
+        # as we handle them manually using self.initial_data.
+        validated_data.pop('limit_requests', None)
+        validated_data.pop('credit_request_form', None)
+        validated_data.pop('business_sponsorship_form', None)
+        validated_data.pop('credit_review_form', None)
+        validated_data.pop('legal_review_form', None)
+        validated_data.pop('credit_questionnaire_form', None)
 
-        # Handle nested LimitRequests: delete existing and create new ones
+        # Update the main CreditApplication instance fields from the (now cleaned) validated_data
+        instance = super().update(instance, validated_data)
+
+        # Handle LimitRequest (ManyToOne): Delete existing and create new ones
         if limit_requests_data is not None:
             instance.limit_requests.all().delete()
-            for lr_data_item in limit_requests_data:
-                LimitRequest.objects.create(credit_application=instance, **lr_data_item)
+            for lr_data in limit_requests_data:
+                if 'limit_type' in lr_data and isinstance(lr_data.get('limit_type'), dict):
+                    lr_data['limit_type_id'] = lr_data.pop('limit_type')['id']
+                lr_data.pop('id', None)
+                LimitRequest.objects.create(credit_application=instance, **lr_data)
 
-        # Update or create sub-forms using the data from initial_data
+        # Handle nested OneToOne forms based on their model structure
         if credit_request_form_data is not None:
-            sbs_id = credit_request_form_data.pop('senior_business_sponsor_id', None)
-            sbs_name = credit_request_form_data.pop('senior_business_sponsor_name', None) # Keep name for form_data if needed
-            second_sbs_id = credit_request_form_data.pop('second_business_sponsor_id', None)
-            second_sbs_name = credit_request_form_data.pop('second_business_sponsor_name', None) # Keep name for form_data if needed
-
-            if sbs_id:
+            # Convert string IDs to User instances for ForeignKey fields in CreditRequestForm
+            # that are unconventionally named with an _id suffix.
+            sbs_id_val = credit_request_form_data.get('senior_business_sponsor_id')
+            if sbs_id_val and isinstance(sbs_id_val, str):
                 try:
-                    credit_request_form_data['senior_business_sponsor_id'] = User.objects.get(id=sbs_id)
+                    user_instance = User.objects.get(pk=sbs_id_val)
+                    credit_request_form_data['senior_business_sponsor_id'] = user_instance
+                    credit_request_form_data['senior_business_sponsor_name'] = user_instance.get_full_name() or user_instance.username
                 except User.DoesNotExist:
-                    pass # Or raise serializers.ValidationError({'senior_business_sponsor_id': 'User not found.'})
-            
-            if second_sbs_id:
+                    credit_request_form_data['senior_business_sponsor_id'] = None
+                    credit_request_form_data['senior_business_sponsor_name'] = '' # Ensure name is cleared or set to default
+                except ValueError: # Handle cases where sbs_id_val is not a valid UUID
+                    credit_request_form_data['senior_business_sponsor_id'] = None
+                    credit_request_form_data['senior_business_sponsor_name'] = ''
+            elif 'senior_business_sponsor_id' in credit_request_form_data and credit_request_form_data['senior_business_sponsor_id'] is None:
+                 credit_request_form_data['senior_business_sponsor_id'] = None
+                 credit_request_form_data['senior_business_sponsor_name'] = '' # Ensure name is also cleared
+
+            sbs2_id_val = credit_request_form_data.get('second_business_sponsor_id')
+            if sbs2_id_val and isinstance(sbs2_id_val, str):
                 try:
-                    credit_request_form_data['second_business_sponsor_id'] = User.objects.get(id=second_sbs_id)
+                    user_instance_2 = User.objects.get(pk=sbs2_id_val)
+                    credit_request_form_data['second_business_sponsor_id'] = user_instance_2
+                    credit_request_form_data['second_business_sponsor_name'] = user_instance_2.get_full_name() or user_instance_2.username
                 except User.DoesNotExist:
-                    pass # Or raise serializers.ValidationError({'second_business_sponsor_id': 'User not found.'})
+                    credit_request_form_data['second_business_sponsor_id'] = None
+                    credit_request_form_data['second_business_sponsor_name'] = '' # Ensure name is cleared or set to default
+                except ValueError: # Handle cases where sbs2_id_val is not a valid UUID
+                    credit_request_form_data['second_business_sponsor_id'] = None
+                    credit_request_form_data['second_business_sponsor_name'] = ''
+            elif 'second_business_sponsor_id' in credit_request_form_data and credit_request_form_data['second_business_sponsor_id'] is None:
+                 credit_request_form_data['second_business_sponsor_id'] = None
+                 credit_request_form_data['second_business_sponsor_name'] = '' # Ensure name is also cleared
 
-            # Handle guarantor ForeignKey
-            if 'guarantor' in credit_request_form_data:
-                guarantor_id = credit_request_form_data.pop('guarantor')
-                credit_request_form_data['guarantor_id'] = guarantor_id if guarantor_id else None
+            # Convert string representations of booleans to actual booleans
+            boolean_field_keys = [
+                'country_risk_limit_available',
+                'kyc_approval_status',
+                'positive_legal_opinion',
+                'financial_statements_received',
+                'interim_statements_available',
+            ]
+            for field_name in boolean_field_keys:
+                if field_name in credit_request_form_data:
+                    value = credit_request_form_data[field_name]
+                    if isinstance(value, str):
+                        if value.lower() in ['yes', 'true']:
+                            credit_request_form_data[field_name] = True
+                        elif value.lower() in ['no', 'false']:
+                            credit_request_form_data[field_name] = False
+                        # If not a recognized boolean string, leave as is for Django's validation to handle
+                    # If already a bool, it's fine. If other type, Django's validation will handle.
 
-            CreditRequestForm.objects.update_or_create(
-                credit_application=instance,
-                defaults=credit_request_form_data
-            )
-        
-        # For all sub-forms that use a JSONField, we now consistently wrap the incoming
-        # flat dictionary into the 'form_data' field.
+            CreditRequestForm.objects.update_or_create(credit_application=instance, defaults=credit_request_form_data)
+
         if business_sponsorship_form_data is not None:
-            BusinessSponsorshipForm.objects.update_or_create(
-                credit_application=instance,
-                defaults={'form_data': business_sponsorship_form_data}
-            )
-
-        if credit_questionnaire_form_data is not None:
-            CreditQuestionnaireForm.objects.update_or_create(
-                credit_application=instance,
-                defaults={'form_data': credit_questionnaire_form_data}
-            )
-
-        if legal_review_form_data is not None:
-            LegalReviewForm.objects.update_or_create(
-                credit_application=instance,
-                defaults={'form_data': legal_review_form_data}
-            )
+            BusinessSponsorshipForm.objects.update_or_create(credit_application=instance, defaults={'form_data': business_sponsorship_form_data})
 
         if credit_review_form_data is not None:
-            CreditReviewForm.objects.update_or_create(
-                credit_application=instance,
-                defaults={'form_data': credit_review_form_data}
-            )
+            CreditReviewForm.objects.update_or_create(credit_application=instance, defaults={'form_data': credit_review_form_data})
+
+        if credit_questionnaire_form_data is not None:
+            CreditQuestionnaireForm.objects.update_or_create(credit_application=instance, defaults={'form_data': credit_questionnaire_form_data})
+
+        if legal_review_form_data is not None:
+            LegalReviewForm.objects.update_or_create(credit_application=instance, defaults={'form_data': legal_review_form_data})
 
         return instance
 
