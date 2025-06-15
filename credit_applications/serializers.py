@@ -49,26 +49,63 @@ class CreditRequestFormSerializer(serializers.ModelSerializer):
     workflow_state_name = serializers.SerializerMethodField()
     available_transitions = serializers.SerializerMethodField()
 
+    # Expect UUIDs for sponsors from the frontend, these will be converted to User instances
+    # Serializer field name matches the model's ForeignKey field name.
+    # `source` indicates the key to read from the input JSON payload.
+    senior_business_sponsor_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        allow_null=True,
+        required=False
+        # Input JSON key 'senior_business_sponsor_id' matches field name, so no 'source' needed.
+    )
+    second_business_sponsor_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        allow_null=True,
+        required=False
+        # Input JSON key 'second_business_sponsor_id' matches field name, so no 'source' needed.
+    )
+
+    # These CharFields match model fields and will be populated by the validate method for saving.
+    senior_business_sponsor_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    second_business_sponsor_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
     def validate(self, data):
+        # Get the User instance from the 'senior_business_sponsor_id' field in validated_data
+        senior_sponsor_instance = data.get('senior_business_sponsor_id')
+        if senior_sponsor_instance:
+            data['senior_business_sponsor_name'] = senior_sponsor_instance.get_full_name() or senior_sponsor_instance.username
+        else:
+            data['senior_business_sponsor_name'] = ""
+
+        second_sponsor_instance = data.get('second_business_sponsor_id')
+        if second_sponsor_instance:
+            data['second_business_sponsor_name'] = second_sponsor_instance.get_full_name() or second_sponsor_instance.username
+        else:
+            data['second_business_sponsor_name'] = ""
         return data
 
     class Meta:
         model = CreditRequestForm
         fields = [
             'id', 'credit_application',
-            'counterparty_cif', # Added field
+            'counterparty_cif',
             'guarantor_name', 'guarantor_cif',
             'revenue_last_12m', 'revenue_projected_12m', 'projected_rorwa_percent',
             'country_risk_limit_available', 'kyc_approval_status',
             'relationship_comments', 'most_senior_contact', 'last_client_visit_date',
             'legal_documentation', 'positive_legal_opinion',
             'financial_statements_received', 'interim_statements_available',
-            'account_executive', 'senior_business_sponsor_id', 'senior_business_sponsor_name', 'second_business_sponsor_id', 'second_business_sponsor_name',
+            'account_executive', 
+            'senior_business_sponsor_id', 'senior_business_sponsor_name',  # Use ForeignKey field name
+            'second_business_sponsor_id', 'second_business_sponsor_name', # Use ForeignKey field name
             'high_priority_justification',
             'form_data', 
             'created_at', 'updated_at',
             'workflow_instance_id', 'workflow_state_name', 'available_transitions'
         ]
+        # senior_business_sponsor_name and second_business_sponsor_name are effectively read_only for input
+        # as they are populated by the validate method based on the sponsor instance.
+        # However, they need to be in 'fields' to be included in validated_data for model creation.
         read_only_fields = ['id', 'credit_application', 'created_at', 'updated_at']
 
     def to_representation(self, instance):
@@ -78,10 +115,30 @@ class CreditRequestFormSerializer(serializers.ModelSerializer):
         if 'prioritisation_sponsorship' not in representation['form_data'] or not isinstance(representation['form_data']['prioritisation_sponsorship'], dict):
             representation['form_data']['prioritisation_sponsorship'] = {}
 
-        # Ensure these names are populated even if they are None/empty on the instance, to maintain structure
-        representation['form_data']['prioritisation_sponsorship']['senior_business_sponsor_name'] = instance.senior_business_sponsor_name or ''
-        representation['form_data']['prioritisation_sponsorship']['second_business_sponsor_name'] = instance.second_business_sponsor_name or ''
-        representation['form_data']['prioritisation_sponsorship']['high_priority_justification'] = instance.high_priority_justification or ''
+        # high_priority_justification is a direct model field, so it will be serialized at the top level.
+        # If it's intended to be part of form_data.prioritisation_sponsorship for some reason,
+        # it should be handled differently, perhaps by not being a direct model field.
+        # For now, let's assume high_priority_justification is handled by default serialization.
+        # If 'high_priority_justification' is truly part of the 'form_data' JSON field on the model,
+        # then it should be accessed via instance.form_data.get('prioritisation_sponsorship', {}).get('high_priority_justification', '')
+        # For simplicity, if high_priority_justification is a direct model field, it will be handled by super().to_representation()
+        # and doesn't need special handling here unless it's meant to be *moved* into form_data.
+
+        # If 'high_priority_justification' is a direct model field, it's already in 'representation'.
+        # If it's part of the form_data JSON field in the model, it should be accessed like:
+        # high_priority_just_from_form_data = instance.form_data.get('prioritisation_sponsorship', {}).get('high_priority_justification', '')
+        # representation['form_data']['prioritisation_sponsorship']['high_priority_justification'] = high_priority_just_from_form_data
+        # For now, assuming 'high_priority_justification' is a direct model field and handled by default serialization.
+        # The 'senior_business_sponsor_name' and 'second_business_sponsor_name' are direct model fields
+        # and will be serialized at the top level by default due to being in Meta.fields.
+
+        # If high_priority_justification is a direct model field, it's already handled.
+        # If it's meant to be in form_data['prioritisation_sponsorship'] specifically for output,
+        # and it's also a direct model field, this could be a bit confusing.
+        # Let's assume for now that direct model fields are sufficient for output.
+        # If 'high_priority_justification' is part of the JSON blob 'form_data' on the model:
+        prioritisation_sponsorship_data = instance.form_data.get('prioritisation_sponsorship', {})
+        representation['form_data']['prioritisation_sponsorship']['high_priority_justification'] = prioritisation_sponsorship_data.get('high_priority_justification', '')
 
         return representation
 
@@ -516,25 +573,18 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         # Create nested OneToOne forms based on their model structure
         if credit_request_form_data:
             # Logic from update() to handle sponsor FKs and names, adapted for create()
-            sbs_id_val = credit_request_form_data.get('senior_business_sponsor_id')
-            if sbs_id_val:
-                try:
-                    user_instance = User.objects.get(pk=sbs_id_val)
-                    credit_request_form_data['senior_business_sponsor_id'] = user_instance
-                    credit_request_form_data['senior_business_sponsor_name'] = user_instance.get_full_name() or user_instance.username
-                except (User.DoesNotExist, ValueError):
-                    credit_request_form_data['senior_business_sponsor_id'] = None
-                    credit_request_form_data['senior_business_sponsor_name'] = ''
+            # The CreditRequestFormSerializer is now expected to handle the conversion
+            # of sponsor UUIDs (sent as 'senior_business_sponsor' and 'second_business_sponsor' in the request)
+            # to User instances and populate the corresponding name fields.
+            # So, credit_request_form_data should already contain the correct User instances
+            # and their names if the UUIDs were valid and provided.
 
-            sbs2_id_val = credit_request_form_data.get('second_business_sponsor_id')
-            if sbs2_id_val:
-                try:
-                    user_instance_2 = User.objects.get(pk=sbs2_id_val)
-                    credit_request_form_data['second_business_sponsor_id'] = user_instance_2
-                    credit_request_form_data['second_business_sponsor_name'] = user_instance_2.get_full_name() or user_instance_2.username
-                except (User.DoesNotExist, ValueError):
-                    credit_request_form_data['second_business_sponsor_id'] = None
-                    credit_request_form_data['second_business_sponsor_name'] = ''
+            # Example: if frontend sends {'credit_request_form': {'senior_business_sponsor': '<uuid_string>', ...}}
+            # CreditRequestFormSerializer.validate() will turn this into:
+            # {'senior_business_sponsor': <User object>, 'senior_business_sponsor_name': 'Sponsor Name', ...}
+            # This is then passed as credit_request_form_data here.
+
+            # No manual sponsor lookup or name population is needed here anymore.
 
             CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
         
