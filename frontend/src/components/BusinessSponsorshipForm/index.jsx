@@ -61,31 +61,32 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
     if (!data) return;
     setCreditApplication(data); // Store the whole application object
 
-    // Pre-populate sponsor names from CreditRequestForm if available
-    let initialSponsorName = '';
-    let initialSecondSponsorName = '';
+    let finalSponsorName = '';
+    let finalSecondSponsorName = '';
 
-    if (data.credit_request_form && data.credit_request_form.form_data && data.credit_request_form.form_data.prioritisation_sponsorship) {
-      initialSponsorName = data.credit_request_form.form_data.prioritisation_sponsorship.senior_business_sponsor_name || '';
-      initialSecondSponsorName = data.credit_request_form.form_data.prioritisation_sponsorship.second_business_sponsor_name || '';
+    // Primary source: Directly from business_sponsorship_form object provided by its serializer
+    if (data.business_sponsorship_form) {
+      finalSponsorName = data.business_sponsorship_form.senior_business_sponsor_name || '';
+      finalSecondSponsorName = data.business_sponsorship_form.second_business_sponsor_name || '';
+    }
+
+    // Fallback (optional, and ideally not needed if BusinessSponsorshipFormSerializer is robust):
+    // If still empty, try from credit_request_form (this was the old direct path)
+    if (!finalSponsorName && data.credit_request_form) {
+        finalSponsorName = data.credit_request_form.senior_business_sponsor_name || '';
+    }
+    if (!finalSecondSponsorName && data.credit_request_form) {
+        finalSecondSponsorName = data.credit_request_form.second_business_sponsor_name || '';
     }
     
-    // Set initial state for sponsor names based on CreditRequestForm
-    // These might be overridden by BusinessSponsorshipForm's own saved data later if it exists
-    setSponsorName(initialSponsorName);
-    setSecondSponsorName(initialSecondSponsorName);
+    setSponsorName(finalSponsorName);
+    setSecondSponsorName(finalSecondSponsorName);
 
-    // Populate Business Sponsorship Form specific data (which might override the above if already saved)
+    // Populate other Business Sponsorship Form specific data from its form_data
     if (data.business_sponsorship_form && data.business_sponsorship_form.form_data) {
       const bsFormData = data.business_sponsorship_form.form_data;
-      
-      // If BS form has its own saved sponsor_name, it takes precedence. Otherwise, keep pre-populated.
-      setSponsorName(bsFormData.sponsor_name || initialSponsorName || user?.name || ''); 
       setSponsorDecision(bsFormData.sponsor_decision || '');
       setSponsorComments(bsFormData.sponsor_comments || '');
-      
-      // If BS form has its own saved second_sponsor_name, it takes precedence. Otherwise, keep pre-populated.
-      setSecondSponsorName(bsFormData.second_sponsor_name || initialSecondSponsorName || ''); 
       setSecondSponsorDecision(bsFormData.second_sponsor_decision || '');
       setSecondSponsorComments(bsFormData.second_sponsor_comments || '');
       

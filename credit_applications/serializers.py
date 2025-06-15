@@ -239,13 +239,38 @@ class BusinessSponsorshipFormSerializer(serializers.ModelSerializer):
     workflow_state_name = serializers.SerializerMethodField()
     available_transitions = serializers.SerializerMethodField()
 
+    # Fields to pull sponsor names from the related CreditRequestForm
+    senior_business_sponsor_name = serializers.SerializerMethodField()
+    second_business_sponsor_name = serializers.SerializerMethodField()
+
     class Meta:
         model = BusinessSponsorshipForm
         fields = [
-            'id', 'form_data', 'created_at', 'updated_at', 
-            'workflow_instance_id', 'workflow_state_name', 'available_transitions'
+            'id', 'form_data', 'created_at', 'updated_at',
+            'workflow_instance_id', 'workflow_state_name', 'available_transitions',
+            'senior_business_sponsor_name', 'second_business_sponsor_name'  # Added sponsor names
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_senior_business_sponsor_name(self, obj):
+        """
+        Retrieves the senior business sponsor's name from the related CreditRequestForm.
+        'obj' is the BusinessSponsorshipForm instance.
+        """
+        try:
+            return obj.credit_application.credit_request_form.senior_business_sponsor_name
+        except (CreditRequestForm.DoesNotExist, AttributeError):
+            # Handles cases where credit_request_form doesn't exist or relations are None
+            return ""
+
+    def get_second_business_sponsor_name(self, obj):
+        """
+        Retrieves the second business sponsor's name from the related CreditRequestForm.
+        """
+        try:
+            return obj.credit_application.credit_request_form.second_business_sponsor_name
+        except (CreditRequestForm.DoesNotExist, AttributeError):
+            return ""
 
     def get_workflow_instance_id(self, obj):
         if obj.workflow_instance:
@@ -555,152 +580,98 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         return sub_processes_data
 
     def create(self, validated_data):
-        # Pop nested data before creating the main instance
+        # Pop data for serializers that process their fields directly (LimitRequest, CreditRequestForm)
         limit_requests_data = validated_data.pop('limit_requests', [])
         credit_request_form_data = validated_data.pop('credit_request_form', None)
-        business_sponsorship_form_data = validated_data.pop('business_sponsorship_form', None)
-        credit_review_form_data = validated_data.pop('credit_review_form', None)
-        legal_review_form_data = validated_data.pop('legal_review_form', None)
-        credit_questionnaire_form_data = validated_data.pop('credit_questionnaire_form', None)
 
-        # Create the main CreditApplication instance
-        credit_application = CreditApplication.objects.create(**validated_data)
-
-        # Create LimitRequest instances
-        for lr_data in limit_requests_data:
-            LimitRequest.objects.create(credit_application=credit_application, **lr_data)
-
-        # Create nested OneToOne forms based on their model structure
-        if credit_request_form_data:
-            # Logic from update() to handle sponsor FKs and names, adapted for create()
-            # The CreditRequestFormSerializer is now expected to handle the conversion
-            # of sponsor UUIDs (sent as 'senior_business_sponsor' and 'second_business_sponsor' in the request)
-            # to User instances and populate the corresponding name fields.
-            # So, credit_request_form_data should already contain the correct User instances
-            # and their names if the UUIDs were valid and provided.
-
-            # Example: if frontend sends {'credit_request_form': {'senior_business_sponsor': '<uuid_string>', ...}}
-            # CreditRequestFormSerializer.validate() will turn this into:
-            # {'senior_business_sponsor': <User object>, 'senior_business_sponsor_name': 'Sponsor Name', ...}
-            # This is then passed as credit_request_form_data here.
-
-            # No manual sponsor lookup or name population is needed here anymore.
-
-            CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
-        
-        if business_sponsorship_form_data:
-            BusinessSponsorshipForm.objects.create(credit_application=credit_application, form_data=business_sponsorship_form_data)
-
-        if credit_review_form_data:
-            CreditReviewForm.objects.create(credit_application=credit_application, form_data=credit_review_form_data)
-
-        if credit_questionnaire_form_data:
-            CreditQuestionnaireForm.objects.create(credit_application=credit_application, form_data=credit_questionnaire_form_data)
-
-        # LegalReviewForm also uses form_data
-        if legal_review_form_data:
-            LegalReviewForm.objects.create(credit_application=credit_application, form_data=legal_review_form_data)
-
-        return credit_application
-
-    def update(self, instance, validated_data):
-        # CRITICAL: For nested data not defined as fields on this serializer, we must use initial_data.
-        limit_requests_data = self.initial_data.get('limit_requests')
-        credit_request_form_data = self.initial_data.get('credit_request_form')
-        business_sponsorship_form_data = self.initial_data.get('business_sponsorship_form')
-        credit_review_form_data = self.initial_data.get('credit_review_form')
-        legal_review_form_data = self.initial_data.get('legal_review_form')
-        credit_questionnaire_form_data = self.initial_data.get('credit_questionnaire_form')
-
-        # Remove nested serializer data from validated_data before calling super().update()
-        # as we handle them manually using self.initial_data.
-        validated_data.pop('limit_requests', None)
-        validated_data.pop('credit_request_form', None)
+        # Pop keys for JSONField forms from validated_data to clean it for parent creation,
+        # but we'll use self.initial_data for their actual content.
         validated_data.pop('business_sponsorship_form', None)
         validated_data.pop('credit_review_form', None)
         validated_data.pop('legal_review_form', None)
         validated_data.pop('credit_questionnaire_form', None)
 
-        # Update the main CreditApplication instance fields from the (now cleaned) validated_data
+        # Get raw data for JSONField forms from initial_data.
+        # Fallback to empty dict if not provided, ensuring forms are always created.
+        raw_bsf_data = self.initial_data.get('business_sponsorship_form', {})
+        raw_crf_data = self.initial_data.get('credit_review_form', {})
+        raw_lrf_data = self.initial_data.get('legal_review_form', {})
+        raw_cqf_data = self.initial_data.get('credit_questionnaire_form', {})
+
+        # Create the parent CreditApplication instance with the now-clean validated_data.
+        credit_application = CreditApplication.objects.create(**validated_data)
+
+        # Create LimitRequest instances using their validated data.
+        for lr_data in limit_requests_data:
+            LimitRequest.objects.create(credit_application=credit_application, **lr_data)
+
+        # Create CreditRequestForm using its validated data.
+        if credit_request_form_data:
+            CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
+        else: # Ensure it's created even if no data, as it has specific fields
+            CreditRequestForm.objects.create(credit_application=credit_application)
+        
+        # Create JSONField forms using their raw input data.
+        BusinessSponsorshipForm.objects.create(credit_application=credit_application, form_data=raw_bsf_data)
+        CreditReviewForm.objects.create(credit_application=credit_application, form_data=raw_crf_data)
+        LegalReviewForm.objects.create(credit_application=credit_application, form_data=raw_lrf_data)
+        CreditQuestionnaireForm.objects.create(credit_application=credit_application, form_data=raw_cqf_data)
+
+        return credit_application
+
+    def update(self, instance, validated_data):
+        # Pop data for serializers that process their fields directly.
+        limit_requests_data = validated_data.pop('limit_requests', None)
+        credit_request_form_data = validated_data.pop('credit_request_form', None)
+
+        # Pop keys for JSONField forms from validated_data to clean it for parent update,
+        # but we'll use self.initial_data for their actual content.
+        validated_data.pop('business_sponsorship_form', None)
+        validated_data.pop('credit_review_form', None)
+        validated_data.pop('legal_review_form', None)
+        validated_data.pop('credit_questionnaire_form', None)
+
+        # Get raw data for JSONField forms from initial_data.
+        raw_bsf_data = self.initial_data.get('business_sponsorship_form')
+        raw_crf_data = self.initial_data.get('credit_review_form')
+        raw_lrf_data = self.initial_data.get('legal_review_form')
+        raw_cqf_data = self.initial_data.get('credit_questionnaire_form')
+
+        # Update the parent CreditApplication instance with the clean validated_data.
         instance = super().update(instance, validated_data)
 
-        # Handle LimitRequest (ManyToOne): Delete existing and create new ones
+        # Handle LimitRequest updates using its validated data.
         if limit_requests_data is not None:
             instance.limit_requests.all().delete()
             for lr_data in limit_requests_data:
-                if 'limit_type' in lr_data and isinstance(lr_data.get('limit_type'), dict):
-                    lr_data['limit_type_id'] = lr_data.pop('limit_type')['id']
-                lr_data.pop('id', None)
                 LimitRequest.objects.create(credit_application=instance, **lr_data)
 
-        # Handle nested OneToOne forms based on their model structure
+        # Handle CreditRequestForm updates using its validated data.
         if credit_request_form_data is not None:
-            # Convert string IDs to User instances for ForeignKey fields in CreditRequestForm
-            # that are unconventionally named with an _id suffix.
-            sbs_id_val = credit_request_form_data.get('senior_business_sponsor_id')
-            if sbs_id_val and isinstance(sbs_id_val, str):
-                try:
-                    user_instance = User.objects.get(pk=sbs_id_val)
-                    credit_request_form_data['senior_business_sponsor_id'] = user_instance
-                    credit_request_form_data['senior_business_sponsor_name'] = user_instance.get_full_name() or user_instance.username
-                except User.DoesNotExist:
-                    credit_request_form_data['senior_business_sponsor_id'] = None
-                    credit_request_form_data['senior_business_sponsor_name'] = '' # Ensure name is cleared or set to default
-                except ValueError: # Handle cases where sbs_id_val is not a valid UUID
-                    credit_request_form_data['senior_business_sponsor_id'] = None
-                    credit_request_form_data['senior_business_sponsor_name'] = ''
-            elif 'senior_business_sponsor_id' in credit_request_form_data and credit_request_form_data['senior_business_sponsor_id'] is None:
-                 credit_request_form_data['senior_business_sponsor_id'] = None
-                 credit_request_form_data['senior_business_sponsor_name'] = '' # Ensure name is also cleared
+            CreditRequestForm.objects.update_or_create(
+                credit_application=instance, defaults=credit_request_form_data
+            )
+        
+        # Handle JSONField forms updates using their raw input data.
+        if raw_bsf_data is not None:
+            BusinessSponsorshipForm.objects.update_or_create(
+                credit_application=instance, defaults={'form_data': raw_bsf_data}
+            )
 
-            sbs2_id_val = credit_request_form_data.get('second_business_sponsor_id')
-            if sbs2_id_val and isinstance(sbs2_id_val, str):
-                try:
-                    user_instance_2 = User.objects.get(pk=sbs2_id_val)
-                    credit_request_form_data['second_business_sponsor_id'] = user_instance_2
-                    credit_request_form_data['second_business_sponsor_name'] = user_instance_2.get_full_name() or user_instance_2.username
-                except User.DoesNotExist:
-                    credit_request_form_data['second_business_sponsor_id'] = None
-                    credit_request_form_data['second_business_sponsor_name'] = '' # Ensure name is cleared or set to default
-                except ValueError: # Handle cases where sbs2_id_val is not a valid UUID
-                    credit_request_form_data['second_business_sponsor_id'] = None
-                    credit_request_form_data['second_business_sponsor_name'] = ''
-            elif 'second_business_sponsor_id' in credit_request_form_data and credit_request_form_data['second_business_sponsor_id'] is None:
-                 credit_request_form_data['second_business_sponsor_id'] = None
-                 credit_request_form_data['second_business_sponsor_name'] = '' # Ensure name is also cleared
+        if raw_crf_data is not None:
+            CreditReviewForm.objects.update_or_create(
+                credit_application=instance, defaults={'form_data': raw_crf_data}
+            )
+        
+        if raw_cqf_data is not None:
+            CreditQuestionnaireForm.objects.update_or_create(
+                credit_application=instance, defaults={'form_data': raw_cqf_data}
+            )
 
-            # Convert string representations of booleans to actual booleans
-            boolean_field_keys = [
-                'country_risk_limit_available',
-                'kyc_approval_status',
-                'positive_legal_opinion',
-                'financial_statements_received',
-                'interim_statements_available',
-            ]
-            for field_name in boolean_field_keys:
-                if field_name in credit_request_form_data:
-                    value = credit_request_form_data[field_name]
-                    if isinstance(value, str):
-                        if value.lower() in ['yes', 'true']:
-                            credit_request_form_data[field_name] = True
-                        elif value.lower() in ['no', 'false']:
-                            credit_request_form_data[field_name] = False
-                        # If not a recognized boolean string, leave as is for Django's validation to handle
-                    # If already a bool, it's fine. If other type, Django's validation will handle.
-
-            CreditRequestForm.objects.update_or_create(credit_application=instance, defaults=credit_request_form_data)
-
-        if business_sponsorship_form_data is not None:
-            BusinessSponsorshipForm.objects.update_or_create(credit_application=instance, defaults={'form_data': business_sponsorship_form_data})
-
-        if credit_review_form_data is not None:
-            CreditReviewForm.objects.update_or_create(credit_application=instance, defaults={'form_data': credit_review_form_data})
-
-        if credit_questionnaire_form_data is not None:
-            CreditQuestionnaireForm.objects.update_or_create(credit_application=instance, defaults={'form_data': credit_questionnaire_form_data})
-
-        if legal_review_form_data is not None:
-            LegalReviewForm.objects.update_or_create(credit_application=instance, defaults={'form_data': legal_review_form_data})
+        if raw_lrf_data is not None:
+            LegalReviewForm.objects.update_or_create(
+                credit_application=instance, defaults={'form_data': raw_lrf_data}
+            )
 
         return instance
 
