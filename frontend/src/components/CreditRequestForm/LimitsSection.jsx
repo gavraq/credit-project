@@ -1,5 +1,5 @@
 import React from 'react';
-import FormField from './FormField';
+import FormField from '../common/FormField';
 
 // Limits information section component
 const LimitsSection = ({
@@ -144,20 +144,25 @@ const LimitsSection = ({
         >
           + Add Row
         </button>
-        
-        <div style={{ marginTop: '1.5rem' }}>
-          <FormField
-            label="Country Risk Limit availability"
+        {/* Additional fields */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          <FormField 
+            label="Country Risk Limit Availability" 
             type="select"
             options={[
+              { value: '', label: 'Select option' },
               { value: 'yes', label: 'Yes' },
               { value: 'no', label: 'No' }
             ]}
-            placeholder="Select availability"
             value={countryRiskLimitAvailable}
             onChange={(e) => setCountryRiskLimitAvailable(e.target.value)}
             colors={colors}
           />
+          <div></div> {/* Empty cell for grid alignment */}
+        </div>
+        
+        {/* Detailed comments on limits */}
+        <div style={{ marginTop: '1.5rem' }}>
           <FormField 
             label="Detailed comments on limits required" 
             type="textarea" 

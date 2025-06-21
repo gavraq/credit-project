@@ -1,5 +1,5 @@
 import React from 'react';
-import FormField from './FormField';
+import FormField from '../common/FormField';
 
 // Prioritisation & Business Sponsorship section component
 const PrioritisationSection = ({
@@ -32,11 +32,11 @@ const PrioritisationSection = ({
           label="Priority"
           type="select"
           options={[
+            { value: '', label: 'Select priority' },
             { value: 'High', label: 'High' },
             { value: 'Medium', label: 'Medium' },
             { value: 'Low', label: 'Low' }
           ]}
-          placeholder="Select priority"
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
           colors={colors}
@@ -71,7 +71,6 @@ const PrioritisationSection = ({
               { value: '', label: relationshipManagersList.length === 0 ? 'No relationship managers found' : 'Select relationship manager' },
               ...relationshipManagersList.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))
             ]}
-            placeholder="Select relationship manager"
             colors={colors}
             required // Assuming this field should be required, adjust if not
           />
@@ -88,9 +87,11 @@ const PrioritisationSection = ({
               label="Senior Business Sponsor"
               type="select"
               required={true}
-              options={businessSponsors.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))}
+              options={[
+                { value: '', label: 'Select senior business sponsor' },
+                ...businessSponsors.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))
+              ]}
               value={selectedBusinessSponsor}
-              placeholder="Select senior business sponsor"
               onChange={(e) => setSelectedBusinessSponsor(e.target.value)}
               colors={colors}
             />
@@ -98,9 +99,11 @@ const PrioritisationSection = ({
               label="Optional second Senior Business Sponsor"
               type="select"
               required={false}
-              options={businessSponsors.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))}
+              options={[
+                { value: '', label: 'Select optional second sponsor' },
+                ...businessSponsors.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))
+              ]}
               value={selectedSecondBusinessSponsor}
-              placeholder="Select optional second sponsor"
               onChange={(e) => setSelectedSecondBusinessSponsor(e.target.value)}
               colors={colors}
             />

@@ -1,5 +1,5 @@
 import React from 'react';
-import FormField from './FormField';
+import FormField from '../common/FormField';
 
 // Legal & Financial Documentation section component
 const LegalSection = ({
@@ -26,11 +26,10 @@ const LegalSection = ({
         label="Confirmation of positive legal opinion" 
         type="select"
         options={[
+          { value: '', label: 'Select option' },
           { value: 'Yes', label: 'Yes' },
-          { value: 'No', label: 'No' },
-          { value: 'TBC', label: 'TBC' }
+          { value: 'No', label: 'No' }
         ]}
-        placeholder="Select option" 
         value={positiveLegalOpinion}
         onChange={(e) => setPositiveLegalOpinion(e.target.value)}
         colors={colors}

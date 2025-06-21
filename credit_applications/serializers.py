@@ -1,12 +1,24 @@
 import uuid
-import logging # Added import
-from rest_framework import serializers
-from django.db import transaction
-from .models import CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm # Ensure CreditRequestForm is available for DoesNotExist
-
+import logging
+import json
+from datetime import datetime
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
+from django.db.models import Q
+from django.forms.models import model_to_dict
+from django.utils import timezone
+from rest_framework import serializers
+from .models import (
+    CreditApplication, Counterparty, LimitRequest, LimitType, 
+    CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, 
+    LegalReviewForm, CreditQuestionnaireForm
+)
+from workflow_engine.models import WorkflowInstance, WorkflowDefinition, State # Added WorkflowDefinition, State
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 class LimitTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,12 +36,9 @@ class LimitRequestSerializer(serializers.ModelSerializer):
         queryset=LimitType.objects.all(),
         source='limit_type',
         write_only=True,
-        required=False, # Allows limit_type_id to be omitted if not applicable
-        allow_null=True   # Allows limit_type_id to be explicitly null if needed
+        required=False,
+        allow_null=True
     )
-    # Explicitly define credit_application to allow it to be initially absent
-    # during the creation of a new CreditApplication with nested limit requests.
-    # The actual linking happens in CreditApplicationSerializer.create().
     credit_application = serializers.PrimaryKeyRelatedField(
         queryset=CreditApplication.objects.all(),
         required=False,
@@ -45,644 +54,717 @@ class LimitRequestSerializer(serializers.ModelSerializer):
         ]
 
 class CreditRequestFormSerializer(serializers.ModelSerializer):
-    workflow_instance_id = serializers.SerializerMethodField()
-    workflow_state_name = serializers.SerializerMethodField()
+    # Custom field handling for boolean fields that might come as strings
+    country_risk_limit_available = serializers.BooleanField(required=False)
+    kyc_approval_status = serializers.BooleanField(required=False)
+    positive_legal_opinion = serializers.BooleanField(required=False)
+    financial_statements_received = serializers.BooleanField(required=False)
+    
+    # Add workflow instance serialization
+    workflow_instance = serializers.SerializerMethodField()
+    interim_statements_available = serializers.BooleanField(required=False)
+    
+    # Add available transitions for permissions
     available_transitions = serializers.SerializerMethodField()
-
-    # Expect UUIDs for sponsors from the frontend, these will be converted to User instances
-    # Serializer field name matches the model's ForeignKey field name.
-    # `source` indicates the key to read from the input JSON payload.
-    senior_business_sponsor_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        allow_null=True,
-        required=False
-        # Input JSON key 'senior_business_sponsor_id' matches field name, so no 'source' needed.
-    )
-    second_business_sponsor_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        allow_null=True,
-        required=False
-        # Input JSON key 'second_business_sponsor_id' matches field name, so no 'source' needed.
-    )
-
-    # These CharFields match model fields and will be populated by the validate method for saving.
-    senior_business_sponsor_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    second_business_sponsor_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-
-    def validate(self, data):
-        # Get the User instance from the 'senior_business_sponsor_id' field in validated_data
-        senior_sponsor_instance = data.get('senior_business_sponsor_id')
-        if senior_sponsor_instance:
-            data['senior_business_sponsor_name'] = senior_sponsor_instance.get_full_name() or senior_sponsor_instance.username
-        else:
-            data['senior_business_sponsor_name'] = ""
-
-        second_sponsor_instance = data.get('second_business_sponsor_id')
-        if second_sponsor_instance:
-            data['second_business_sponsor_name'] = second_sponsor_instance.get_full_name() or second_sponsor_instance.username
-        else:
-            data['second_business_sponsor_name'] = ""
-        return data
-
+    
+    # Explicitly include denormalized fields
+    counterparty_name = serializers.CharField(read_only=True)
+    relationship_manager_name = serializers.CharField(read_only=True)
+    detailed_limit_comments = serializers.CharField(read_only=True)
+    senior_business_sponsor_name = serializers.CharField(read_only=True)
+    second_business_sponsor_name = serializers.CharField(read_only=True)
+    
+    def to_internal_value(self, data):
+        # Convert string booleans to Python booleans before validation
+        boolean_fields = ['country_risk_limit_available', 'kyc_approval_status', 
+                        'positive_legal_opinion', 'financial_statements_received', 
+                        'interim_statements_available']
+        
+        data_copy = data.copy() if isinstance(data, dict) else {}
+        
+        # Convert boolean fields using the enhanced _convert_booleans method
+        # All these fields are non-nullable in the model
+        data_copy = CreditApplicationSerializer._convert_booleans(
+            self, data_copy, boolean_fields, nullable_fields=[]
+        )
+        
+        # Handle datetime fields with timezone awareness
+        datetime_fields = ['form_started_at', 'form_completed_at']
+        for field in datetime_fields:
+            if field in data_copy and data_copy[field] and isinstance(data_copy[field], str):
+                try:
+                    # Handle various datetime string formats
+                    dt_str = data_copy[field]
+                    
+                    # If it's just a date-time without timezone info (like '2025-06-20T20:50')
+                    if 'T' in dt_str and not any(x in dt_str for x in ['Z', '+', '-']):
+                        # Append seconds if needed
+                        if len(dt_str.split('T')[1].split(':')) < 3:
+                            dt_str = f"{dt_str}:00"
+                        # Create datetime and make it timezone aware
+                        naive_dt = timezone.datetime.fromisoformat(dt_str)
+                        data_copy[field] = timezone.make_aware(naive_dt)
+                    else:
+                        # Handle ISO format with Z or timezone offset
+                        dt_str = dt_str.replace('Z', '+00:00')
+                        dt = timezone.datetime.fromisoformat(dt_str)
+                        # Ensure it's timezone aware
+                        if timezone.is_naive(dt):
+                            data_copy[field] = timezone.make_aware(dt)
+                        else:
+                            data_copy[field] = dt
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Error parsing datetime for {field}: {e}")
+                    # If parsing fails, let the field validation handle it
+                    pass
+        
+        return super().to_internal_value(data_copy)
+    
+    def get_workflow_instance(self, obj):
+        """Return workflow instance details for the CreditRequestForm"""
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
+            return {
+                'id': str(obj.workflow_instance.id),
+                'current_state': obj.workflow_instance.current_state.name if obj.workflow_instance.current_state else None,
+                'workflow_definition': obj.workflow_instance.workflow_definition.name if obj.workflow_instance.workflow_definition else None
+            }
+        return None
+        
+    def get_available_transitions(self, obj):
+        """Return available transitions for the CreditRequestForm's workflow instance"""
+        request = self.context.get('request')
+        user = request.user if request else None
+        if not user or not hasattr(obj, 'workflow_instance') or not obj.workflow_instance:
+            return []
+        try:
+            transitions = obj.workflow_instance.get_allowed_transitions(user)
+            return [{'code': t.code, 'name': t.name, 'description': t.description} for t in transitions]
+        except Exception as e:
+            logger.error(f"Error getting available transitions for CreditRequestForm workflow instance {obj.workflow_instance.id}: {e}", exc_info=True)
+            return []
+    
     class Meta:
         model = CreditRequestForm
         fields = [
-            'id', 'credit_application',
-            'counterparty_cif',
-            'guarantor_name', 'guarantor_cif',
-            'revenue_last_12m', 'revenue_projected_12m', 'projected_rorwa_percent',
-            'country_risk_limit_available', 'kyc_approval_status',
-            'relationship_comments', 'most_senior_contact', 'last_client_visit_date',
-            'legal_documentation', 'positive_legal_opinion',
-            'financial_statements_received', 'interim_statements_available',
-            'account_executive', 
-            'senior_business_sponsor_id', 'senior_business_sponsor_name',  # Use ForeignKey field name
-            'second_business_sponsor_id', 'second_business_sponsor_name', # Use ForeignKey field name
-            'high_priority_justification',
-            'form_data', 
-            'created_at', 'updated_at',
-            'workflow_instance_id', 'workflow_state_name', 'available_transitions'
+            'id', 'credit_application', 'workflow_instance', 'available_transitions', 'counterparty_cif', 'counterparty_name',
+            'guarantor_name', 'guarantor_cif', 'revenue_last_12m', 'revenue_projected_12m',
+            'projected_rorwa_percent', 'country_risk_limit_available', 'kyc_approval_status',
+            'relationship_comments', 'relationship_manager_name', 'most_senior_contact',
+            'last_client_visit_date', 'legal_documentation', 'positive_legal_opinion',
+            'financial_statements_received', 'interim_statements_available', 'detailed_limit_comments',
+            'account_executive', 'senior_business_sponsor_name', 'senior_business_sponsor_id',
+            'second_business_sponsor_name', 'second_business_sponsor_id',
+            'high_priority_justification', 'created_at', 'updated_at',
+            'form_started_at', 'form_completed_at', 'form_last_saved_at'
         ]
-        # senior_business_sponsor_name and second_business_sponsor_name are effectively read_only for input
-        # as they are populated by the validate method based on the sponsor instance.
-        # However, they need to be in 'fields' to be included in validated_data for model creation.
-        read_only_fields = ['id', 'credit_application', 'created_at', 'updated_at']
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        if 'form_data' not in representation or not isinstance(representation['form_data'], dict):
-            representation['form_data'] = {}
-        if 'prioritisation_sponsorship' not in representation['form_data'] or not isinstance(representation['form_data']['prioritisation_sponsorship'], dict):
-            representation['form_data']['prioritisation_sponsorship'] = {}
-
-        # high_priority_justification is a direct model field, so it will be serialized at the top level.
-        # If it's intended to be part of form_data.prioritisation_sponsorship for some reason,
-        # it should be handled differently, perhaps by not being a direct model field.
-        # For now, let's assume high_priority_justification is handled by default serialization.
-        # If 'high_priority_justification' is truly part of the 'form_data' JSON field on the model,
-        # then it should be accessed via instance.form_data.get('prioritisation_sponsorship', {}).get('high_priority_justification', '')
-        # For simplicity, if high_priority_justification is a direct model field, it will be handled by super().to_representation()
-        # and doesn't need special handling here unless it's meant to be *moved* into form_data.
-
-        # If 'high_priority_justification' is a direct model field, it's already in 'representation'.
-        # If it's part of the form_data JSON field in the model, it should be accessed like:
-        # high_priority_just_from_form_data = instance.form_data.get('prioritisation_sponsorship', {}).get('high_priority_justification', '')
-        # representation['form_data']['prioritisation_sponsorship']['high_priority_justification'] = high_priority_just_from_form_data
-        # For now, assuming 'high_priority_justification' is a direct model field and handled by default serialization.
-        # The 'senior_business_sponsor_name' and 'second_business_sponsor_name' are direct model fields
-        # and will be serialized at the top level by default due to being in Meta.fields.
-
-        # If high_priority_justification is a direct model field, it's already handled.
-        # If it's meant to be in form_data['prioritisation_sponsorship'] specifically for output,
-        # and it's also a direct model field, this could be a bit confusing.
-        # Let's assume for now that direct model fields are sufficient for output.
-        # If 'high_priority_justification' is part of the JSON blob 'form_data' on the model:
-        prioritisation_sponsorship_data = instance.form_data.get('prioritisation_sponsorship', {})
-        representation['form_data']['prioritisation_sponsorship']['high_priority_justification'] = prioritisation_sponsorship_data.get('high_priority_justification', '')
-
-        return representation
-
-    def get_workflow_instance_id(self, obj):
-        if obj.workflow_instance:
-            return obj.workflow_instance.id
-        return None
-
-    def get_workflow_state_name(self, obj):
-        if obj.workflow_instance and obj.workflow_instance.current_state:
-            return obj.workflow_instance.current_state.name
-        return None
-
-    def get_available_transitions(self, obj):
-        # This is for the sub-process (Credit Request Form).
-        # We only want to allow transitions on this sub-process if the parent process
-        # is in the 'CREDIT_PAPER_CREDIT_REQUEST' state.
-        parent_application = obj.credit_application
-        if parent_application and parent_application.workflow_instance:
-            parent_state_code = parent_application.workflow_instance.current_state.code
-            if parent_state_code != 'CREDIT_PAPER_CREDIT_REQUEST':
-                return []
-        else:
-            # If there's no parent or parent workflow, no transitions are possible.
-            return []
-
-        # If parent state is correct, get transitions for the sub-process workflow.
-        if obj.workflow_instance:
-            try:
-                user = self.context.get('request').user if self.context.get('request') else None
-                if not user:
-                    return []
-                
-                transitions = obj.workflow_instance.get_allowed_transitions(user)
-                return [
-                    {
-                        'id': str(t.id),
-                        'code': t.code,
-                        'name': t.name,
-                        'to_state': {
-                            'id': str(t.to_state.id),
-                            'code': t.to_state.code,
-                            'name': t.to_state.name
-                        }
-                    } for t in transitions
-                ]
-            except Exception as e:
-                logging.error(f"Error getting available transitions for CreditRequestForm {obj.id}: {e}")
-        return []
+        read_only_fields = ['id', 'credit_application', 'counterparty_name', 'relationship_manager_name', 
+                           'detailed_limit_comments', 'senior_business_sponsor_name', 'second_business_sponsor_name']
 
 class CreditReviewFormSerializer(serializers.ModelSerializer):
-    workflow_instance_id = serializers.SerializerMethodField()
-    workflow_state_name = serializers.SerializerMethodField()
-    available_transitions = serializers.SerializerMethodField()
-
     class Meta:
         model = CreditReviewForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-    def get_workflow_instance_id(self, obj):
-        # Assuming CreditReviewForm has a 'workflow_instance' foreign key or one-to-one field
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
-            return obj.workflow_instance.id
-        return None
-
-    def get_workflow_state_name(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
-            return obj.workflow_instance.current_state.name
-        return None
-
-    def get_available_transitions(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
-            if hasattr(obj.workflow_instance, 'get_allowed_transitions'):
-                try:
-                    user = self.context.get('request').user if self.context.get('request') else None
-                    if user:
-                        transitions = obj.workflow_instance.get_allowed_transitions(user)
-                        return [
-                            {
-                                'id': str(t.id),
-                                'code': t.code,
-                                'name': t.name,
-                                'to_state': {
-                                    'id': str(t.to_state.id),
-                                    'code': t.to_state.code,
-                                    'name': t.to_state.name
-                                }
-                            } for t in transitions
-                        ]
-                except Exception as e:
-                    # Consider logging this exception
-                    print(f"Error getting available transitions for CreditReviewForm {obj.id}: {e}")
-        return []
+        fields = '__all__'
+        read_only_fields = ['id', 'credit_application']
 
 class BusinessSponsorshipFormSerializer(serializers.ModelSerializer):
-    workflow_instance_id = serializers.SerializerMethodField()
-    workflow_state_name = serializers.SerializerMethodField()
-    available_transitions = serializers.SerializerMethodField()
-
-    # Fields to pull sponsor names from the related CreditRequestForm
-    senior_business_sponsor_name = serializers.SerializerMethodField()
-    second_business_sponsor_name = serializers.SerializerMethodField()
-
     class Meta:
         model = BusinessSponsorshipForm
-        fields = [
-            'id', 'form_data', 'created_at', 'updated_at',
-            'workflow_instance_id', 'workflow_state_name', 'available_transitions',
-            'senior_business_sponsor_name', 'second_business_sponsor_name'  # Added sponsor names
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-    def get_senior_business_sponsor_name(self, obj):
-        """
-        Retrieves the senior business sponsor's name from the related CreditRequestForm.
-        'obj' is the BusinessSponsorshipForm instance.
-        """
-        try:
-            return obj.credit_application.credit_request_form.senior_business_sponsor_name
-        except (CreditRequestForm.DoesNotExist, AttributeError):
-            # Handles cases where credit_request_form doesn't exist or relations are None
-            return ""
-
-    def get_second_business_sponsor_name(self, obj):
-        """
-        Retrieves the second business sponsor's name from the related CreditRequestForm.
-        """
-        try:
-            return obj.credit_application.credit_request_form.second_business_sponsor_name
-        except (CreditRequestForm.DoesNotExist, AttributeError):
-            return ""
-
-    def get_workflow_instance_id(self, obj):
-        if obj.workflow_instance:
-            return obj.workflow_instance.id
-        return None
-
-    def get_workflow_state_name(self, obj):
-        if obj.workflow_instance and obj.workflow_instance.current_state:
-            return obj.workflow_instance.current_state.name
-        return None
-
-    def get_available_transitions(self, obj):
-        # Adapted from CreditApplicationSerializer.get_available_transitions
-        # print(f"BS Form Serializer: Getting available transitions for BS form {obj.id}")
-        if obj.workflow_instance:
-            # print(f"  BS Workflow instance: {obj.workflow_instance.id}")
-            if hasattr(obj.workflow_instance, 'get_allowed_transitions'):
-                try:
-                    user = self.context.get('request').user if self.context.get('request') else None
-                    if user:
-                        transitions = obj.workflow_instance.get_allowed_transitions(user)
-                        # print(f"  BS Found {len(transitions)} available transitions for user {user.username}")
-                        # for t in transitions:
-                        #     print(f"    - {t.code}: {t.name} ({t.from_state.code} → {t.to_state.code})")
-                        return [
-                            {
-                                'id': str(t.id),
-                                'code': t.code,
-                                'name': t.name,
-                                'to_state': {
-                                    'id': str(t.to_state.id),
-                                    'code': t.to_state.code,
-                                    'name': t.to_state.name
-                                }
-                            } for t in transitions
-                        ]
-                    # else:
-                        # print("  BS No user found in context, cannot get available transitions")
-                except Exception as e:
-                    print(f"  BS Error getting available transitions: {e}")
-                    import traceback
-                    traceback.print_exc()
-            # else:
-                # print("  BS Workflow instance does not have get_allowed_transitions method")
-        # else:
-            # print(f"  BS No workflow instance found for BS form {obj.id}")
-        return []
+        fields = '__all__'
+        read_only_fields = ['id', 'credit_application']
 
 class LegalReviewFormSerializer(serializers.ModelSerializer):
-    workflow_instance_id = serializers.SerializerMethodField()
-    workflow_state_name = serializers.SerializerMethodField()
-    available_transitions = serializers.SerializerMethodField()
-
     class Meta:
         model = LegalReviewForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
-        read_only_fields = ['id', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
-
-    def get_workflow_instance_id(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
-            return str(obj.workflow_instance.id)
-        return None
-
-    def get_workflow_state_name(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
-            return obj.workflow_instance.current_state.name
-        return None
-
-    def get_available_transitions(self, obj):
-        request = self.context.get('request')
-        user = request.user if request else None
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and user:
-            try:
-                transitions = obj.workflow_instance.get_allowed_transitions(user)
-                return [
-                    {
-                        'id': str(t.id),
-                        'code': t.code,
-                        'name': t.name,
-                        'to_state': {
-                            'id': str(t.to_state.id),
-                            'code': t.to_state.code,
-                            'name': t.to_state.name
-                        }
-                    } for t in transitions
-                ]
-            except Exception as e:
-                # You might want to log this error
-                pass
-        return []
-
-    def update(self, instance, validated_data):
-        """
-        Custom update to handle saving all incoming data to the form_data JSONField.
-        """
-        instance.form_data = self.initial_data
-        instance.save(update_fields=['form_data'])
-        return instance
+        fields = '__all__'
+        read_only_fields = ['id', 'credit_application']
 
 class CreditQuestionnaireFormSerializer(serializers.ModelSerializer):
-    workflow_instance_id = serializers.SerializerMethodField()
-    workflow_state_name = serializers.SerializerMethodField()
-    available_transitions = serializers.SerializerMethodField()
-
     class Meta:
         model = CreditQuestionnaireForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-    def get_workflow_instance_id(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
-            return str(obj.workflow_instance.id)
-        return None
-
-    def get_workflow_state_name(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
-            return obj.workflow_instance.current_state.name
-        return None
-
-    def get_available_transitions(self, obj):
-        request = self.context.get('request')
-        user = request.user if request else None
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and user:
-            try:
-                transitions = obj.workflow_instance.get_allowed_transitions(user)
-                return [
-                    {
-                        'id': str(t.id),
-                        'code': t.code,
-                        'name': t.name,
-                        'to_state': {
-                            'id': str(t.to_state.id),
-                            'code': t.to_state.code,
-                            'name': t.to_state.name
-                        }
-                    } for t in transitions
-                ]
-            except Exception as e:
-                # You might want to log this error
-                pass
-        return []
-
-class LegalReviewFormSerializer(serializers.ModelSerializer):
-    workflow_instance_id = serializers.SerializerMethodField()
-    workflow_state_name = serializers.SerializerMethodField()
-    available_transitions = serializers.SerializerMethodField()
-
-    class Meta:
-        model = LegalReviewForm
-        fields = ['id', 'form_data', 'created_at', 'updated_at', 'workflow_instance_id', 'workflow_state_name', 'available_transitions']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-    def get_workflow_instance_id(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
-            return str(obj.workflow_instance.id)
-        return None
-
-    def get_workflow_state_name(self, obj):
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
-            return obj.workflow_instance.current_state.name
-        return None
-
-    def get_available_transitions(self, obj):
-        request = self.context.get('request')
-        user = request.user if request else None
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and user:
-            try:
-                transitions = obj.workflow_instance.get_allowed_transitions(user)
-                return [
-                    {
-                        'id': str(t.id),
-                        'code': t.code,
-                        'name': t.name,
-                        'to_state': {
-                            'id': str(t.to_state.id),
-                            'code': t.to_state.code,
-                            'name': t.to_state.name
-                        }
-                    } for t in transitions
-                ]
-            except Exception as e:
-                # You might want to log this error
-                pass
-        return []
+        fields = '__all__'
+        read_only_fields = ['id', 'credit_application']
 
 class CreditApplicationSerializer(serializers.ModelSerializer):
-    # Nested serializers for sub-processes.
-    credit_request_form = CreditRequestFormSerializer(required=False, allow_null=True)
-    credit_review_form = CreditReviewFormSerializer(required=False, allow_null=True)
-    business_sponsorship_form = BusinessSponsorshipFormSerializer(required=False, allow_null=True)
-    legal_review_form = LegalReviewFormSerializer(required=False, allow_null=True)
-    credit_questionnaire_form = CreditQuestionnaireFormSerializer(required=False, allow_null=True)
-
-    counterparty = CounterpartySerializer(read_only=True)
-    counterparty_id = serializers.PrimaryKeyRelatedField(
-        queryset=Counterparty.objects.all(),
-        source='counterparty',
-        write_only=True,
-        required=False,
-        allow_null=True
-    )
-
-    limit_requests = LimitRequestSerializer(many=True, required=False)
     
-    workflow_instance_id = serializers.SerializerMethodField()
-    workflow_state = serializers.SerializerMethodField()
+    def _convert_booleans(self, data, boolean_fields, nullable_fields=None):
+        """
+        Convert string boolean values to Python booleans.
+        Handles various string representations including 'true'/'false', 'yes'/'no',
+        and empty strings (converts to False for non-nullable fields, None for nullable fields).
+        
+        Args:
+            data (dict): The data dictionary containing boolean fields
+            boolean_fields (list): List of field names to check and convert
+            nullable_fields (list, optional): List of fields that can be null (None)
+            
+        Returns:
+            dict: The data dictionary with converted boolean values
+        """
+        if nullable_fields is None:
+            nullable_fields = []
+            
+        data_copy = data.copy() if isinstance(data, dict) else {}
+        
+        for field in boolean_fields:
+            if field in data_copy:
+                value = data_copy[field]
+                
+                # Handle string values
+                if isinstance(value, str):
+                    value = value.lower().strip()
+                    if value in ('true', 'yes', 'y', '1'):
+                        data_copy[field] = True
+                    elif value in ('false', 'no', 'n', '0'):
+                        data_copy[field] = False
+                    elif value == '':
+                        # Empty string is treated as None for nullable fields,
+                        # or False for non-nullable fields
+                        data_copy[field] = None if field in nullable_fields else False
+                    else:
+                        # For any other string value, set to False for non-nullable fields
+                        # or None for nullable fields
+                        data_copy[field] = None if field in nullable_fields else False
+                        
+                # Handle None values for non-nullable fields
+                elif value is None and field not in nullable_fields:
+                    data_copy[field] = False
+                    
+        return data_copy
+    
+    def _resolve_user_fields(self, data, user_fields):
+        """
+        Resolve user foreign keys.
+        
+        Args:
+            data (dict): The data dictionary containing user fields
+            user_fields (list): List of field names to resolve
+            
+        Returns:
+            dict: The data dictionary with resolved user objects
+        """
+        if not data or not isinstance(data, dict):
+            return data
+        
+        data_copy = data.copy()
+        for field in user_fields:
+            if field in data_copy and data_copy[field]:
+                try:
+                    user = User.objects.get(id=data_copy[field])
+                    data_copy[field] = user
+                except User.DoesNotExist:
+                    data_copy[field] = None
+                    logger.warning(f"User with id {data_copy[field]} not found.")
+        return data_copy
+    
+    def _extract_form_data(self, data, form_prefix, fields=None):
+        """
+        Extract form data from flat prefixed fields.
+        
+        Args:
+            data (dict): The data dictionary containing prefixed fields
+            form_prefix (str): The prefix used for the form fields (e.g., 'credit_request_form')
+            fields (list, optional): List of field names to extract. If None, extract all prefixed fields.
+            
+        Returns:
+            dict: The extracted form data
+        """
+        form_data = {}
+        
+        # Check for nested object first (backward compatibility)
+        if form_prefix in data and isinstance(data[form_prefix], dict):
+            return data[form_prefix]
+        
+        # Extract flat, prefixed fields
+        prefix = f"{form_prefix}_"
+        for key, value in data.items():
+            if key.startswith(prefix):
+                field_name = key[len(prefix):]  # Remove prefix
+                form_data[field_name] = value
+        
+        return form_data
+    
+    def _update_sub_form(self, instance, form_model, form_data, related_name):
+        """
+        Helper method to update or create a sub-form and its workflow instance
+        
+        Args:
+            instance (CreditApplication): The parent credit application instance
+            form_model (Model): The form model class
+            form_data (dict): The form data to update or create with
+            related_name (str): The related name attribute on the instance
+            
+        Returns:
+            Model: The updated or created form instance
+        """
+        try:
+            # Get or create the sub-form
+            sub_form = getattr(instance, related_name, None)
+            if not sub_form:
+                sub_form = form_model.objects.create(credit_application=instance)
+                logger.info(f"Created new {form_model.__name__} ID: {sub_form.id} for CreditApplication ID: {instance.id}")
+            
+            # Update the sub-form fields
+            for field, value in form_data.items():
+                setattr(sub_form, field, value)
+            sub_form.save()
+            logger.info(f"Updated {form_model.__name__} ID: {sub_form.id} with fields: {list(form_data.keys())}")
+            
+            # Create workflow instance if it doesn't exist
+            if not sub_form.workflow_instance:
+                try:
+                    # Determine workflow definition code based on form model
+                    workflow_code_map = {
+                        'CreditRequestForm': 'CREDIT_REQUEST',
+                        'BusinessSponsorshipForm': 'BUSINESS_SPONSORSHIP',
+                        'CreditReviewForm': 'CREDIT_REVIEW',
+                        'LegalReviewForm': 'LEGAL_REVIEW'
+                    }
+                    
+                    workflow_code = workflow_code_map.get(form_model.__name__)
+                    if workflow_code:
+                        sub_wf_def = WorkflowDefinition.objects.get(code=workflow_code)
+                        sub_initial_state = State.objects.get(workflow_definition=sub_wf_def, is_initial=True)
+                        
+                        sub_wf_instance = WorkflowInstance.objects.create(
+                            workflow_definition=sub_wf_def,
+                            current_state=sub_initial_state,
+                            content_type=ContentType.objects.get_for_model(sub_form),
+                            object_id=sub_form.id
+                        )
+                        sub_form.workflow_instance = sub_wf_instance
+                        sub_form.save(update_fields=['workflow_instance'])
+                        logger.info(f"Created workflow instance ID: {sub_wf_instance.id} for {form_model.__name__} ID: {sub_form.id}")
+                except Exception as e_wf:
+                    logger.error(f"Error creating workflow instance for {form_model.__name__} ID {sub_form.id}: {str(e_wf)}")
+                    # Continue with the process even if workflow creation fails
+            
+            return sub_form
+        except Exception as e:
+            logger.error(f"Error in _update_sub_form for {form_model.__name__}: {str(e)}")
+            raise
+    limit_requests = LimitRequestSerializer(many=True, read_only=True)
+    workflow_instance = serializers.SerializerMethodField()
+    
+    # Method fields for forms
+    credit_request_form = serializers.SerializerMethodField()
+    business_sponsorship_form = serializers.SerializerMethodField()
+    credit_questionnaire_form = serializers.SerializerMethodField()
+    legal_review_form = serializers.SerializerMethodField()
+    credit_review_form = serializers.SerializerMethodField()
+    
+    # Additional fields
+    workflow_state_name = serializers.SerializerMethodField()
     available_transitions = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+    assigned_to_name = serializers.SerializerMethodField()
     sub_processes = serializers.SerializerMethodField()
 
     class Meta:
         model = CreditApplication
         fields = [
-            'id', 'reference_number', 'title', 'description', 'priority', 
-            'required_by_date', 'applicant_name', 'counterparty', 'counterparty_id', 'limit_requests', 
-            'created_at', 'updated_at', 'submitted_at',
-            'workflow_instance_id', 'workflow_state', 'available_transitions',
-            'sub_processes',
+            'id', 'reference_number', 'title', 'counterparty', 'counterparty_id', 'priority', 
+            'required_by_date', 'amount', 'created_by', 'assigned_to', 'relationship_manager',
+            'created_at', 'updated_at', 'submitted_at', 'workflow_instance',
+            'workflow_state_name', 'available_transitions', 'created_by_name', 'assigned_to_name',
             'credit_request_form', 'credit_review_form', 'business_sponsorship_form',
-            'legal_review_form', 'credit_questionnaire_form',
+            'legal_review_form', 'credit_questionnaire_form', 'limit_requests', 'sub_processes'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'submitted_at', 'reference_number']
+        read_only_fields = ['id', 'reference_number', 'workflow_instance', 'created_at', 'updated_at', 'submitted_at', 'created_by', 'created_by_name', 'assigned_to_name']
 
-    def get_workflow_instance_id(self, obj):
-        return obj.workflow_instance.id if obj.workflow_instance else None
+    def get_created_by_name(self, obj):
+        return obj.created_by.get_full_name() if obj.created_by else None
 
-    def get_workflow_state(self, obj):
-        if obj.workflow_instance and obj.workflow_instance.current_state:
-            return {
-                'id': str(obj.workflow_instance.current_state.id),
-                'code': obj.workflow_instance.current_state.code,
-                'name': obj.workflow_instance.current_state.name
-            }
-        return None
+    def get_assigned_to_name(self, obj):
+        return obj.assigned_to.get_full_name() if obj.assigned_to else None
+
+    def get_workflow_state_name(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance and obj.workflow_instance.current_state:
+            return obj.workflow_instance.current_state.name
+        return "N/A"
 
     def get_available_transitions(self, obj):
-        if not obj.workflow_instance:
+        request = self.context.get('request')
+        user = request.user if request else None
+        if not user or not hasattr(obj, 'workflow_instance') or not obj.workflow_instance:
             return []
         try:
-            user = self.context['request'].user
             transitions = obj.workflow_instance.get_allowed_transitions(user)
-            return [
-                {
-                    'id': str(t.id), 'code': t.code, 'name': t.name,
-                    'to_state': {
-                        'id': str(t.to_state.id),
-                        'code': t.to_state.code,
-                        'name': t.to_state.name
-                    }
-                } for t in transitions
-            ]
+            return [{'code': t.code, 'name': t.name, 'description': t.description} for t in transitions]
         except Exception as e:
-            logging.error(f"Error getting available transitions for CreditApplication {obj.id}: {e}")
+            logger.error(f"Error getting available transitions for workflow instance {obj.workflow_instance.id}: {e}", exc_info=True)
             return []
 
-    def get_sub_processes(self, obj):
-        sub_processes_data = []
-        parent_state_code = obj.workflow_instance.current_state.code if obj.workflow_instance and obj.workflow_instance.current_state else None
+    def get_workflow_instance(self, obj):
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
+            return {
+                'id': str(obj.workflow_instance.id),
+                'current_state': obj.workflow_instance.current_state.name if obj.workflow_instance.current_state else None,
+                'workflow_definition': obj.workflow_instance.workflow_definition.name if obj.workflow_instance.workflow_definition else None
+            }
+        return None
         
-        RELEVANT_SUB_PROCESSES_MAP = {
-            'CREDIT_PAPER_CREDIT_REQUEST': ['credit_request_form'],
-            'CREDIT_PAPER_CREDIT_REVIEW_PENDING': ['credit_request_form', 'credit_review_form'],
-            'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form'],
-            'CREDIT_PAPER_ANALYSIS_PENDING': [
-                'credit_request_form', 
-                'business_sponsorship_form', # Should be view-only now
-                'credit_questionnaire_form', 
-                'legal_review_form'
-            ],
-        }
+    def get_credit_request_form(self, obj):
+        try:
+            # Use the correct related name - credit_request_form
+            form = obj.credit_request_form
+            serializer = CreditRequestFormSerializer(form)
+            return serializer.data
+        except CreditRequestForm.DoesNotExist:
+            return None
+        except Exception as e:
+            logger.error(f"Error getting credit_request_form for application {obj.id}: {e}")
+            return None
+            
+    def get_credit_review_form(self, obj):
+        try:
+            form = obj.credit_review_form
+            return {
+                'id': str(form.id),
+                'form_data': form.form_data
+            }
+        except CreditReviewForm.DoesNotExist:
+            return None
+        except Exception as e:
+            logger.error(f"Error getting credit_review_form for application {obj.id}: {e}")
+            return None
+            
+    def get_business_sponsorship_form(self, obj):
+        try:
+            form = obj.business_sponsorship_form
+            return {
+                'id': str(form.id),
+                'form_data': form.form_data
+            }
+        except BusinessSponsorshipForm.DoesNotExist:
+            return None
+        except Exception as e:
+            logger.error(f"Error getting business_sponsorship_form for application {obj.id}: {e}")
+            return None
+            
+    def get_legal_review_form(self, obj):
+        try:
+            form = obj.legal_review_form
+            return {
+                'id': str(form.id),
+                'form_data': form.form_data
+            }
+        except LegalReviewForm.DoesNotExist:
+            return None
+        except Exception as e:
+            logger.error(f"Error getting legal_review_form for application {obj.id}: {e}")
+            return None
+            
+    def get_credit_questionnaire_form(self, obj):
+        try:
+            form = obj.credit_questionnaire_form
+            return {
+                'id': str(form.id),
+                'form_data': form.form_data
+            }
+        except CreditQuestionnaireForm.DoesNotExist:
+            return None
+        except Exception as e:
+            logger.error(f"Error getting credit_questionnaire_form for application {obj.id}: {e}")
+            return None
 
-        form_mappings = {
-            'credit_request_form': (CreditRequestForm, CreditRequestFormSerializer, 'Credit Request'),
-            'credit_review_form': (CreditReviewForm, CreditReviewFormSerializer, 'Credit Review'),
-            'business_sponsorship_form': (BusinessSponsorshipForm, BusinessSponsorshipFormSerializer, 'Business Sponsorship'),
-            'legal_review_form': (LegalReviewForm, LegalReviewFormSerializer, 'Legal Review'),
-            'credit_questionnaire_form': (CreditQuestionnaireForm, CreditQuestionnaireFormSerializer, 'Credit Questionnaire'),
-        }
+    def get_sub_processes(self, obj):
+        logger.info(f"--- get_sub_processes called for application: {obj.id} ---")
         
-        context = self.context
-        relevant_form_keys = RELEVANT_SUB_PROCESSES_MAP.get(parent_state_code, [])
-        
-        for form_key in relevant_form_keys:
-            if form_key in form_mappings:
-                model_class, serializer_class, form_name = form_mappings[form_key]
+        # For newly created applications, always include credit_request_form
+        # even if workflow_instance is not fully set up yet
+        if not hasattr(obj, 'workflow_instance') or not obj.workflow_instance or not obj.workflow_instance.current_state:
+            logger.info(f"New application detected for CA ID {obj.id}, including default sub-processes.")
+            # Default to showing credit_request_form for new applications
+            form_list = ['credit_request_form']
+        else:
+            # Get form list based on workflow state
+            current_state = obj.workflow_instance.current_state
+            parent_state_code = current_state.metadata.get('parent_state', current_state.code) if current_state.metadata else current_state.code
+            
+            # Use the helper function to get relevant sub-processes based on metadata
+            from workflow_engine.utils import get_relevant_sub_processes_for_state
+            form_list = get_relevant_sub_processes_for_state(parent_state_code)
+
+        # Import the utility function to get form metadata dynamically
+        from workflow_engine.utils import get_form_metadata, FormMetadataError
+
+        sub_processes_data = []
+        for form_name in form_list:
+            try:
+                # Get form metadata dynamically
+                form_metadata = get_form_metadata(form_name)
+            except FormMetadataError as e:
+                # Log the error and skip this form
+                logger.error(f"Error getting metadata for form {form_name}: {e}")
+                # Skip this form and continue with the next one
+                continue
+            
+            # Check if form instance exists
+            form_instance = getattr(obj, form_name, None)
+            if form_instance:
                 try:
-                    form_instance = getattr(obj, form_key, None)
-                    if form_instance:
-                        serializer = serializer_class(form_instance, context=context)
-                        sub_processes_data.append({
-                            'form_name': form_name,
-                            'form_key': form_key,
-                            'data': serializer.data
-                        })
+                    # Get the proper serializer for this form type and pass request context
+                    request = self.context.get('request')
+                    serializer_context = {'request': request} if request else {}
+                    
+                    if form_name == 'credit_request_form':
+                        serializer = CreditRequestFormSerializer(form_instance, context=serializer_context)
+                    elif form_name == 'business_sponsorship_form':
+                        serializer = BusinessSponsorshipFormSerializer(form_instance, context=serializer_context)
+                    elif form_name == 'credit_review_form':
+                        serializer = CreditReviewFormSerializer(form_instance, context=serializer_context)
+                    elif form_name == 'legal_review_form':
+                        serializer = LegalReviewFormSerializer(form_instance, context=serializer_context)
+                    elif form_name == 'credit_questionnaire_form':
+                        serializer = CreditQuestionnaireFormSerializer(form_instance, context=serializer_context)
                     else:
-                        sub_processes_data.append({
-                            'form_name': form_name,
-                            'form_key': form_key,
-                            'data': None 
-                        })
-                except AttributeError:
-                    logging.warning(f"AttributeError when trying to access {form_key} on CreditApplication {obj.id}")
+                        # Default to a basic serializer if no specific one is found
+                        serializer = None
+                        
+                    # Add form data to sub_processes
                     sub_processes_data.append({
-                        'form_name': form_name,
-                        'form_key': form_key,
-                        'data': None
+                        'form_name': form_metadata['title'],
+                        'form_key': form_metadata['form_key'],  # Add form_key for frontend
+                        'form_title': getattr(form_instance, 'get_form_title', lambda: form_metadata['title'])(),
+                        'data': serializer.data if serializer else {}
                     })
+                    logger.info(f"Added sub-process '{form_name}' for CA ID {obj.id}")
+                except Exception as e:
+                    logger.error(f"Error serializing sub-process '{form_name}' for CA ID {obj.id}: {e}", exc_info=True)
+            else:
+                # Include form in list even if instance doesn't exist yet
+                sub_processes_data.append({
+                    'form_name': form_metadata['title'],
+                    'form_key': form_metadata['form_key'],
+                    'form_title': form_metadata['title'],
+                    'data': None
+                })
+                logger.info(f"Added placeholder for sub-process '{form_name}' for CA ID {obj.id}")
+                
         return sub_processes_data
 
+    @transaction.atomic
     def create(self, validated_data):
-        # Pop data for serializers that process their fields directly (LimitRequest, CreditRequestForm)
-        limit_requests_data = validated_data.pop('limit_requests', [])
-        credit_request_form_data = validated_data.pop('credit_request_form', None)
-
-        # Pop keys for JSONField forms from validated_data to clean it for parent creation,
-        # but we'll use self.initial_data for their actual content.
-        validated_data.pop('business_sponsorship_form', None)
-        validated_data.pop('credit_review_form', None)
-        validated_data.pop('legal_review_form', None)
-        validated_data.pop('credit_questionnaire_form', None)
-
-        # Get raw data for JSONField forms from initial_data.
-        # Fallback to empty dict if not provided, ensuring forms are always created.
-        raw_bsf_data = self.initial_data.get('business_sponsorship_form', {})
-        raw_crf_data = self.initial_data.get('credit_review_form', {})
-        raw_lrf_data = self.initial_data.get('legal_review_form', {})
-        raw_cqf_data = self.initial_data.get('credit_questionnaire_form', {})
-
-        # Create the parent CreditApplication instance with the now-clean validated_data.
-        credit_application = CreditApplication.objects.create(**validated_data)
-
-        # Create LimitRequest instances using their validated data.
-        for lr_data in limit_requests_data:
-            LimitRequest.objects.create(credit_application=credit_application, **lr_data)
-
-        # Create CreditRequestForm using its validated data.
-        if credit_request_form_data:
-            CreditRequestForm.objects.create(credit_application=credit_application, **credit_request_form_data)
-        else: # Ensure it's created even if no data, as it has specific fields
-            CreditRequestForm.objects.create(credit_application=credit_application)
+        logger.info(f"CreditApplicationSerializer.create called. Validated data (before pops): {validated_data}")
         
-        # Create JSONField forms using their raw input data.
-        BusinessSponsorshipForm.objects.create(credit_application=credit_application, form_data=raw_bsf_data)
-        CreditReviewForm.objects.create(credit_application=credit_application, form_data=raw_crf_data)
-        LegalReviewForm.objects.create(credit_application=credit_application, form_data=raw_lrf_data)
-        CreditQuestionnaireForm.objects.create(credit_application=credit_application, form_data=raw_cqf_data)
+        # Extract form data using helper methods
+        credit_request_form_data = self._extract_form_data(self.initial_data, 'credit_request_form')
+        limit_requests_payload = self.initial_data.get('limit_requests', [])
+        validated_data.pop('limit_requests', None)
+        validated_data.pop('credit_request_form', None)  # Remove if present in validated_data
+        
+        # Handle counterparty - frontend sends counterparty object but we need counterparty_id
+        counterparty = self.initial_data.get('counterparty')
+        if counterparty and isinstance(counterparty, dict) and 'id' in counterparty:
+            validated_data['counterparty_id'] = counterparty['id']
+        elif counterparty and not isinstance(counterparty, dict):
+            validated_data['counterparty_id'] = counterparty
+            
+        logger.info(f"Creating CreditApplication for user: {validated_data.get('created_by')}")
+        logger.info(f"Counterparty data: {counterparty}, counterparty_id: {validated_data.get('counterparty_id')}")
+
+        # Ensure created_by is set from perform_create context
+        if 'created_by' not in validated_data and self.context.get('request') and self.context['request'].user.is_authenticated:
+             validated_data['created_by'] = self.context['request'].user
+        logger.info(f"Creating CreditApplication for user: {validated_data.get('created_by')}")
+
+        # Process credit_request_form_data using helper methods
+        if credit_request_form_data:
+            logger.info(f"Processing credit_request_form_data: {credit_request_form_data}")
+            
+            # Handle relationship_manager if it's in the prefixed fields
+            if 'relationship_manager_id' in credit_request_form_data:
+                try:
+                    relationship_manager_id = credit_request_form_data.pop('relationship_manager_id')
+                    if relationship_manager_id:
+                        User = get_user_model()
+                        relationship_manager = User.objects.get(id=relationship_manager_id)
+                        validated_data['relationship_manager'] = relationship_manager
+                        logger.info(f"Set relationship_manager to user ID: {relationship_manager_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to set relationship_manager: {str(e)}")
+            
+            # Convert string booleans to Python booleans
+            boolean_fields = ['country_risk_limit_available', 'kyc_approval_status', 
+                            'positive_legal_opinion', 'financial_statements_received', 
+                            'interim_statements_available']
+            credit_request_form_data = self._convert_booleans(credit_request_form_data, boolean_fields, nullable_fields=[])
+            
+            # Resolve user foreign keys
+            user_fields = ['senior_business_sponsor_id', 'second_business_sponsor_id']
+            credit_request_form_data = self._resolve_user_fields(credit_request_form_data, user_fields)
+            
+            # Set form timestamps
+            if 'form_started_at' not in credit_request_form_data or not credit_request_form_data['form_started_at']:
+                credit_request_form_data['form_started_at'] = timezone.now()
+            credit_request_form_data['form_last_saved_at'] = timezone.now()
+
+        # 1. Create the main application object
+        credit_application = CreditApplication.objects.create(**validated_data)
+        logger.info(f"Created CreditApplication with ID: {credit_application.id}")
+
+        # 2. Initialize the workflow for the newly created credit application
+        try:
+            workflow_def = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
+            initial_state = State.objects.get(workflow_definition=workflow_def, is_initial=True)
+            
+            workflow_instance = WorkflowInstance.objects.create(
+                workflow_definition=workflow_def,
+                current_state=initial_state,
+                content_type=ContentType.objects.get_for_model(credit_application),
+                object_id=credit_application.id
+            )
+            credit_application.workflow_instance = workflow_instance
+            credit_application.save(update_fields=['workflow_instance'])
+            logger.info(f"Created and assigned WorkflowInstance ID: {workflow_instance.id} to CA ID: {credit_application.id}")
+
+            # 3. Create the credit request form with processed data and its sub-workflow instance
+            try:
+                if credit_request_form_data:
+                    # Create the CreditRequestForm with all fields from credit_request_form_data
+                    crf = CreditRequestForm.objects.create(
+                        credit_application=credit_application,
+                        **credit_request_form_data
+                    )
+                    logger.info(f"Created CreditRequestForm ID: {crf.id} for CA ID: {credit_application.id} with fields: {credit_request_form_data.keys()}")
+                else:
+                    # Create an empty form if no data was provided
+                    crf = CreditRequestForm.objects.create(credit_application=credit_application)
+                    logger.info(f"Created empty CreditRequestForm ID: {crf.id} for CA ID: {credit_application.id}")
+                
+                # Create sub-workflow instance for the CreditRequestForm
+                try:
+                    sub_wf_def = WorkflowDefinition.objects.get(code='CREDIT_REQUEST')
+                    sub_initial_state = State.objects.get(workflow_definition=sub_wf_def, is_initial=True)
+                    
+                    sub_wf_instance = WorkflowInstance.objects.create(
+                        workflow_definition=sub_wf_def,
+                        current_state=sub_initial_state,
+                        content_type=ContentType.objects.get_for_model(crf),
+                        object_id=crf.id
+                    )
+                    crf.workflow_instance = sub_wf_instance
+                    crf.save(update_fields=['workflow_instance'])
+                    logger.info(f"Created sub-workflow instance ID: {sub_wf_instance.id} for CreditRequestForm ID: {crf.id}")
+                except Exception as e_sub_wf:
+                    logger.error(f"Error creating sub-workflow for CreditRequestForm: {str(e_sub_wf)}")
+                    # Continue with the process even if sub-workflow creation fails
+                # Verify the CreditRequestForm was created with expected fields
+                logger.info(f"CreditRequestForm created with fields: {[f.name for f in CreditRequestForm._meta.fields]}")
+                logger.info(f"CreditRequestForm values: {model_to_dict(crf)}")
+
+
+            except Exception as e:
+                logger.error(f"An unexpected error occurred during workflow/sub-form initialization for CA ID {credit_application.id}: {e}", exc_info=True)
+
+        except WorkflowDefinition.DoesNotExist:
+            logger.error(f"CRITICAL: WorkflowDefinition with code 'CREDIT_PAPER' not found. Cannot create application correctly.")
+        except State.DoesNotExist:
+            logger.error(f"CRITICAL: Initial state for 'CREDIT_PAPER' workflow not found. Cannot create application correctly.")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during workflow/sub-form initialization for CA ID {credit_application.id}: {e}", exc_info=True)
+
+        # 4. Create any limit requests that were part of the payload
+        if limit_requests_payload:
+            for lr_data in limit_requests_payload:
+                lr_data = lr_data.copy()  # Create a copy to avoid modifying the original
+                lr_data.pop('id', None)  # Remove id if present
+                limit_type_id = lr_data.pop('limit_type_id', None)
+                if limit_type_id:
+                    try:
+                        limit_type = LimitType.objects.get(id=limit_type_id)
+                        lr_data.pop('limit_type', None)  # Remove limit_type if present
+                        LimitRequest.objects.create(
+                            credit_application=credit_application,
+                            limit_type=limit_type,
+                            **lr_data
+                        )
+                    except LimitType.DoesNotExist:
+                        logging.warning(f"LimitType with id {limit_type_id} not found.")
+            logger.info(f"Successfully created {len(limit_requests_payload)} LimitRequest(s) for CA ID: {credit_application.id}")
 
         return credit_application
 
+    @transaction.atomic
     def update(self, instance, validated_data):
-        # Pop data for serializers that process their fields directly.
-        limit_requests_data = validated_data.pop('limit_requests', None)
-        credit_request_form_data = validated_data.pop('credit_request_form', None)
-
-        # Pop keys for JSONField forms from validated_data to clean it for parent update,
-        # but we'll use self.initial_data for their actual content.
-        validated_data.pop('business_sponsorship_form', None)
-        validated_data.pop('credit_review_form', None)
-        validated_data.pop('legal_review_form', None)
-        validated_data.pop('credit_questionnaire_form', None)
-
-        # Get raw data for JSONField forms from initial_data.
-        raw_bsf_data = self.initial_data.get('business_sponsorship_form')
-        raw_crf_data = self.initial_data.get('credit_review_form')
-        raw_lrf_data = self.initial_data.get('legal_review_form')
-        raw_cqf_data = self.initial_data.get('credit_questionnaire_form')
-
-        # Update the parent CreditApplication instance with the clean validated_data.
+        # Extract form data using helper methods
+        credit_request_form_data = self._extract_form_data(self.initial_data, 'credit_request_form')
+        limit_requests_payload = self.initial_data.get('limit_requests', [])
+        validated_data.pop('credit_request_form', None)
+        validated_data.pop('limit_requests', None)
+        
+        # Handle counterparty - frontend sends counterparty object but we need counterparty_id
+        counterparty = self.initial_data.get('counterparty')
+        if counterparty and isinstance(counterparty, dict) and 'id' in counterparty:
+            validated_data['counterparty_id'] = counterparty['id']
+        elif counterparty and not isinstance(counterparty, dict):
+            validated_data['counterparty_id'] = counterparty
+            
+        # Update the main application
         instance = super().update(instance, validated_data)
 
-        # Handle LimitRequest updates using its validated data.
-        if limit_requests_data is not None:
+        # Update or create the CreditRequestForm
+        if credit_request_form_data:
+            # Handle relationship_manager if it's in the prefixed fields
+            if 'relationship_manager_id' in credit_request_form_data:
+                try:
+                    relationship_manager_id = credit_request_form_data.pop('relationship_manager_id')
+                    if relationship_manager_id:
+                        User = get_user_model()
+                        relationship_manager = User.objects.get(id=relationship_manager_id)
+                        instance.relationship_manager = relationship_manager
+                        instance.save(update_fields=['relationship_manager'])
+                        logger.info(f"Updated relationship_manager to user ID: {relationship_manager_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to update relationship_manager: {str(e)}")
+        
+            # Convert string booleans to Python booleans
+            boolean_fields = ['country_risk_limit_available', 'kyc_approval_status', 
+                            'positive_legal_opinion', 'financial_statements_received', 
+                            'interim_statements_available']
+            credit_request_form_data = self._convert_booleans(credit_request_form_data, boolean_fields, nullable_fields=[])
+            
+            # Resolve user foreign keys
+            user_fields = ['senior_business_sponsor_id', 'second_business_sponsor_id']
+            credit_request_form_data = self._resolve_user_fields(credit_request_form_data, user_fields)
+            
+            # Set form_last_saved_at timestamp
+            credit_request_form_data['form_last_saved_at'] = timezone.now()
+            
+            # Use _update_sub_form helper method
+            self._update_sub_form(
+                instance=instance,
+                form_model=CreditRequestForm,
+                form_data=credit_request_form_data,
+                related_name='credit_request_form'
+            )
+
+        # Handle limit requests - delete existing and create new ones
+        if limit_requests_payload is not None:
             instance.limit_requests.all().delete()
-            for lr_data in limit_requests_data:
-                LimitRequest.objects.create(credit_application=instance, **lr_data)
-
-        # Handle CreditRequestForm updates using its validated data.
-        if credit_request_form_data is not None:
-            CreditRequestForm.objects.update_or_create(
-                credit_application=instance, defaults=credit_request_form_data
-            )
-        
-        # Handle JSONField forms updates using their raw input data.
-        if raw_bsf_data is not None:
-            BusinessSponsorshipForm.objects.update_or_create(
-                credit_application=instance, defaults={'form_data': raw_bsf_data}
-            )
-
-        if raw_crf_data is not None:
-            CreditReviewForm.objects.update_or_create(
-                credit_application=instance, defaults={'form_data': raw_crf_data}
-            )
-        
-        if raw_cqf_data is not None:
-            CreditQuestionnaireForm.objects.update_or_create(
-                credit_application=instance, defaults={'form_data': raw_cqf_data}
-            )
-
-        if raw_lrf_data is not None:
-            LegalReviewForm.objects.update_or_create(
-                credit_application=instance, defaults={'form_data': raw_lrf_data}
-            )
+            for lr_data in limit_requests_payload:
+                lr_data.pop('id', None)
+                limit_type_id = lr_data.pop('limit_type_id', None)
+                if limit_type_id:
+                    try:
+                        limit_type = LimitType.objects.get(id=limit_type_id)
+                        lr_data.pop('limit_type', None)
+                        LimitRequest.objects.create(
+                            credit_application=instance,
+                            limit_type=limit_type,
+                            **lr_data
+                        )
+                    except LimitType.DoesNotExist:
+                        logging.warning(f"LimitType with id {limit_type_id} not found.")
 
         return instance
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
 
-        # Ensure limit_requests are always present in the output
         limit_requests = instance.limit_requests.all()
         representation['limit_requests'] = LimitRequestSerializer(limit_requests, many=True).data
 
-        # Generate reference number if not present
         if not instance.reference_number:
             import datetime
             year = datetime.datetime.now().year
