@@ -42,6 +42,8 @@ const TopNavBar = () => { // Removed LogoutButton prop
   
   const handleCreateNew = () => navigate('/credit-requests/new');
   const handleNavigateToDashboard = () => navigate('/'); // Handler for Dashboard navigation
+  const handleNavigateToMyTasks = () => navigate('/my-tasks'); // Handler for My Tasks navigation
+  const handleNavigateToPrioritization = () => navigate('/prioritization'); // Handler for Prioritization Dashboard navigation
 
   return (
     <>
@@ -55,7 +57,8 @@ const TopNavBar = () => { // Removed LogoutButton prop
           <Box sx={{ flexGrow: 1 }} />
           <Stack direction="row" spacing={2} alignItems="center">
             <Button color="inherit" onClick={handleNavigateToDashboard}>Dashboard</Button>
-            <Button color="inherit">My Tasks</Button>
+            <Button color="inherit" onClick={handleNavigateToMyTasks}>My Tasks</Button>
+            <Button color="inherit" onClick={handleNavigateToPrioritization}>Prioritization</Button>
             <Button color="inherit">All Requests</Button>
             <Button color="inherit" startIcon={<Add />} onClick={handleCreateNew}>Create New</Button>
             <IconButton color="inherit">

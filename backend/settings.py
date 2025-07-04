@@ -34,7 +34,7 @@ SECRET_KEY = 'django-insecure-*&(_iv9_@w(vo^)7k8*mji^x@rgij!)+saxv^g1%g_#ish%3-#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'credit.gavinslater.co.uk']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'credit.gavinslater.co.uk', '192.168.1.195']
 
 
 # Application definition
@@ -172,3 +172,49 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     # Add more settings as needed for dev/test/prod
 }
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {module}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'credit_applications': { # Your app's logger
+            'handlers': ['console'],
+            'level': 'DEBUG', # Crucial for seeing your app's detailed logs
+            'propagate': True,
+        },
+        'workflow_engine': { # Assuming you might want logs from this app too
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        # Add other app-specific loggers here if needed
+    },
+    'root': { # Catch-all for other loggers
+        'handlers': ['console'],
+        'level': 'WARNING', # Default for other modules
+    }
+}
+

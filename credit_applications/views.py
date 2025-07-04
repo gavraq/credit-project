@@ -5,9 +5,12 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.contrib.contenttypes.models import ContentType
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Import workflow models
-from workflow_engine.models import WorkflowDefinition, State, WorkflowInstance
+from workflow_engine.models import Workflow, State, WorkflowInstance, Transition
 
 # Import all form models
 from .models import (
@@ -49,7 +52,7 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         if create_workflow_instance_flag and not instance.workflow_instance:
             print(f"Attempting to create workflow instance for credit application: {instance.id}")
             try:
-                from workflow_engine.models import WorkflowDefinition, State, WorkflowInstance
+                from workflow_engine.models import Workflow, State, WorkflowInstance
                 from django.contrib.contenttypes.models import ContentType
                 from .models import (
                     CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm,
@@ -57,11 +60,11 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                 )
 
                 # Parent workflow for CreditApplication
-                workflow_def = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
-                initial_state = State.objects.get(workflow_definition=workflow_def, is_initial=True)
+                workflow_def = Workflow.objects.get(code='CREDIT_PAPER')
+                initial_state = State.objects.get(workflow=workflow_def, is_initial=True)
                 
                 parent_workflow_instance = WorkflowInstance.objects.create(
-                    workflow_definition=workflow_def,
+                    workflow=workflow_def,
                     current_state=initial_state,
                     content_type=ContentType.objects.get_for_model(instance),
                     object_id=instance.id
@@ -70,44 +73,17 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                 instance.save(update_fields=['workflow_instance'])
                 print(f"Created parent workflow instance with ID: {parent_workflow_instance.id}")
                 
-                sub_workflows_config = [
-                    ('CREDIT_REQUEST', CreditRequestForm, 'creditrequestform'),
-                    ('CREDIT_REVIEW', CreditReviewForm, 'creditreviewform'),
-                    ('BUSINESS_SPONSORSHIP', BusinessSponsorshipForm, 'businesssponsorshipform'),
-                    ('LEGAL_REVIEW', LegalReviewForm, 'legalreviewform'),
-                    ('CREDIT_QUESTIONNAIRE', CreditQuestionnaireForm, 'creditquestionnaireform'),
-                    ('CREDIT_ANALYSIS', CreditAnalysisForm, 'creditanalysisform'),
-                    ('CREDIT_COMPILATION', CreditCompilationForm, 'creditcompilationform'),
-                    ('CREDIT_APPROVAL', CreditApprovalForm, 'creditapprovalform'),
-                ]
+                # Use metadata-driven auto-initialization for initial state
+                from workflow_engine.utils import auto_initialize_forms_for_state
+                initialized_forms = auto_initialize_forms_for_state(
+                    instance, 
+                    state_code=initial_state.code
+                )
                 
-                for wf_code, model_cls, related_name in sub_workflows_config:
-                    try:
-                        sub_wf_def = WorkflowDefinition.objects.get(code=wf_code)
-                        sub_initial_state = State.objects.get(workflow_definition=sub_wf_def, is_initial=True)
-                        sub_obj = getattr(instance, related_name, None)
-                        if not sub_obj:
-                            sub_obj = model_cls.objects.create(credit_application=instance)
-                            print(f"Created {model_cls.__name__} with ID: {sub_obj.id} for sub-workflow {wf_code}")
-                        
-                        if not getattr(sub_obj, 'workflow_instance', None):
-                            sub_wf_instance = WorkflowInstance.objects.create(
-                                workflow_definition=sub_wf_def,
-                                current_state=sub_initial_state,
-                                content_type=ContentType.objects.get_for_model(sub_obj),
-                                object_id=sub_obj.id
-                            )
-                            sub_obj.workflow_instance = sub_wf_instance
-                            sub_obj.save(update_fields=['workflow_instance'])
-                            print(f"Created sub-workflow instance for {model_cls.__name__} ({wf_code}) with ID: {sub_wf_instance.id}")
-                        else:
-                            print(f"{model_cls.__name__} ({wf_code}) already has workflow instance: {sub_obj.workflow_instance.id}")
-                    except WorkflowDefinition.DoesNotExist:
-                        print(f"WorkflowDefinition with code {wf_code} not found. Skipping sub-workflow creation.")
-                    except State.DoesNotExist:
-                        print(f"Initial state for workflow {wf_code} not found. Skipping sub-workflow creation.")
-                    except Exception as e_sub_wf:
-                        print(f"Error creating sub-workflow for {wf_code} on {model_cls.__name__}: {e_sub_wf}")
+                if initialized_forms:
+                    print(f"Auto-initialized {len(initialized_forms)} forms: {list(initialized_forms.keys())}")
+                else:
+                    print("No forms needed for initial state or auto-initialization failed")
             except Exception as e_wf_main:
                 print(f"Error during main workflow instance creation process: {e_wf_main}")
                 # Depending on policy, you might want to return an error or just log and continue
@@ -139,83 +115,13 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
             )
 
     def perform_create(self, serializer):
-        # Import here to avoid circular import
-        from workflow_engine.models import WorkflowDefinition, State, WorkflowInstance
-        from django.contrib.contenttypes.models import ContentType
-        from .models import (
-            CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm,
-            CreditQuestionnaireForm, CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm
-        )
-        # Extract form_data from request data if present
-        form_data = serializer.context['request'].data.get('form_data')
-        
-        # Parent workflow for CreditApplication
-        workflow_def = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
-        initial_state = State.objects.get(workflow_definition=workflow_def, is_initial=True)
-        # Get the authenticated user and their full name
-        user = self.request.user
-        user_id_to_save = None
-        applicant_name_to_save = None
-
-        if user.is_authenticated:
-            user_id_to_save = user.id
-            full_name = f"{user.first_name} {user.last_name}".strip()
-            applicant_name_to_save = full_name if full_name else user.username
-        
-        # Pass the user's ID for created_by and their full name for applicant_name
-        credit_app = serializer.save(
-            created_by=user_id_to_save,
-            applicant_name=applicant_name_to_save
-        )
-        # Create parent workflow instance and link
-        instance = WorkflowInstance.objects.create(
-            workflow_definition=workflow_def,
-            current_state=initial_state,
-            content_type=ContentType.objects.get_for_model(credit_app),
-            object_id=credit_app.id
-        )
-        credit_app.workflow_instance = instance
-        credit_app.save(update_fields=['workflow_instance'])
-
-        # Sub-process workflow codes (must match those in workflow_engine)
-        sub_workflows = [
-            ('CREDIT_REQUEST', CreditRequestForm, 'credit_request_forms'),
-            ('CREDIT_REVIEW', CreditReviewForm, 'credit_review_forms'),
-            ('BUSINESS_SPONSORSHIP', BusinessSponsorshipForm, 'business_sponsorship_forms'),
-            ('LEGAL_REVIEW', LegalReviewForm, 'legal_review_forms'),
-            ('CREDIT_QUESTIONNAIRE', CreditQuestionnaireForm, 'credit_questionnaire_forms'),
-            ('CREDIT_ANALYSIS', CreditAnalysisForm, 'credit_analysis_forms'),
-            ('CREDIT_COMPILATION', CreditCompilationForm, 'credit_compilation_forms'),
-            ('CREDIT_APPROVAL', CreditApprovalForm, 'credit_approval_forms'),
-        ]
-        for wf_code, model_cls, related_name in sub_workflows:
-            try:
-                sub_wf_def = WorkflowDefinition.objects.get(code=wf_code)
-                sub_initial_state = State.objects.get(workflow_definition=sub_wf_def, is_initial=True)
-                
-                # If this is the CreditRequestForm, we need to handle it differently now
-                if model_cls == CreditRequestForm:
-                    # The serializer already created a CreditRequestForm instance
-                    # Let's retrieve it instead of creating a new one
-                    try:
-                        sub_obj = credit_app.credit_request_form
-                    except CreditRequestForm.DoesNotExist:
-                        # If it doesn't exist for some reason, create it
-                        sub_obj = model_cls.objects.create(credit_application=credit_app)
-                else:
-                    sub_obj = model_cls.objects.create(credit_application=credit_app)
-                    
-                sub_instance = WorkflowInstance.objects.create(
-                    workflow_definition=sub_wf_def,
-                    current_state=sub_initial_state,
-                    content_type=ContentType.objects.get_for_model(sub_obj),
-                    object_id=sub_obj.id
-                )
-                sub_obj.workflow_instance = sub_instance
-                sub_obj.save(update_fields=['workflow_instance'])
-            except (WorkflowDefinition.DoesNotExist, State.DoesNotExist) as e:
-                # Optionally: log or raise warning if a sub-process workflow is missing
-                continue
+        """
+        Set the creator of the application to the current user and pass to the serializer.
+        The serializer is responsible for all object and workflow creation.
+        """
+        creator = self.request.user if self.request.user.is_authenticated else None
+        logger.info(f"CreditApplicationViewSet.perform_create called by user: {creator}")
+        serializer.save(created_by=creator)
 
 
     @action(detail=True, methods=['post'], url_path='transition')
@@ -224,7 +130,6 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         Perform a workflow transition for this credit application.
         Expects {"transition_code": "...", "comments": "..."}
         """
-        from workflow_engine.models import Transition, StateLog
         credit_app = self.get_object()
         workflow_instance = credit_app.workflow_instance
         if not workflow_instance:
@@ -233,9 +138,9 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         comments = request.data.get('comments', '')
         try:
             transition = Transition.objects.get(
-                workflow_definition=workflow_instance.workflow_definition,
-                code=transition_code,
-                from_state=workflow_instance.current_state
+                workflow=workflow_instance.workflow,
+                from_state=workflow_instance.current_state,
+                code=transition_code
             )
         except Transition.DoesNotExist:
             return Response({"detail": "Invalid or unavailable transition for current state."}, status=status.HTTP_400_BAD_REQUEST)
@@ -266,6 +171,38 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
             "code": transition.to_state.code,
             "name": transition.to_state.name
         }})
+
+    @action(detail=False, methods=['get'], url_path='awaiting-my-approval')
+    def awaiting_my_approval(self, request):
+        """
+        Get credit applications that are awaiting approval by the current user.
+        Uses DA-level authorization to filter applications.
+        """
+        user = request.user
+        
+        # Check if user is a Credit Analyst with DA level
+        if not user.role or user.role.name != 'Credit Analyst' or not user.da_level:
+            return Response([], safe=False)
+        
+        try:
+            from workflow_engine.da_authorization import filter_applications_by_approval_authority
+            
+            # Get all applications in approval pending state
+            applications_queryset = CreditApplication.objects.all()
+            
+            # Filter by what this user can approve based on their DA level
+            approved_applications = filter_applications_by_approval_authority(user, applications_queryset)
+            
+            # Serialize the results
+            serializer = self.get_serializer(approved_applications, many=True)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.error(f"Error filtering applications by approval authority: {e}")
+            return Response(
+                {'detail': 'Error filtering applications by approval authority'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=['get', 'post'], url_path='legal-review-form')
     def legal_review_form_handler(self, request, pk=None):
@@ -312,5 +249,56 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                 serializer.save()
                 return Response(serializer.data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], url_path='bulk-update-ranks')
+    def bulk_update_ranks(self, request):
+        """
+        Bulk update ranks for multiple credit applications.
+        Expected payload: [{"id": "uuid", "rank": 1}, {"id": "uuid", "rank": 2}, ...]
+        """
+        try:
+            rank_updates = request.data
+            
+            if not isinstance(rank_updates, list):
+                return Response(
+                    {'detail': 'Expected a list of rank updates'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate that all required fields are present
+            for update in rank_updates:
+                if 'id' not in update or 'rank' not in update:
+                    return Response(
+                        {'detail': 'Each rank update must contain "id" and "rank" fields'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Perform bulk update within a transaction
+            with transaction.atomic():
+                for update in rank_updates:
+                    try:
+                        application = CreditApplication.objects.get(id=update['id'])
+                        application.rank = update['rank']
+                        application.save(update_fields=['rank'])
+                    except CreditApplication.DoesNotExist:
+                        return Response(
+                            {'detail': f'Credit application with id {update["id"]} not found'}, 
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                    except Exception as e:
+                        logger.error(f"Error updating rank for application {update['id']}: {e}")
+                        return Response(
+                            {'detail': f'Error updating application {update["id"]}'}, 
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+            
+            return Response({'detail': f'Successfully updated ranks for {len(rank_updates)} applications'})
+            
+        except Exception as e:
+            logger.error(f"Error in bulk rank update: {e}")
+            return Response(
+                {'detail': 'Internal server error'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 

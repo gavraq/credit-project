@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.shortcuts import redirect
 from backend.users.views import MyTokenObtainPairView # Import the custom view
 from rest_framework_simplejwt.views import (
     # TokenObtainPairView, # Comment out or remove the default import
@@ -25,6 +26,7 @@ from backend.views import ProtectedHelloView
 from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView, WorkflowInstanceDetailView, WorkflowInstanceListView # MyTokenObtainPairView is now imported above
 
 urlpatterns = [
+    path('', lambda request: redirect('/admin/')),  # Redirect root to admin
     path('admin/', admin.site.urls),
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'), # Use the custom view
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
