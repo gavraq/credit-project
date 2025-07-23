@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Counterparty information section component
@@ -17,10 +18,11 @@ const CounterpartySection = ({
   selectedGuarantorName, // Accept prop
   setSelectedGuarantorName, // Accept prop
   counterpartyName, // Add prop for denormalized field
+  setCounterpartyName, // Add setter for denormalized field
   guarantorName, // Add prop for denormalized field
-  colors,
   disabled
 }) => {
+  const theme = useTheme();
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
       {loadingCounterparties ? (
@@ -34,8 +36,7 @@ const CounterpartySection = ({
               label="Counterparty Name"
               value={counterpartyName}
               disabled={true}
-              colors={colors}
-            />
+                  />
           ) : (
             <FormField
               label="Counterparty Name"
@@ -50,9 +51,12 @@ const CounterpartySection = ({
                 setSelectedCounterparty(e.target.value);
                 const found = counterparties.find(cp => String(cp.id) === e.target.value);
                 setCounterpartyCIF(found ? found.cif_number : '');
+                // Also set counterparty name for denormalized field
+                if (found && setCounterpartyName) {
+                  setCounterpartyName(found.name);
+                }
               }}
-              colors={colors}
-              disabled={disabled}
+                    disabled={disabled}
             />
           )}
           <FormField
@@ -61,15 +65,13 @@ const CounterpartySection = ({
             required={true}
             value={counterpartyCIF}
             disabled={true}
-            colors={colors}
-          />
+              />
           {disabled && guarantorName ? (
             <FormField
               label="Guarantor Name"
               value={guarantorName}
               disabled={true}
-              colors={colors}
-            />
+                  />
           ) : (
             <FormField
               label="Guarantor Name"
@@ -86,8 +88,7 @@ const CounterpartySection = ({
                 setGuarantorCIF(found ? found.cif_number : '');
                 setSelectedGuarantorName(found ? found.name : ''); // Set guarantor name
               }}
-              colors={colors}
-              disabled={disabled}
+                    disabled={disabled}
             />
           )}
           <FormField
@@ -96,8 +97,7 @@ const CounterpartySection = ({
             required={false}
             value={guarantorCIF}
             disabled={true}
-            colors={colors}
-          />
+              />
         </>
       )}
     </div>

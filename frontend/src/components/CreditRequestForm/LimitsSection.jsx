@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Limits information section component
@@ -12,47 +13,60 @@ const LimitsSection = ({
   limitTypesError,
   countryRiskLimitAvailable,
   setCountryRiskLimitAvailable,
+  kycApprovalStatus,
+  setKycApprovalStatus,
   detailedCommentsOnLimits,
-  setDetailedCommentsOnLimits,
-  colors
+  setDetailedCommentsOnLimits
 }) => {
+  const theme = useTheme();
   return (
     <>
       {/* Dynamic Limits Table */}
       <div style={{ marginBottom: '1.5rem' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1rem' }}>
           <thead>
-            <tr style={{ background: colors.neutral200 }}>
-              <th style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>Limit Type</th>
-              <th style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>Existing Amount (US$ m)</th>
-              <th style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>Existing Tenor (months)</th>
-              <th style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>Proposed Amount (US$ m)</th>
-              <th style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>Proposed Tenor (months)</th>
-              <th style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>Comments</th>
-              <th style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}></th>
+            <tr style={{ background: theme.palette.grey[100] }}>
+              <th style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, fontFamily: theme.typography.fontFamily }}>Limit Type</th>
+              <th style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, fontFamily: theme.typography.fontFamily }}>Existing Amount (US$ m)</th>
+              <th style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, fontFamily: theme.typography.fontFamily }}>Existing Tenor (months)</th>
+              <th style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, fontFamily: theme.typography.fontFamily }}>Proposed Amount (US$ m)</th>
+              <th style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, fontFamily: theme.typography.fontFamily }}>Proposed Tenor (months)</th>
+              <th style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, fontFamily: theme.typography.fontFamily }}>Comments</th>
+              <th style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, fontFamily: theme.typography.fontFamily }}></th>
             </tr>
           </thead>
           <tbody>
             {loadingLimitTypes ? (
-              <tr><td colSpan="7" style={{ textAlign: 'center', color: colors.neutral600 }}>Loading limit types...</td></tr>
+              <tr><td colSpan="7" style={{ textAlign: 'center', color: theme.palette.grey[500], fontFamily: theme.typography.fontFamily }}>Loading limit types...</td></tr>
             ) : limitTypesError ? (
-              <tr><td colSpan="7" style={{ textAlign: 'center', color: colors.icbcRed }}>Error loading limit types: {limitTypesError}</td></tr>
+              <tr><td colSpan="7" style={{ textAlign: 'center', color: theme.palette.secondary.main, fontFamily: theme.typography.fontFamily }}>Error loading limit types: {limitTypesError}</td></tr>
             ) : limits.length === 0 ? (
-              <tr><td colSpan="7" style={{ textAlign: 'center' }}>No limits added.</td></tr>
+              <tr><td colSpan="7" style={{ textAlign: 'center', fontFamily: theme.typography.fontFamily }}>No limits added.</td></tr>
             ) : (
               limits.map((limit, idx) => (
                 <tr key={limit.id}>
-                  <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>
+                  <td style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}` }}>
                     <select
                       value={limit.type?.id || ''} // Use the ID from the object for the value
                       onChange={e => {
                         const selectedId = e.target.value;
+                        // Log the selected ID to check for truncation
+                        console.log(`Selected limit type ID: ${selectedId}, length: ${selectedId.length}`);
+                        
+                        // Find the full limit type object
                         const fullLimitType = limitTypes.find(lt => lt.id === selectedId);
+                        
+                        if (fullLimitType) {
+                          console.log(`Found full limit type: ${fullLimitType.name}, ID: ${fullLimitType.id}, ID length: ${fullLimitType.id.length}`);
+                        } else {
+                          console.error(`Could not find limit type with ID: ${selectedId}`);
+                        }
+                        
                         const updated = [...limits];
-                        updated[idx].type = fullLimitType || null; // Store the full object or null
+                        updated[idx].type = fullLimitType || null; // Store the full object for display
                         setLimits(updated);
                       }}
-                      style={{ width: '100%', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, padding: '0.25rem' }}
+                      style={{ width: '100%', borderRadius: '6px', border: `1px solid ${theme.palette.grey[300]}`, padding: '0.25rem', fontFamily: theme.typography.fontFamily }}
                     >
                       <option value="">Select limit type</option>
                       {limitTypes.map(type => (
@@ -60,7 +74,7 @@ const LimitsSection = ({
                       ))}
                     </select>
                   </td>
-                  <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>
+                  <td style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}` }}>
                     <input
                       type="number"
                       value={limit.existingAmount}
@@ -69,10 +83,10 @@ const LimitsSection = ({
                         updated[idx].existingAmount = e.target.value;
                         setLimits(updated);
                       }}
-                      style={{ width: '100%', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, padding: '0.25rem' }}
+                      style={{ width: '100%', borderRadius: '6px', border: `1px solid ${theme.palette.grey[300]}`, padding: '0.25rem', fontFamily: theme.typography.fontFamily }}
                     />
                   </td>
-                  <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>
+                  <td style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}` }}>
                     <input
                       type="number"
                       value={limit.existingTenor}
@@ -81,10 +95,10 @@ const LimitsSection = ({
                         updated[idx].existingTenor = e.target.value;
                         setLimits(updated);
                       }}
-                      style={{ width: '100%', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, padding: '0.25rem' }}
+                      style={{ width: '100%', borderRadius: '6px', border: `1px solid ${theme.palette.grey[300]}`, padding: '0.25rem', fontFamily: theme.typography.fontFamily }}
                     />
                   </td>
-                  <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>
+                  <td style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}` }}>
                     <input
                       type="number"
                       value={limit.proposedAmount}
@@ -93,10 +107,10 @@ const LimitsSection = ({
                         updated[idx].proposedAmount = e.target.value;
                         setLimits(updated);
                       }}
-                      style={{ width: '100%', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, padding: '0.25rem' }}
+                      style={{ width: '100%', borderRadius: '6px', border: `1px solid ${theme.palette.grey[300]}`, padding: '0.25rem', fontFamily: theme.typography.fontFamily }}
                     />
                   </td>
-                  <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>
+                  <td style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}` }}>
                     <input
                       type="number"
                       value={limit.proposedTenor}
@@ -105,10 +119,10 @@ const LimitsSection = ({
                         updated[idx].proposedTenor = e.target.value;
                         setLimits(updated);
                       }}
-                      style={{ width: '100%', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, padding: '0.25rem' }}
+                      style={{ width: '100%', borderRadius: '6px', border: `1px solid ${theme.palette.grey[300]}`, padding: '0.25rem', fontFamily: theme.typography.fontFamily }}
                     />
                   </td>
-                  <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}` }}>
+                  <td style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}` }}>
                     <input
                       type="text"
                       value={limit.comments || ''}
@@ -117,15 +131,15 @@ const LimitsSection = ({
                         updated[idx].comments = e.target.value;
                         setLimits(updated);
                       }}
-                      style={{ width: '100%', borderRadius: '0.375rem', border: `1px solid ${colors.neutral400}`, padding: '0.25rem' }}
+                      style={{ width: '100%', borderRadius: '6px', border: `1px solid ${theme.palette.grey[300]}`, padding: '0.25rem', fontFamily: theme.typography.fontFamily }}
                     />
                   </td>
-                  <td style={{ padding: '0.5rem', border: `1px solid ${colors.neutral300}`, textAlign: 'center' }}>
+                  <td style={{ padding: '0.5rem', border: `1px solid ${theme.palette.grey[200]}`, textAlign: 'center' }}>
                     <button
                       type="button"
                       onClick={() => removeLimit(limit.id)}
                       disabled={limits.length === 1}
-                      style={{ background: 'none', border: 'none', color: colors.icbcRed, cursor: limits.length === 1 ? 'not-allowed' : 'pointer', fontSize: '1.1rem' }}
+                      style={{ background: 'none', border: 'none', color: theme.palette.secondary.main, cursor: limits.length === 1 ? 'not-allowed' : 'pointer', fontSize: '1.1rem', fontFamily: theme.typography.fontFamily }}
                       title="Remove row"
                     >
                       ✕
@@ -139,7 +153,7 @@ const LimitsSection = ({
         <button
           type="button"
           onClick={addLimit}
-          style={{ backgroundColor: colors.blueLight, color: colors.standardBankBlue, border: `1px solid ${colors.standardBankBlue}`, borderRadius: '0.375rem', padding: '0.4rem 1.2rem', fontWeight: '500', cursor: 'pointer', marginTop: '0.5rem' }}
+          style={{ backgroundColor: theme.palette.primary.light, color: theme.palette.primary.main, border: `1px solid ${theme.palette.primary.main}`, borderRadius: '6px', padding: '0.4rem 1.2rem', fontWeight: '500', cursor: 'pointer', marginTop: '0.5rem', fontFamily: theme.typography.fontFamily }}
           disabled={loadingLimitTypes || !!limitTypesError}
         >
           + Add Row
@@ -156,9 +170,18 @@ const LimitsSection = ({
             ]}
             value={countryRiskLimitAvailable}
             onChange={(e) => setCountryRiskLimitAvailable(e.target.value)}
-            colors={colors}
           />
-          <div></div> {/* Empty cell for grid alignment */}
+          <FormField 
+            label="KYC Approval obtained" 
+            type="select"
+            options={[
+              { value: '', label: 'Select option' },
+              { value: 'yes', label: 'Yes' },
+              { value: 'no', label: 'No' }
+            ]}
+            value={kycApprovalStatus}
+            onChange={(e) => setKycApprovalStatus(e.target.value)}
+          />
         </div>
         
         {/* Detailed comments on limits */}
@@ -169,7 +192,6 @@ const LimitsSection = ({
             placeholder="Enter detailed comments on limits required"
             value={detailedCommentsOnLimits}
             onChange={(e) => setDetailedCommentsOnLimits(e.target.value)}
-            colors={colors}
           />
         </div>
       </div>

@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from workflow_engine.models import WorkflowDefinition, State, Transition
+from workflow_engine.models import Workflow, State, Transition
 
 class Command(BaseCommand):
     help = 'Prints current workflow definitions from the database for comparison.'
@@ -7,7 +7,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Current Workflow Definitions in Database:")
         
-        workflows = WorkflowDefinition.objects.all()
+        workflows = Workflow.objects.all()
         if not workflows.exists():
             self.stdout.write("No workflow definitions found in the database.")
             return

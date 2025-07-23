@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Tabs, Tab } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { fetchUsersByRole, fetchCreditRequest, performWorkflowTransition, fetchCounterpartyList, fetchLimitTypes, submitCreditRequest, updateCreditRequest } from '../../services/api'; // Combined imports
 
 import FormPageWrapper from '../common/FormPageWrapper'; // Import the new wrapper
-import FormWizardNav from './FormWizardNav';
-import FormSection from './FormSection';
+import FormSection from '../common/FormSection';
 // WorkflowStatus and WorkflowActions are now part of FormPageWrapper, direct import might not be needed here unless used elsewhere
 import FormField from '../common/FormField';
+import CreditApplicationDetailsSection from '../common/CreditApplicationDetailsSection';
 import CounterpartySection from './CounterpartySection';
 import LimitsSection from './LimitsSection';
 import RelationshipSection from './RelationshipSection';
@@ -29,10 +31,12 @@ const sections = [
 const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWorkflowStep = 1, editMode }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
 
   // Workflow state logic
   const [currentState, setCurrentState] = useState('');
   const [allowedTransitions, setAllowedTransitions] = useState([]);
+  const [isNewForm, setIsNewForm] = useState(true);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +50,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
   const [requestNumber, setRequestNumber] = useState('');
 
   // Dynamic form title, depends on requestNumber being populated
-  const formTitle = id ? `Edit Credit Application ${requestNumber || ''}`.trim() : 'New Credit Application';
+  const formTitle = id ? `Credit Application ${requestNumber || ''}`.trim() : 'New Credit Application';
 
   // Counterparty information
   const [counterparties, setCounterparties] = useState([]);
@@ -68,6 +72,7 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
   const [loadingLimitTypes, setLoadingLimitTypes] = useState(true);
   const [limitTypesError, setLimitTypesError] = useState(null);
   const [countryRiskLimitAvailable, setCountryRiskLimitAvailable] = useState('');
+  const [kycApprovalStatus, setKycApprovalStatus] = useState('');
   const [detailedCommentsOnLimits, setDetailedCommentsOnLimits] = useState('');
 
   // Relationship information
@@ -102,183 +107,199 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
   // Document Uploads
   const [documents, setDocuments] = useState([]);
 
-  // Wizard Navigation
+  // Tab Navigation
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  
-  // Create refs at the top level
-  const section0Ref = useRef(null);
-  const section1Ref = useRef(null);
-  const section2Ref = useRef(null);
-  const section3Ref = useRef(null);
-  const section4Ref = useRef(null);
-  const section5Ref = useRef(null);
-  
-  // Combine refs into an array for easier access
-  const sectionRefs = [section0Ref, section1Ref, section2Ref, section3Ref, section4Ref, section5Ref];
 
   const handleNavClick = (sectionId, index) => {
     setCurrentSectionIndex(index);
-    sectionRefs[index].current.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
   };
 
-  // Define colors for reuse
-  const colors = {
-    primary: '#007bff', neutral100: '#f8f9fa', neutral200: '#e9ecef', neutral300: '#dee2e6',
-    neutral400: '#ced4da', neutral500: '#adb5bd', neutral600: '#6c757d', neutral700: '#495057',
-    neutral800: '#343a40', neutral900: '#212529',
-  };
 
   const buildPayload = () => {
-    // Convert boolean-like strings to actual booleans
+    // Helper to convert 'Yes'/'No' strings to boolean true/false
     const booleanize = (value) => {
-      if (value === 'true') return true;
-      if (value === 'false') return false;
-      return value;
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') {
+        if (value.toLowerCase() === 'yes') return true;
+        if (value.toLowerCase() === 'no') return false;
+      }
+      return null; // Or undefined, depending on backend requirements
     };
 
-    // Format date fields properly
-    const formatDate = (dateString) => {
-      return dateString ? dateString : null;
+    // Helper for DateTimeFields (ISO string)
+    const formatDateTime = (date) => {
+      return date ? new Date(date).toISOString() : null;
     };
 
-    // Create payload with direct fields for CreditApplication
+    // Helper for DateFields (YYYY-MM-DD)
+    const formatDateOnly = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    // Construct the payload using FLAT PREFIXED FIELDS to match backend expectation
     const payload = {
-      title: requestTitle || 'New Credit Application',
-      counterparty: selectedCounterparty || null,
-      priority: priority || 'Medium',
-      required_by_date: formatDate(requiredByDate),
+      // CreditApplication fields (no prefix)
+      title: requestTitle,
+      counterparty_id: selectedCounterparty,
+      priority: priority,
+      required_by_date: formatDateOnly(requiredByDate),
+      relationship_manager: relationshipManager,  // Changed from relationship_manager_id
       
-      // Add credit_request_form object with direct fields matching the model
-      credit_request_form: {
-        form_started_at: formatDate(dateFormStarted),
-        form_completed_at: formatDate(dateFormCompleted),
-        counterparty_cif: counterpartyCIF || null,
-        guarantor_name: selectedGuarantorName || null,
-        guarantor_cif: guarantorCIF || null,
-        revenue_last_12m: revenueLast12Months || null,
-        revenue_projected_12m: revenueProjected12Months || null,
-        projected_rorwa_percent: projectedRorwa || null,
-        country_risk_limit_available: booleanize(countryRiskLimitAvailable),
-        relationship_comments: relationshipComments || '',
-        most_senior_contact: mostSeniorContact || '',
-        last_client_visit_date: formatDate(lastClientVisitDate),
-        legal_documentation: legalDocumentType || '',
-        positive_legal_opinion: booleanize(positiveLegalOpinion),
-        financial_statements_received: booleanize(financialStatementsReceived),
-        interim_statements_available: booleanize(interimStatementsAvailable),
-        account_executive: accountExecutive || '',
-        senior_business_sponsor_id: selectedBusinessSponsor || null,
-        second_business_sponsor_id: selectedSecondBusinessSponsor || null,
-        high_priority_justification: justificationForHighPriority || '',
-        // Add relationship_manager_id to be used by the backend
-        relationship_manager_id: relationshipManager || null,
-        detailed_limit_comments: detailedCommentsOnLimits || ''
-      },
+      // CreditRequestForm fields (prefixed with 'credit_request_form_' - the WORKING pattern)
+      credit_request_form_form_started_at: formatDateTime(dateFormStarted),
+      credit_request_form_form_completed_at: formatDateTime(dateFormCompleted),
+      credit_request_form_counterparty_cif: counterpartyCIF,
+      credit_request_form_counterparty_name: counterpartyName,
+      credit_request_form_guarantor_cif: guarantorCIF,
+      credit_request_form_guarantor_name: selectedGuarantorName || guarantorName,
+      credit_request_form_country_risk_limit_available: booleanize(countryRiskLimitAvailable),
+      credit_request_form_kyc_approval_status: booleanize(kycApprovalStatus),
+      credit_request_form_detailed_limit_comments: detailedCommentsOnLimits,
+      credit_request_form_revenue_last_12m: revenueLast12Months,
+      credit_request_form_revenue_projected_12m: revenueProjected12Months,
+      credit_request_form_projected_rorwa_percent: projectedRorwa,
+      credit_request_form_most_senior_contact: mostSeniorContact,
+      credit_request_form_last_client_visit_date: formatDateOnly(lastClientVisitDate),
+      credit_request_form_relationship_comments: relationshipComments,
+      credit_request_form_legal_documentation: legalDocumentType,
+      credit_request_form_positive_legal_opinion: booleanize(positiveLegalOpinion),
+      credit_request_form_financial_statements_received: booleanize(financialStatementsReceived),
+      credit_request_form_interim_statements_available: booleanize(interimStatementsAvailable),
+      credit_request_form_account_executive: accountExecutive,
+      credit_request_form_senior_business_sponsor_id: selectedBusinessSponsor,
+      credit_request_form_second_business_sponsor_id: selectedSecondBusinessSponsor,
+      credit_request_form_high_priority_justification: justificationForHighPriority,
       
-      // Limit requests remain the same
-      limit_requests: limits
-        .filter(l => l.type && (l.proposedAmount || l.existingAmount))
-        .map(l => ({
-          limit_type_id: l.type.id,
-          existing_amount: l.existingAmount || null,
-          existing_tenor: l.existingTenor || null,
-          proposed_amount: l.proposedAmount || null,
-          proposed_tenor: l.proposedTenor || null,
-          comments: l.comments || '',
-        })),
+      // Limit requests array (handled separately by backend)
+      limit_requests: limits.map(limit => ({
+        limit_type_id: typeof limit.type === 'object' && limit.type?.id 
+          ? limit.type.id 
+          : typeof limit.type === 'string' 
+            ? limit.type 
+            : limit.limit_type_id || null,
+        existing_amount: limit.existingAmount,
+        existing_tenor: limit.existingTenor,
+        proposed_amount: limit.proposedAmount,
+        proposed_tenor: limit.proposedTenor,
+        comments: limit.comments,
+      })),
     };
 
     return payload;
   };
 
-  const handleSaveDraft = async () => {
-    setTransitionLoading(true);
-    setTransitionError(null);
-    const payload = buildPayload();
+  const handleSave = async () => {
     try {
-      // First save the form data
-      const savedApplication = id ? await updateCreditRequest(id, payload) : await submitCreditRequest(payload);
-      console.log('Draft saved successfully', savedApplication);
+      setTransitionLoading(true);
+      setTransitionError(null); // Clear any previous errors
       
-      // Then trigger the workflow transition if we have a workflow instance
-      // This follows the pattern used in other forms (BusinessSponsorshipForm, LegalReviewForm, etc.)
-      if (savedApplication.credit_request_form && savedApplication.credit_request_form.workflow_instance) {
-        const workflowInstanceId = savedApplication.credit_request_form.workflow_instance.id;
-        
-        // Find the "Save as Draft" transition dynamically from allowed transitions
-        const draftTransition = savedApplication.available_transitions?.find(t => 
-          t.name.toLowerCase().includes('draft') || 
-          t.description?.toLowerCase().includes('draft')
-        );
-        
-        if (draftTransition) {
-          console.log(`Triggering ${draftTransition.code} (Save as Draft) transition on workflow instance:`, workflowInstanceId);
-          
-          try {
-            await performWorkflowTransition(
-              workflowInstanceId,
-              draftTransition.code,
-              'Saved as draft by user'
-            );
-            console.log(`Workflow transition ${draftTransition.code} completed successfully`);
-          } catch (transitionError) {
-            console.warn('Non-critical error during workflow transition:', transitionError);
-            // We don't want to fail the entire save operation if just the transition fails
-            // The data is already saved at this point
-          }
-        } else {
-          console.warn('No draft transition found in available transitions:', savedApplication.available_transitions);
-        }
-      } else {
-        console.warn('No workflow instance available for CreditRequestForm, skipping transition');
+      // Validate required fields
+      if (!selectedCounterparty) {
+        setTransitionError('Please select a counterparty');
+        setTransitionLoading(false); // Stop loading
+        return;
       }
       
-      navigate('/');
+      const payload = buildPayload();
+      
+      console.log('Submitting payload:', JSON.stringify(payload, null, 2));
+      console.log('Guarantor name values:', {
+        selectedGuarantorName,
+        guarantorName,
+        final: selectedGuarantorName || guarantorName
+      });
+      console.log('Relationship manager value:', {
+        relationshipManager,
+        inPayload: payload.relationship_manager
+      });
+
+      if (id) {
+        // We are updating an existing application
+        await updateCreditRequest(id, payload);
+        console.log('Updated application successfully, navigating to dashboard...');
+        // Optionally, you could show a success message and stay on the page
+        // For now, we'll navigate to the dashboard as before.
+        navigate('/');
+      } else {
+        // We are creating a new application
+        const newApplication = await submitCreditRequest(payload);
+        console.log('Created new application:', newApplication);
+        console.log('New application ID:', newApplication.id);
+        console.log('New application reference:', newApplication.reference_number);
+        // After creating, navigate to the dashboard
+        navigate('/');
+      }
     } catch (error) {
-      let detailedError = 'An unexpected error occurred while saving.';
-      if (error.response) {
-        console.error('Backend error response data:', error.response.data);
-        console.error('Backend error response status:', error.response.status);
-        console.error('Backend error response headers:', error.response.headers);
-        if (error.response.data) {
-          const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
-          detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
+      console.error('Error saving form:', error);
+      
+      // Handle validation errors from the API
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (typeof errorData === 'object') {
+          // Format validation errors for display
+          const errorMessages = [];
+          Object.keys(errorData).forEach(key => {
+            const fieldErrors = errorData[key];
+            if (Array.isArray(fieldErrors)) {
+              errorMessages.push(`${key}: ${fieldErrors.join(', ')}`);
+            } else if (typeof fieldErrors === 'object') {
+              // Handle nested errors
+              Object.keys(fieldErrors).forEach(nestedKey => {
+                const nestedErrors = fieldErrors[nestedKey];
+                errorMessages.push(`${key}.${nestedKey}: ${Array.isArray(nestedErrors) ? nestedErrors.join(', ') : nestedErrors}`);
+              });
+            } else {
+              errorMessages.push(`${key}: ${fieldErrors}`);
+            }
+          });
+          setTransitionError(errorMessages.join('\n'));
         } else {
-          detailedError = `Backend Error: (Status: ${error.response.status}) - No additional data.`;
+          setTransitionError(errorData.detail || JSON.stringify(errorData));
         }
-      } else if (error.request) {
-        console.error('Error saving draft: No response received:', error.request);
-        detailedError = 'Error saving draft: No response received from server.';
       } else {
-        console.error('Error saving draft:', error.message);
-        detailedError = `Error: ${error.message}`;
+        setTransitionError(error.message || 'Failed to save form');
       }
-      setTransitionError(detailedError);
     } finally {
       setTransitionLoading(false);
     }
   };
 
-  const handleTransition = async (transitionCode, comments) => {
-    if (!id) {
-      setTransitionError('Cannot perform transitions on an unsaved application.');
+  const handleTransition = async (transition, comments) => {
+    if (!workflowInstanceId) {
+      setTransitionError('Cannot perform transitions - workflow instance not found.');
       return;
     }
+    
     setTransitionLoading(true);
     setTransitionError(null);
+    
     try {
-      const result = await performWorkflowTransition(workflowInstanceId, transitionCode, comments);
-      console.log('Transition successful', result);
-      setRefetchTrigger(prev => prev + 1); // Trigger re-fetch
+      // First save form data
+      const payload = buildPayload();
+      const savedApplication = id ? await updateCreditRequest(id, payload) : await submitCreditRequest(payload);
+      console.log('Form data saved successfully', savedApplication);
+      
+      // Then perform transition
+      const result = await performWorkflowTransition(workflowInstanceId, { transition_code: transition.code, comments });
+      
+      // Navigate on success if metadata specifies a path
+      const navigatePath = transition.metadata?.ui_behavior?.navigate_on_success;
+      if (navigatePath) {
+        navigate(navigatePath);
+      } else if (transition.code === 'CR_TR_1' || transition.name.toLowerCase().includes('save')) {
+        // For Save as Draft transitions, navigate back to the hub
+        navigate(`/credit-requests/${id}/details`);
+      } else {
+        // Refresh data to get new state
+        setRefetchTrigger(prev => prev + 1);
+      }
     } catch (error) {
       let detailedError = 'An unexpected error occurred during transition.';
       if (error.response) {
         console.error('Backend error response data:', error.response.data);
         console.error('Backend error response status:', error.response.status);
-        console.error('Backend error response headers:', error.response.headers);
         if (error.response.data) {
           const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
           detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
@@ -340,18 +361,33 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
           setRequestTitle(data.title || '');
           setRequestNumber(data.reference_number || '');
           setPriority(data.priority || 'Medium');
-          setSelectedCounterparty(data.counterparty || '');
-          setWorkflowInstanceId(data.workflow_instance?.id || null);
+          // Handle counterparty - it might be an object or just an ID
+          if (data.counterparty) {
+            if (typeof data.counterparty === 'object' && data.counterparty.id) {
+              setSelectedCounterparty(data.counterparty.id);
+            } else {
+              setSelectedCounterparty(data.counterparty);
+            }
+          } else {
+            setSelectedCounterparty('');
+          }
           setRequiredByDate(data.required_by_date || '');
 
-          // State and transitions from workflow instance
-          if (data.workflow_instance) {
-            setCurrentState(data.workflow_state_name || 'Draft');
-            setAllowedTransitions(data.available_transitions || []);
-          }
-
-          // Credit Request Form fields - now direct from credit_request_form object
+          // FIXED: Use Credit Request Form sub-process workflow instead of parent
           const crf = data.credit_request_form || {};
+          
+          // Use sub-process workflow state and transitions
+          if (crf.workflow_instance) {
+            setWorkflowInstanceId(crf.workflow_instance.id);
+            setCurrentState(crf.workflow_instance.current_state || 'Draft');
+          }
+          
+          // Use available_transitions from Credit Request Form serializer
+          console.log('Available transitions from API:', crf.available_transitions);
+          setAllowedTransitions(crf.available_transitions || []);
+          console.log('Setting allowedTransitions state to:', crf.available_transitions || []);
+
+          // Credit Request Form fields - crf already defined above
           console.log('Credit Request Form data:', crf);
           
           setDateFormStarted(crf.form_started_at || new Date().toISOString().slice(0, 16));
@@ -364,10 +400,25 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
           setSelectedGuarantorName(crf.guarantor_name || '');
           setGuarantorCIF(crf.guarantor_cif || '');
           
+          // Try to find the guarantor ID based on the name
+          if (crf.guarantor_name && counterparties.length > 0) {
+            const guarantor = counterparties.find(cp => cp.name === crf.guarantor_name);
+            if (guarantor) {
+              setSelectedGuarantor(guarantor.id);
+            }
+          }
+          
+          console.log('Loading guarantor data:', {
+            guarantor_name_from_api: crf.guarantor_name,
+            guarantor_cif_from_api: crf.guarantor_cif
+          });
+          
           // Convert booleans to strings for form controls
           // For select dropdowns, we need 'yes'/'no' strings
           setCountryRiskLimitAvailable(crf.country_risk_limit_available === true ? 'yes' : 
                                       crf.country_risk_limit_available === false ? 'no' : '');
+          setKycApprovalStatus(crf.kyc_approval_status === true ? 'yes' : 
+                              crf.kyc_approval_status === false ? 'no' : '');
           
           // For positive legal opinion, convert boolean to 'Yes'/'No' string
           setPositiveLegalOpinion(crf.positive_legal_opinion === true ? 'Yes' : 
@@ -399,8 +450,20 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
           // Detailed comments - use the denormalized field from credit_request_form
           setDetailedCommentsOnLimits(crf.detailed_limit_comments || '');
           
-          // Set relationship manager from the denormalized field or from the ID
-          setRelationshipManager(data.relationship_manager || crf.relationship_manager_id || '');
+          // Set relationship manager from the main application data
+          // relationship_manager can be either an ID or an object
+          console.log('Loading relationship manager:', {
+            from_data: data.relationship_manager,
+            type: typeof data.relationship_manager
+          });
+          
+          if (data.relationship_manager) {
+            if (typeof data.relationship_manager === 'object' && data.relationship_manager.id) {
+              setRelationshipManager(data.relationship_manager.id);
+            } else {
+              setRelationshipManager(data.relationship_manager);
+            }
+          }
 
           // Limits
           if (data.limit_requests && data.limit_requests.length > 0) {
@@ -436,9 +499,10 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
     }
   }, [id, refetchTrigger, limitTypes]); // Re-run if limitTypes are loaded after initial render
 
-  // Reset transition error on ID change
+  // Reset transition error and set isNewForm flag on ID change
   useEffect(() => {
     setTransitionError(null);
+    setIsNewForm(!id);
   }, [id]);
 
   const addLimit = () => setLimits([...limits, { id: limits.length + 1, type: '', existingAmount: '', existingTenor: '', proposedAmount: '', proposedTenor: '', comments: '' }]);
@@ -449,94 +513,137 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
   return (
     <FormPageWrapper
       title={formTitle}
-      workflowStatus={currentState}
-      allowedTransitions={id ? allowedTransitions : []} // No transitions on new form
-      onTransition={handleTransition}
-      isLoading={transitionLoading}
-      error={transitionError}
-      workflowInstanceId={workflowInstanceId}
+      workflowStatusProps={{
+        currentStep: mainWorkflowStep,
+        workflowType: "CREDIT_REQUEST",
+        currentWorkflowState: { name: currentState },
+      }}
+      workflowActionsProps={{
+        key: id || 'new_form_workflow_actions',
+        allowedTransitions,
+        handleTransition,
+        transitionLoading,
+        transitionError,
+        isNewForm,
+        handleSubmit: handleSave, // Pass handleSave for new forms
+      }}
     >
-            <div style={{ flex: 1, padding: '2rem', backgroundColor: colors.neutral100, overflowY: 'auto' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          <FormWizardNav
-            sections={sections}
-            onNavClick={handleNavClick}
-            currentSectionIndex={currentSectionIndex}
-            colors={colors}
+      <div style={{ flex: 1, padding: '0', backgroundColor: theme.palette.background.default, overflowY: 'auto' }}>
+        <div style={{ padding: '1.5rem', minHeight: '100vh' }}>
+          {/* Credit Application Details */}
+          <CreditApplicationDetailsSection
+            requestNumber={requestNumber}
+            requestTitle={requestTitle}
+            counterpartyName={counterpartyName}
+            priority={priority}
+            requiredByDate={requiredByDate}
           />
           
-          <div style={{ display: 'flex', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
+          <Tabs
+            value={currentSectionIndex}
+            onChange={(event, newValue) => handleNavClick(sections[newValue].id, newValue)}
+            variant="fullWidth"
+            sx={{
+              borderBottom: `1px solid ${theme.palette.grey[200]}`,
+              marginBottom: '1.5rem',
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: theme.palette.grey[500],
+                padding: '16px',
+                '&.Mui-selected': {
+                  color: theme.palette.primary.main,
+                },
+                '&:hover': {
+                  color: theme.palette.grey[600],
+                },
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: theme.palette.primary.main,
+                height: 2,
+              },
+            }}
+          >
+            {sections.map((section, index) => (
+              <Tab key={section.id} label={section.title} />
+            ))}
+          </Tabs>
+
+          {/* Application Header Fields */}
+          <div style={{ display: 'flex', gap: theme.spacing(6), marginTop: theme.spacing(4), marginBottom: theme.spacing(8) }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Request Title</label>
-              <input
+              <FormField
+                label="Request Title"
                 type="text"
                 value={requestTitle}
                 onChange={(e) => setRequestTitle(e.target.value)}
                 placeholder="Enter a title for this credit request"
                 required
                 disabled={!editMode}
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #ccc' }}
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Request Number</label>
-              <input
+              <FormField
+                label="Request Number"
                 type="text"
                 value={requestNumber}
                 disabled
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #ccc', backgroundColor: '#e9ecef' }}
+                helperText="Auto-generated after saving"
               />
             </div>
           </div>
 
-          <div ref={sectionRefs[0]}></div>
-          <FormSection title="Counterparty Information" description="Details about the main counterparty and any guarantors." colors={colors}>
-            <CounterpartySection {...{counterparties, selectedCounterparty, setSelectedCounterparty, counterpartyCIF, setCounterpartyCIF, selectedGuarantor, setSelectedGuarantor, selectedGuarantorName, setSelectedGuarantorName, guarantorCIF, setGuarantorCIF, counterpartyName, guarantorName, loadingCounterparties, counterpartyError, colors, disabled: !editMode}} />
-          </FormSection>
+          {/* Tab Content */}
+          {currentSectionIndex === 0 && (
+            <div>
+              <FormSection title="Counterparty Information" description="Details about the main counterparty and any guarantors.">
+                <CounterpartySection {...{counterparties, selectedCounterparty, setSelectedCounterparty, counterpartyCIF, setCounterpartyCIF, selectedGuarantor, setSelectedGuarantor, selectedGuarantorName, setSelectedGuarantorName, guarantorCIF, setGuarantorCIF, counterpartyName, setCounterpartyName, guarantorName, loadingCounterparties, counterpartyError, disabled: !editMode}} />
+              </FormSection>
+            </div>
+          )}
 
-          <div ref={sectionRefs[1]}></div>
-          <FormSection title="Limits Information" description="Details about existing and proposed limits." colors={colors}>
-            <LimitsSection {...{limits, setLimits, limitTypes, loadingLimitTypes, limitTypesError, addLimit, removeLimit, countryRiskLimitAvailable, setCountryRiskLimitAvailable, detailedCommentsOnLimits, setDetailedCommentsOnLimits, colors, disabled: !editMode}} />
-          </FormSection>
+          {currentSectionIndex === 1 && (
+            <div>
+              <FormSection title="Limits Information" description="Details about existing and proposed limits.">
+                <LimitsSection {...{limits, setLimits, limitTypes, loadingLimitTypes, limitTypesError, addLimit, removeLimit, countryRiskLimitAvailable, setCountryRiskLimitAvailable, kycApprovalStatus, setKycApprovalStatus, detailedCommentsOnLimits, setDetailedCommentsOnLimits, disabled: !editMode}} />
+              </FormSection>
+            </div>
+          )}
 
-          <div ref={sectionRefs[2]}></div>
-          <FormSection title="Relationship Information" description="Information about the client relationship." colors={colors}>
-            <RelationshipSection {...{revenueLast12Months, setRevenueLast12Months, revenueProjected12Months, setRevenueProjected12Months, projectedRorwa, setProjectedRorwa, mostSeniorContact, setMostSeniorContact, lastClientVisitDate, setLastClientVisitDate, relationshipComments, setRelationshipComments, colors, disabled: !editMode}} />
-          </FormSection>
+          {currentSectionIndex === 2 && (
+            <div>
+              <FormSection title="Relationship Information" description="Information about the client relationship.">
+                <RelationshipSection {...{revenueLast12Months, setRevenueLast12Months, revenueProjected12Months, setRevenueProjected12Months, projectedRorwa, setProjectedRorwa, mostSeniorContact, setMostSeniorContact, lastClientVisitDate, setLastClientVisitDate, relationshipComments, setRelationshipComments, disabled: !editMode}} />
+              </FormSection>
+            </div>
+          )}
 
-          <div ref={sectionRefs[3]}></div>
-          <FormSection title="Legal & Financial Documentation" description="Information about the legal and financial documentation." colors={colors}>
-            <LegalSection {...{legalDocumentType, setLegalDocumentType, positiveLegalOpinion, setPositiveLegalOpinion, financialStatementsReceived, setFinancialStatementsReceived, interimStatementsAvailable, setInterimStatementsAvailable, colors, disabled: !editMode}} />
-          </FormSection>
+          {currentSectionIndex === 3 && (
+            <div>
+              <FormSection title="Legal & Financial Documentation" description="Information about the legal and financial documentation.">
+                <LegalSection {...{legalDocumentType, setLegalDocumentType, positiveLegalOpinion, setPositiveLegalOpinion, financialStatementsReceived, setFinancialStatementsReceived, interimStatementsAvailable, setInterimStatementsAvailable, disabled: !editMode}} />
+              </FormSection>
+            </div>
+          )}
           
-          <div ref={sectionRefs[4]}></div>
-          <FormSection title="Prioritisation & Business Sponsorship" description="Information about the prioritisation and business sponsorship." colors={colors}>
-            <PrioritisationSection {...{priority, setPriority, requiredByDate, setRequiredByDate, accountExecutive, setAccountExecutive, relationshipManager, setRelationshipManager, relationshipManagersList, loadingRelationshipManagers, relationshipManagerError, businessSponsors, loadingBusinessSponsors, businessSponsorError, selectedBusinessSponsor, setSelectedBusinessSponsor, selectedSecondBusinessSponsor, setSelectedSecondBusinessSponsor, justificationForHighPriority, setJustificationForHighPriority, colors, disabled: !editMode}} />
-          </FormSection>
+          {currentSectionIndex === 4 && (
+            <div>
+              <FormSection title="Prioritisation & Business Sponsorship" description="Information about the prioritisation and business sponsorship.">
+                <PrioritisationSection {...{priority, setPriority, requiredByDate, setRequiredByDate, accountExecutive, setAccountExecutive, relationshipManager, setRelationshipManager, relationshipManagersList, loadingRelationshipManagers, relationshipManagerError, businessSponsors, loadingBusinessSponsors, businessSponsorError, selectedBusinessSponsor, setSelectedBusinessSponsor, selectedSecondBusinessSponsor, setSelectedSecondBusinessSponsor, justificationForHighPriority, setJustificationForHighPriority, disabled: !editMode}} />
+              </FormSection>
+            </div>
+          )}
           
-          <div ref={sectionRefs[5]}></div> 
-          <FormSection title="Document Uploads" description="Upload supporting documents." colors={colors}>
-            <DocumentsSection {...{colors, documents, setDocuments, disabled: !editMode, creditApplicationId: id}} />
-          </FormSection>
+          {currentSectionIndex === 5 && (
+            <div>
+              <FormSection title="Document Uploads" description="Upload supporting documents.">
+                <DocumentsSection {...{documents, setDocuments, disabled: !editMode, creditApplicationId: id}} />
+              </FormSection>
+            </div>
+          )}
 
-          {/* Manual Save Button Area */}
-          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              onClick={handleSaveDraft}
-              disabled={transitionLoading}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: colors.neutral600,
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: transitionLoading ? 'not-allowed' : 'pointer',
-                opacity: transitionLoading ? 0.6 : 1,
-              }}
-            >
-              {transitionLoading ? 'Saving...' : 'Save as Draft'}
-            </button>
-          </div>
+          {/* Workflow Actions are now handled by FormPageWrapper */}
         </div>
       </div>
     </FormPageWrapper>

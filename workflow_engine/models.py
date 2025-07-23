@@ -7,7 +7,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-class WorkflowDefinition(models.Model):
+class Workflow(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=100, unique=True)
     name = models.CharField(max_length=255)
@@ -19,7 +19,7 @@ class WorkflowDefinition(models.Model):
 
 class State(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workflow_definition = models.ForeignKey(WorkflowDefinition, on_delete=models.CASCADE, related_name='states')
+    workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='states')
     code = models.CharField(max_length=100)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -28,14 +28,14 @@ class State(models.Model):
     metadata = models.JSONField(blank=True, null=True)
 
     class Meta:
-        unique_together = ('workflow_definition', 'code')
+        unique_together = ('workflow', 'code')
 
     def __str__(self):
-        return f"{self.workflow_definition.code}: {self.name}"
+        return f"{self.workflow.code}: {self.name}"
 
 class Transition(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workflow_definition = models.ForeignKey(WorkflowDefinition, on_delete=models.CASCADE, related_name='transitions')
+    workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='transitions')
     code = models.CharField(max_length=100)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -47,14 +47,14 @@ class Transition(models.Model):
     metadata = models.JSONField(blank=True, null=True)
 
     class Meta:
-        unique_together = ('workflow_definition', 'code')
+        unique_together = ('workflow', 'code')
 
     def __str__(self):
-        return f"{self.workflow_definition.code}: {self.name} ({self.from_state.code} → {self.to_state.code})"
+        return f"{self.workflow.code}: {self.name} ({self.from_state.code} → {self.to_state.code})"
 
 class WorkflowInstance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workflow_definition = models.ForeignKey(WorkflowDefinition, on_delete=models.CASCADE, related_name='instances')
+    workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='instances')
     current_state = models.ForeignKey(State, on_delete=models.CASCADE, related_name='instances')
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.UUIDField()
@@ -63,12 +63,12 @@ class WorkflowInstance(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Instance of {self.workflow_definition.code} at state {self.current_state.code}"
+        return f"Instance of {self.workflow.code} at state {self.current_state.code}"
 
     def get_allowed_transitions(self, user):
         from_state = self.current_state
         # Fetch all transitions from the current state
-        possible_transitions = self.workflow_definition.transitions.filter(from_state=from_state)
+        possible_transitions = self.workflow.transitions.filter(from_state=from_state)
         
         allowed = []
         user_role_name = getattr(user.role, "name", None)
@@ -86,46 +86,68 @@ class WorkflowInstance(models.Model):
                 if user_role_norm in allowed_roles_norm:
                     role_permits = True
             
+            # Check DA-level authorization for approval transitions
+            da_permits = True
+            if (role_permits and 
+                user_role_name == 'Credit Analyst' and 
+                'approve' in t.code.lower() and 
+                self.content_type and 
+                self.content_type.model == 'creditapplication'):
+                try:
+                    from .da_authorization import can_user_approve_credit_application
+                    credit_app = self.content_object
+                    if credit_app:
+                        da_permits = can_user_approve_credit_application(user, credit_app)
+                except Exception as e:
+                    logger.error(f"Error checking DA authorization: {e}")
+                    da_permits = False
+            
             # Placeholder for checking additional conditions defined in t.conditions
             # For now, we assume other conditions are met or not yet implemented.
             # conditions_permit = self._check_custom_conditions(t, user) 
             conditions_permit = True 
 
-            if role_permits and conditions_permit:
+            if role_permits and conditions_permit and da_permits:
                 allowed.append(t)
                 
         return allowed
         
     def perform_transition(self, transition_code, user, comments='', system_context=None):
         """Perform a workflow transition.
-        
+
         Args:
             transition_code: The code of the transition to perform
             user: The user performing the transition
             comments: Optional comments about the transition
             system_context: Optional system context data
-            
+
         Returns:
             The updated workflow instance
-            
+
         Raises:
             ValueError: If the transition is not allowed
             PermissionError: If the user doesn't have permission to perform the transition
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         # Find the transition by code
         try:
-            transition = self.workflow_definition.transitions.get(
+            transition = self.workflow.transitions.get(
                 code=transition_code,
                 from_state=self.current_state
             )
         except Transition.DoesNotExist:
             raise ValueError(f"Transition '{transition_code}' is not valid from current state '{self.current_state.code}'")
-        
+
         # Check if user has permission to perform this transition
         allowed_transitions = self.get_allowed_transitions(user)
         if transition not in allowed_transitions:
-            raise PermissionError(f"User does not have permission to perform transition '{transition_code}'")
-        
+            # Allow system user to bypass this check if the role is in allowed_roles
+            allowed_role_codes = transition.allowed_roles or []
+            if not (user.username == 'system' and 'system' in allowed_role_codes) :
+                 raise PermissionError(f"User does not have permission to perform transition '{transition_code}'")
+
         # Create a log entry for this transition
         StateLog.objects.create(
             workflow_instance=self,
@@ -136,30 +158,52 @@ class WorkflowInstance(models.Model):
             comments=comments,
             system_context=system_context or {}
         )
-        
+
         # Update the current state
         old_state = self.current_state
         self.current_state = transition.to_state
         self.save(update_fields=['current_state', 'updated_at'])
-        
-        print(f"Workflow transition: {old_state.code} -> {self.current_state.code} via {transition_code}")
+
+        logger.info(f"Workflow transition: {old_state.code} -> {self.current_state.code} via {transition_code} for instance {self.id}")
 
         # Execute system action if defined for the transition
         if transition.system_action:
             from .actions import get_system_action_handler # Delayed import
-            import logging # Ensure logging is imported if not already
-            logger = logging.getLogger(__name__) # Ensure logger is defined
-            
             action_handler = get_system_action_handler(transition.system_action)
             if action_handler:
                 try:
                     logger.info(f"Executing system action: {transition.system_action} for instance {self.id}")
-                    action_handler(self, user, transition) # Pass instance, user, and transition object
+                    action_handler(self, user, transition)
                 except Exception as e_sys_action:
                     logger.error(f"Error executing system action '{transition.system_action}' for instance {self.id}: {e_sys_action}", exc_info=True)
             else:
                 logger.warning(f"No handler found for system action: {transition.system_action} for instance {self.id}")
+
+        # Auto-initialize forms for the new state if this is a CreditApplication workflow
+        try:
+            from django.contrib.contenttypes.models import ContentType
+            from credit_applications.models import CreditApplication
             
+            # Check if this workflow instance is attached to a CreditApplication
+            if self.content_type and self.content_type.model == 'creditapplication':
+                credit_app = self.content_object
+                if credit_app:
+                    try:
+                        from .utils import auto_initialize_forms_for_state
+                        initialized_forms = auto_initialize_forms_for_state(
+                            credit_app, 
+                            state_code=self.current_state.code
+                        )
+                        if initialized_forms:
+                            logger.info(f"Auto-initialized {len(initialized_forms)} forms for application {credit_app.id} in state {self.current_state.code}")
+                    except Exception as e:
+                        logger.error(f"Error auto-initializing forms for application after transition: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error during form auto-initialization check: {e}", exc_info=True)
+
+        # Parent workflow transitions are now handled by metadata-driven system actions
+        # See workflow_engine/actions.py for implementation
+
         return self
 
 class StateLog(models.Model):

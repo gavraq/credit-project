@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 
 const FormField = ({ 
   label, 
@@ -9,66 +10,96 @@ const FormField = ({
   value, 
   onChange, 
   name,
-  colors 
+  colors, // Keep for backward compatibility
+  disabled,
+  readOnly,
+  helperText,
+  rows = 3
 }) => {
-  // Define a fallback colors object
-  const defaultColors = {
-    neutral700: '#4A5568',
-    neutral400: '#CBD2D9',
-    icbcRed: '#e31937',
-    // Add any other colors used directly by FormField from the original colors object
-    // For now, these are the ones explicitly mentioned in the visible code for styling labels and borders.
+  const theme = useTheme();
+  
+  // Note: 'colors' prop kept for backward compatibility during transition,
+  // but all styling now uses theme colors per design brief
+  const inputStyles = {
+    marginTop: theme.spacing(1), // 4px
+    display: 'block',
+    width: '100%',
+    borderRadius: '6px',
+    border: `1px solid ${theme.palette.grey[300]}`, // Design brief: neutral400 -> CBD2D9
+    padding: theme.spacing(2), // 8px
+    fontSize: '0.875rem',
+    backgroundColor: theme.palette.background.paper,
+    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+    fontFamily: theme.typography.fontFamily,
+    color: theme.palette.text.primary,
+    transition: 'border-color 150ms ease-in-out, box-shadow 150ms ease-in-out',
+    '&:focus': {
+      outline: 'none',
+      borderColor: theme.palette.primary.main,
+      boxShadow: `0 0 0 2px rgba(12, 77, 162, 0.2)`,
+    },
+    '&:hover': {
+      borderColor: theme.palette.grey[400], // Design brief: neutral500 -> 9AA5B1
+    }
   };
 
-  const effectiveColors = colors || defaultColors;
   return (
-    <div style={{ marginBottom: '1rem' }}>
+    <div style={{ marginBottom: theme.spacing(4) }}>
       {label && (
         <label style={{ 
           display: 'block', 
-          marginBottom: '0.25rem', 
+          marginBottom: theme.spacing(1), // 4px 
           fontSize: '0.875rem', 
           fontWeight: '500', 
-          color: effectiveColors.neutral700 
+          color: theme.palette.grey[600], // Design brief: neutral700 -> 4A5568
+          fontFamily: theme.typography.fontFamily
         }}>
-          {label} {required && <span style={{ color: effectiveColors.icbcRed }}>*</span>}
+          {label} {required && <span style={{ color: theme.palette.secondary.main }}>*</span>}
         </label>
       )}
       
       {type === "textarea" ? (
         <textarea
           style={{ 
-            marginTop: '0.25rem',
-            display: 'block',
-            width: '100%',
-            borderRadius: '0.375rem',
-            border: `1px solid ${effectiveColors.neutral400}`,
-            padding: '0.5rem',
-            fontSize: '0.875rem',
-            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+            ...inputStyles,
+            minHeight: `${rows * 1.5 + 1}rem`,
+            resize: 'vertical'
           }}
           placeholder={placeholder}
-          rows={3}
+          rows={rows}
           value={value || ""}
+          disabled={disabled}
           onChange={onChange}
+          readOnly={readOnly}
           name={name}
+          onFocus={(e) => {
+            e.target.style.borderColor = theme.palette.primary.main;
+            e.target.style.boxShadow = '0 0 0 2px rgba(12, 77, 162, 0.2)';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = theme.palette.grey[300];
+            e.target.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+          }}
         />
       ) : type === "select" ? (
         <select
           style={{ 
-            marginTop: '0.25rem',
-            display: 'block',
-            width: '100%',
-            borderRadius: '0.375rem',
-            border: `1px solid ${effectiveColors.neutral400}`,
-            padding: '0.5rem',
-            fontSize: '0.875rem',
-            backgroundColor: 'white',
-            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+            ...inputStyles,
+            height: '38px',
+            cursor: 'pointer'
           }}
           value={value || ""}
+          disabled={disabled}
           onChange={onChange}
           name={name}
+          onFocus={(e) => {
+            e.target.style.borderColor = theme.palette.primary.main;
+            e.target.style.boxShadow = '0 0 0 2px rgba(12, 77, 162, 0.2)';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = theme.palette.grey[300];
+            e.target.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+          }}
         >
           {options.map(option => (
             <option key={option.value} value={option.value}>
@@ -90,10 +121,17 @@ const FormField = ({
             style={{ 
               marginRight: '0.5rem',
               width: '1rem',
-              height: '1rem'
+              height: '1rem',
+              accentColor: theme.palette.primary.main
             }}
           />
-          <span style={{ fontSize: '0.875rem' }}>{placeholder}</span>
+          <span style={{ 
+            fontSize: '0.875rem',
+            color: theme.palette.text.primary,
+            fontFamily: theme.typography.fontFamily
+          }}>
+            {placeholder}
+          </span>
         </div>
       ) : type === "radio" ? (
         <div style={{ 
@@ -116,10 +154,17 @@ const FormField = ({
                   style={{ 
                     marginRight: '0.5rem',
                     width: '1rem',
-                    height: '1rem'
+                    height: '1rem',
+                    accentColor: theme.palette.primary.main
                   }}
                 />
-                <span style={{ fontSize: '0.875rem' }}>{option.label}</span>
+                <span style={{ 
+                  fontSize: '0.875rem',
+                  color: theme.palette.text.primary,
+                  fontFamily: theme.typography.fontFamily
+                }}>
+                  {option.label}
+                </span>
               </div>
           ))}
         </div>
@@ -127,20 +172,35 @@ const FormField = ({
         <input
           type={type}
           style={{ 
-            marginTop: '0.25rem',
-            display: 'block',
-            width: '100%',
-            borderRadius: '0.375rem',
-            border: `1px solid ${effectiveColors.neutral400}`,
-            padding: '0.5rem',
-            fontSize: '0.875rem',
-            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+            ...inputStyles,
+            height: type === 'number' || type === 'date' || type === 'email' ? '38px' : 'auto'
           }}
           placeholder={placeholder}
           value={value || ""}
+          disabled={disabled}
           onChange={onChange}
+          readOnly={readOnly}
           name={name}
+          onFocus={(e) => {
+            e.target.style.borderColor = theme.palette.primary.main;
+            e.target.style.boxShadow = '0 0 0 2px rgba(12, 77, 162, 0.2)';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = theme.palette.grey[300];
+            e.target.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+          }}
         />
+      )}
+      
+      {helperText && (
+        <div style={{
+          fontSize: '0.75rem',
+          color: theme.palette.grey[400], // Design brief: neutral500 -> 9AA5B1
+          marginTop: '0.25rem',
+          fontFamily: theme.typography.fontFamily
+        }}>
+          {helperText}
+        </div>
       )}
     </div>
   );

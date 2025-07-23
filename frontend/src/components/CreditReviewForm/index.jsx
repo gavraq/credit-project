@@ -1,31 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchUsersByRole } from '../../services/api';
-import TopNavBar from '../TopNavBar';
-import { fetchCreditRequest, submitCreditReview, performWorkflowTransition } from '../../services/api';
-import LogoutButton from '../LogoutButton';
-
-// Import sub-components
-import WorkflowStatus from '../common/WorkflowStatus';
+import { useSelector } from 'react-redux';
+import { Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { fetchUsersByRole, fetchCreditRequest, submitCreditReview, performWorkflowTransition } from '../../services/api';
+import FormPageWrapper from '../common/FormPageWrapper';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
+import CreditApplicationDetailsSection from '../common/CreditApplicationDetailsSection';
 
 const CreditReviewForm = ({ creditApplication: initialCreditApplication, currentStep = 2 }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
-  const [userGuidanceMessage, setUserGuidanceMessage] = useState(null); // For inline guidance
-  const [transitionSuccessMessage, setTransitionSuccessMessage] = useState(null); // For success messages
   const [creditApplication, setCreditApplication] = useState(null);
   const user = useSelector(state => state.auth.user);
-  const dispatch = useDispatch();
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
 
   const [workflowInstanceId, setWorkflowInstanceId] = useState(null);
-  const [currentWorkflowState, setCurrentWorkflowState] = useState(null);
-  const [allowedTransitionsList, setAllowedTransitionsList] = useState([]);
+  const [currentWorkflowState, setCurrentWorkflowState] = useState('');
+  const [allowedTransitions, setAllowedTransitions] = useState([]);
 
   // Form state
   const [creditReviewer, setCreditReviewer] = useState('');
@@ -39,247 +36,198 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
   const [creditAnalysts, setCreditAnalysts] = useState([]);
   const [loadingAnalysts, setLoadingAnalysts] = useState(false);
 
-  // Brand colors
-  const colors = {
-    icbcRed: '#e31937',
-    standardBankBlue: '#0c4da2',
-    redLight: '#fde8eb',
-    blueLight: '#e6edf7',
-    success: '#38B2AC',
-    warning: '#F6AD55',
-    error: '#E53E3E',
-    neutral100: '#FFFFFF',
-    neutral200: '#F5F7FA',
-    neutral300: '#E4E7EB',
-    neutral400: '#CBD2D9',
-    neutral500: '#9AA5B1',
-    neutral600: '#7B8794',
-    neutral700: '#4A5568',
-    neutral800: '#323F4B',
-    neutral900: '#1F2933'
-  };
+
+  const populateFormData = useCallback((data) => {
+    if (!data) return;
+
+    setCreditApplication(data);
+
+    const reviewForm = data.credit_review_form;
+    if (!reviewForm) {
+      console.error('No credit_review_form found in data');
+      return;
+    }
+
+    // Use Credit Review Form sub-process workflow - SAME PATTERN as CreditRequestForm
+    if (reviewForm.workflow_instance) {
+      setWorkflowInstanceId(reviewForm.workflow_instance.id);
+      setCurrentWorkflowState(reviewForm.workflow_instance.current_state || 'Draft');
+    }
+    
+    // Use available_transitions from Credit Review Form serializer
+    console.log('Available transitions from API:', reviewForm.available_transitions);
+    setAllowedTransitions(reviewForm.available_transitions || []);
+    console.log('Setting allowedTransitions state to:', reviewForm.available_transitions || []);
+
+    // Map backend field names to frontend state
+    const defaultReviewer = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '';
+    setCreditReviewer(defaultReviewer); // Always use current user's name for display
+    
+    // For assigned analyst, use the ID if it exists, otherwise empty
+    if (reviewForm.assigned_credit_analyst) {
+      if (typeof reviewForm.assigned_credit_analyst === 'object' && reviewForm.assigned_credit_analyst.id) {
+        setAssignedAnalyst(reviewForm.assigned_credit_analyst.id);
+      } else {
+        setAssignedAnalyst(reviewForm.assigned_credit_analyst);
+      }
+    } else {
+      setAssignedAnalyst('');
+    }
+    setDelegatedAuthority(reviewForm.delegated_authority_level || '');
+    setNeedQuestionnaire(reviewForm.questionnaire_required ? 'yes' : 'no');
+    setAdditionalInfo(reviewForm.additional_information_request || '');
+    setRejectionReason(reviewForm.rejection_reason || '');
+    setFormStartDate(reviewForm.form_started_at ? reviewForm.form_started_at.split('T')[0] : new Date().toISOString().split('T')[0]);
+    setFormCompletionDate(reviewForm.form_completed_at ? reviewForm.form_completed_at.split('T')[0] : '');
+  }, [user]);
+
+  const fetchAndSetAnalysts = useCallback(async () => {
+    setLoadingAnalysts(true);
+    try {
+      const analysts = await fetchUsersByRole('Credit Analyst');
+      setCreditAnalysts(analysts || []);
+    } catch (error) {
+      console.error('Failed to fetch credit analysts:', error);
+    } finally {
+      setLoadingAnalysts(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const populateFormDataLocal = (appData) => {
-      if (!appData) {
-        console.warn('CreditReviewForm: populateFormDataLocal called with no appData');
+    const fetchData = async () => {
+      if (!id) {
         setLoading(false);
         return;
       }
-
-      setCreditApplication(appData);
-
-      const initialFormStartDate = (appData.credit_review_form && appData.credit_review_form.form_data && appData.credit_review_form.form_data.form_start_date)
-        ? appData.credit_review_form.form_data.form_start_date
-        : new Date().toISOString().split('T')[0];
-      setFormStartDate(initialFormStartDate);
-
-      if (appData.credit_review_form) {
-        const crForm = appData.credit_review_form;
-        setWorkflowInstanceId(crForm.workflow_instance_id || null);
-        setCurrentWorkflowState(crForm.workflow_state_name || null);
-        setAllowedTransitionsList(crForm.available_transitions || []);
-        setUserGuidanceMessage(null);
-        setTransitionSuccessMessage(null);
-
-        if (crForm.form_data) {
-          const reviewFormData = crForm.form_data;
-          setCreditReviewer(reviewFormData.credit_reviewer || (user ? `${user.first_name} ${user.last_name}`.trim() : ''));
-          setAssignedAnalyst(reviewFormData.assigned_analyst || '');
-          setDelegatedAuthority(reviewFormData.delegated_authority || '');
-          setNeedQuestionnaire(reviewFormData.need_questionnaire || 'no');
-          setAdditionalInfo(reviewFormData.additional_info || '');
-          setRejectionReason(reviewFormData.rejection_reason || '');
-          setFormCompletionDate(reviewFormData.form_completion_date || '');
-        } else {
-          setCreditReviewer(user?.name || '');
-          setNeedQuestionnaire('no');
-          setAssignedAnalyst('');
-          setDelegatedAuthority('');
-          setAdditionalInfo('');
-          setRejectionReason('');
-          setFormCompletionDate('');
-        }
-      } else {
-        setCreditReviewer(user?.name || '');
-        setNeedQuestionnaire('no');
-        setAssignedAnalyst('');
-        setDelegatedAuthority('');
-        setAdditionalInfo('');
-        setRejectionReason('');
-        setFormCompletionDate('');
-        setWorkflowInstanceId(null);
-        setCurrentWorkflowState(null); // Or an initial state like 'Draft'
-        setAllowedTransitionsList([]); 
-      }
-    };
-
-    const fetchAndSetAnalysts = async () => {
-      setLoadingAnalysts(true);
+      setLoading(true);
       try {
-        const analysts = await fetchUsersByRole('Credit Analyst');
-        setCreditAnalysts(analysts); // Store the full analyst objects
-      } catch (analystError) {
-        console.error('Failed to fetch credit analysts:', analystError);
-        // Optionally set an error state for analysts loading
+        const data = await fetchCreditRequest(id);
+        populateFormData(data);
+      } catch (error) {
+        console.error('Failed to fetch credit application:', error);
+        setTransitionError('Failed to load application data.');
       } finally {
-        setLoadingAnalysts(false);
+        setLoading(false);
       }
     };
 
     if (initialCreditApplication) {
-      setLoading(true);
-      populateFormDataLocal(initialCreditApplication);
-      fetchAndSetAnalysts(); // Fetch analysts after populating main data
-      setLoading(false);
-    } else if (id) {
-      const fetchData = async () => {
-        setLoading(true);
-        setTransitionError(null);
-        try {
-          const data = await fetchCreditRequest(id);
-          populateFormDataLocal(data);
-          await fetchAndSetAnalysts(); // Fetch analysts after populating main data
-        } catch (error) {
-          console.error('Failed to fetch credit application:', error);
-          setTransitionError('Failed to load application data: ' + error.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchData();
+      populateFormData(initialCreditApplication);
+      setLoading(false); // Important: set loading to false when using initialCreditApplication
     } else {
-      setLoading(false);
-      console.warn('CreditReviewForm loaded without ID or initial data.');
-      // Still fetch analysts if it's a 'new' scenario where analysts might be needed
-      fetchAndSetAnalysts();
+      fetchData();
     }
-  }, [id, initialCreditApplication, user?.name, dispatch]);
 
-  const handleSubmit = async (e, isDraft = false) => {
-    if (e) e.preventDefault();
+    fetchAndSetAnalysts();
+  }, [id, initialCreditApplication, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
+
+  const buildPayload = useCallback(() => {
+    // Use FLAT PREFIXED FIELDS - SAME PATTERN as working CreditRequestForm 
+    return {
+      credit_review_form_credit_reviewer: user?.id || null, // Use current user's ID, not name
+      credit_review_form_assigned_credit_analyst: assignedAnalyst,
+      credit_review_form_delegated_authority_level: delegatedAuthority,
+      credit_review_form_questionnaire_required: needQuestionnaire === 'yes',
+      credit_review_form_additional_information_request: additionalInfo,
+      credit_review_form_rejection_reason: rejectionReason,
+      credit_review_form_form_started_at: formStartDate,
+      credit_review_form_form_completed_at: formCompletionDate || new Date().toISOString().split('T')[0],
+    };
+  }, [user?.id, assignedAnalyst, delegatedAuthority, needQuestionnaire, additionalInfo, rejectionReason, formStartDate, formCompletionDate]);
+
+  const handleSave = async () => {
     setTransitionLoading(true);
     setTransitionError(null);
-
+    const payload = buildPayload();
     try {
-      const payload = {
-        credit_review_form: {
-          credit_reviewer: creditReviewer,
-          assigned_analyst: assignedAnalyst,
-          delegated_authority: delegatedAuthority,
-          need_questionnaire: needQuestionnaire,
-          additional_info: additionalInfo,
-          rejection_reason: rejectionReason,
-          form_start_date: formStartDate,
-          form_completion_date: isDraft ? formCompletionDate : new Date().toISOString().split('T')[0],
-        }
-      };
-
-      // Update completion date state if not a draft
-      if (!isDraft) {
-        setFormCompletionDate(payload.credit_review_form.form_completion_date);
-      }
-
-      console.log('[HandleSubmitDebug] Payload in handleSubmit:', JSON.stringify(payload, null, 2));
-      const response = await submitCreditReview(id, payload);
-      console.log('[HandleSubmitDebug] API response from submitCreditReview in handleSubmit:', JSON.stringify(response, null, 2));
-
-      if (isDraft) {
-        navigate('/'); // Navigate to dashboard (homepage) after draft save
-      }
-      // For non-draft, success alert/navigation will be handled by handleWorkflowAction
-      return response; // Return response for promise chain
+      await submitCreditReview(id, payload);
+      navigate('/dashboard');
     } catch (error) {
-      console.log('[HandleSubmitDebug] Error submitting credit review:', error);
-      setTransitionError(error.message || 'An error occurred while submitting the form');
-      throw error; // Re-throw error for promise chain
-    } finally {
-      // Only set transitionLoading to false if it's a draft save.
-      // For submissions leading to transitions, handleWorkflowAction will manage it.
-      if (isDraft) {
-        setTransitionLoading(false);
-      }
-    }
-  };
-
-  const handleWorkflowAction = async (transitionCode, comments = '') => {
-    console.log('[WorkflowActionDebug] Data state just before calling handleSubmit:', {
-      creditReviewer,
-      assignedAnalyst,
-      delegatedAuthority,
-      needQuestionnaire,
-      additionalInfo,
-      rejectionReason,
-      formStartDate,
-      formCompletionDate,
-    });
-    setTransitionLoading(true);
-    setTransitionError(null);
-
-    try {
-      // Save the form data first (non-draft)
-      // Pass a synthetic event or null if handleSubmit doesn't strictly need 'e'
-      const submissionResponse = await handleSubmit(null, false);
-      console.log('[WorkflowActionDebug] Response from handleSubmit in handleWorkflowAction:', JSON.stringify(submissionResponse, null, 2));
-
-      if (!workflowInstanceId) {
-        throw new Error('Workflow instance ID is not available.');
-      }
-
-      const response = await performWorkflowTransition(workflowInstanceId, transitionCode, comments);
-      console.log('[WorkflowActionDebug] API response from performWorkflowTransition:', JSON.stringify(response, null, 2));
-
-      if (response && response.detail && response.detail.includes('Transition performed successfully')) {
-        setTransitionSuccessMessage(`Action '${transitionCode}' performed successfully!`);
-      } else {
-        throw new Error('Transition failed');
-      }
-
-      // Re-fetch data to get new state, transitions, and updated form data
-      const updatedData = await fetchCreditRequest(id);
-      console.log('[DataDebug] updatedData after CRV_TR_2 (or any transition):', JSON.stringify(updatedData, null, 2));
-      setCreditApplication(updatedData);
-      setWorkflowInstanceId(updatedData.workflow_instance_id || null);
-      setCurrentWorkflowState(updatedData.workflow_state || null);
-      setAllowedTransitionsList(updatedData.available_transitions || []);
-      if (updatedData.credit_review_form) {
-        const formData = updatedData.credit_review_form; // This is the parent object containing form_data
-        const actualFormData = formData.form_data || {}; // Access the nested form_data object
-        console.log('[DataDebug] Extracted actualFormData for field population:', JSON.stringify(actualFormData, null, 2));
-
-        setCreditReviewer(actualFormData.credit_reviewer || user?.name || '');
-        setAssignedAnalyst(actualFormData.assigned_analyst || '');
-        setDelegatedAuthority(actualFormData.delegated_authority || '');
-        setNeedQuestionnaire(actualFormData.need_questionnaire ?? false); // Default to false if null/undefined
-        setAdditionalInfo(actualFormData.additional_info || '');
-        setRejectionReason(actualFormData.rejection_reason || '');
-        setFormStartDate(actualFormData.form_start_date || new Date().toISOString().split('T')[0]);
-        setFormCompletionDate(actualFormData.form_completion_date || '');
-      }
-      console.log('[NavDebug] updatedData.workflow_state.name:', updatedData.workflow_state?.name);
-      console.log('[NavDebug] transitionCode performed:', transitionCode); // Log the transition code
-
-      if (response.data?.workflow_completed) {
-        console.log('[NavDebug] Condition met: workflow_completed. Navigating to /dashboard.');
-        navigate('/');
-      } else if (transitionCode === 'CRV_TR_1' || transitionCode === 'CRV_TR_3') { // CRV_TR_1 is initial 'Save as Draft', CRV_TR_3 is 'Save as Draft from In Progress'
-        console.log(`[NavDebug] Condition met: transitionCode is ${transitionCode} (a Save as Draft action). Navigating to /dashboard.`);
-        navigate('/');
-      } else if (transitionCode === 'PP_TR_2') { // PP_TR_2 is 'Submit for Business Sponsorship'
-        console.log(`[NavDebug] Condition met: transitionCode is PP_TR_2 (Submit for Business Sponsorship). Navigating to /dashboard.`);
-        navigate('/');
-      } else {
-        console.log('[NavDebug] No navigation condition met. Staying on page.');
-      }
-
-    } catch (error) {
-      console.error(`Error performing action '${transitionCode}':`, error);
-      setTransitionError(error.message || `Failed to perform action '${transitionCode}'.`);
-      // handleSubmit might have already set transitionLoading to false if it failed.
-      // Ensure it's false if the error is from performWorkflowTransition itself.
+      console.error('Error saving credit review:', error);
+      setTransitionError(error.message || 'Failed to save data.');
     } finally {
       setTransitionLoading(false);
     }
+  };
+
+  const handleTransition = async (transition, comments) => {
+    if (transition && transition.name.toLowerCase().includes('reject') && !rejectionReason) {
+      setTransitionError('A rejection reason is required to perform this action.');
+      return;
+    }
+
+    setTransitionLoading(true);
+    setTransitionError(null);
+    const payload = buildPayload();
+
+    try {
+      console.log('Credit Review Form - Saving form data first...');
+      console.log('Payload:', JSON.stringify(payload, null, 2));
+      
+      // First save form data
+      await submitCreditReview(id, payload);
+      console.log('Credit Review Form - Form data saved successfully');
+      
+      // Then perform transition with proper Phase 3 payload structure
+      const transitionComments = transition.name.toLowerCase().includes('reject') ? rejectionReason : comments;
+      const transitionPayload = { transition_code: transition.code, comments: transitionComments };
+      
+      console.log('Credit Review Form - Performing transition...');
+      console.log('Transition payload:', JSON.stringify(transitionPayload, null, 2));
+      console.log('Workflow instance ID:', workflowInstanceId);
+      
+      await performWorkflowTransition(workflowInstanceId, transitionPayload);
+      console.log('Credit Review Form - Transition performed successfully');
+      
+      // Navigate on success if metadata specifies a path
+      const navigatePath = transition.metadata?.ui_behavior?.navigate_on_success;
+      if (navigatePath) {
+        navigate(navigatePath);
+      } else if (transition.code === 'CR_SAVE_DRAFT' || transition.code === 'CR_BACK_TO_DRAFT' || transition.code === 'CR_SUBMIT_IN_PROGRESS' || (transition.name.toLowerCase().includes('save') || transition.name.toLowerCase().includes('draft')) && !transition.name.toLowerCase().includes('business')) {
+        // For Save as Draft and Submit to In Progress transitions, navigate back to dashboard
+        navigate('/');
+      } else {
+        // For other transitions, refresh data to get new state
+        setRefetchTrigger(prev => prev + 1);
+      }
+    } catch (error) {
+      // Use same error handling pattern as Credit Request Form
+      let detailedError = 'An unexpected error occurred during transition.';
+      if (error.response) {
+        console.error('Backend error response data:', error.response.data);
+        console.error('Backend error response status:', error.response.status);
+        if (error.response.data) {
+          const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
+          detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
+        } else {
+          detailedError = `Backend Error: (Status: ${error.response.status}) - No additional data.`;
+        }
+      } else if (error.request) {
+        console.error('Transition error: No response received:', error.request);
+        detailedError = 'Transition error: No response received from server.';
+      } else {
+        console.error('Transition setup error:', error.message);
+        detailedError = `Error: ${error.message}`;
+      }
+      setTransitionError(detailedError);
+    } finally {
+      setTransitionLoading(false);
+    }
+  };
+
+  const workflowStatusProps = {
+    currentStep: currentStep,
+    workflowType: "CREDIT_REVIEW",
+    currentWorkflowState: { name: currentWorkflowState },
+  };
+
+  const workflowActionsProps = {
+    key: workflowInstanceId || 'new-review-actions',
+    transitionLoading: transitionLoading,
+    transitionError: transitionError,
+    workflowInstanceId: workflowInstanceId,
+    handleTransition: handleTransition,
+    allowedTransitions: allowedTransitions || [],
   };
 
   if (loading) {
@@ -287,262 +235,139 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
   }
 
   return (
-    <div style={{
-      maxWidth: '1300px',
-      margin: '0 auto',
-      padding: '1rem',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      <TopNavBar>
-        <LogoutButton />
-      </TopNavBar>
+    <FormPageWrapper
+      title="Credit Review Form"
+      workflowStatusProps={workflowStatusProps}
+      workflowActionsProps={workflowActionsProps}
+    >
+      <CreditApplicationDetailsSection creditApplication={creditApplication} />
 
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{
-          fontSize: '1.5rem',
-          fontWeight: '600',
-          color: colors.neutral800,
-          marginBottom: '0.5rem'
-        }}>
-          Credit Review Form
-        </h1>
-        <p style={{ color: colors.neutral600 }}>
-          Review and assess the credit application
-        </p>
-      </div>
-
-      <WorkflowStatus currentStep={currentStep} />
-
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '0.5rem',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        padding: '1.5rem',
-        marginTop: '1.5rem'
-      }}>
-        <FormSection title="Credit Application Details" description="Review the credit application details">
-          <div style={{ marginBottom: '1rem' }}>
-            <p><strong>Reference Number:</strong> {creditApplication?.reference_number}</p>
-            <p><strong>Title:</strong> {creditApplication?.title}</p>
-            <p><strong>Counterparty:</strong> {creditApplication?.counterparty?.name}</p>
-            <p><strong>Priority:</strong> {creditApplication?.priority}</p>
-            <p><strong>Required By:</strong> {creditApplication?.required_by_date}</p>
-          </div>
-        </FormSection>
-
-        <FormSection title="Credit Reviewer Information" colors={colors}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div> {/* Wrapper for Credit Reviewer */}
-              <FormField
-                label="Credit Reviewer"
-                type="text"
-                placeholder="Enter credit reviewer name"
-                value={creditReviewer}
-                onChange={(e) => setCreditReviewer(e.target.value)}
-                colors={colors}
-                required
-              />
-            </div>
-            <div> {/* Wrapper for Assigned Credit Analyst and its comment */}
-              <FormField 
-                label="Assigned Credit Analyst" 
-                type="select" 
-                value={assignedAnalyst} // This will now store analyst ID
-                onChange={(e) => setAssignedAnalyst(e.target.value)} // Stores ID
-                options={[
-                  { value: '', label: loadingAnalysts ? 'Loading analysts...' : (creditAnalysts.length === 0 ? 'No analysts found' : 'Select an analyst') },
-                  ...creditAnalysts.map(analyst => ({ value: analyst.id, label: `${analyst.first_name} ${analyst.last_name} (${analyst.username})` }))
-                ]}
-                colors={colors}
-                required
-                disabled={loadingAnalysts}
-              />
-              <p style={{ fontSize: '0.75rem', color: colors.neutral600, marginTop: '0.25rem', fontStyle: 'italic', paddingLeft: '0.1rem' }}>
-                Note: The Assigned Credit Analyst can be different from the Credit Reviewer.
-              </p>
-            </div>
-          </div>
-        </FormSection>
-
-        <FormSection title="Delegated Authority" description="Specify the delegated authority level required for approval">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '1.5rem' }}>
-            <FormField
-              label="Delegated Authority (DA) Level" 
-              type="select"
-              options={[
-                { value: "", label: "Select DA Level" },
-                { value: "1", label: "DA1 - Board" },
-                { value: "2", label: "DA2 - Credit Committee" },
-                { value: "3", label: "DA3 - Chief Risk Officer" },
-                { value: "4", label: "DA4 - Head of Credit" },
-                { value: "5", label: "DA5 - Department Head" },
-                { value: "6", label: "DA6 - Senior Credit Analyst" },
-                { value: "7", label: "DA7 - Credit Analyst" },
-                { value: "8", label: "DA8 - Junior Credit Analyst" }
-              ]} 
-              value={delegatedAuthority}
-              onChange={(e) => setDelegatedAuthority(e.target.value)}
-              colors={colors}
-              required
-            />
-          </div>
-          
-          <div style={{ marginTop: '1.5rem' }}>
-            <p style={{ 
-              fontSize: '0.875rem', 
-              fontWeight: '500', 
-              marginBottom: '0.5rem' 
-            }}>
-              Need for additional Credit Questionnaire? <span style={{ color: colors.icbcRed }}>*</span>
-            </p>
-            <FormField
-              type="select"
-              name="needQuestionnaire"
-              value={needQuestionnaire === null || typeof needQuestionnaire === 'undefined' ? '' : String(needQuestionnaire)} // Handle null/undefined for select, map boolean to string
-              onChange={(e) => {
-                const val = e.target.value;
-                setNeedQuestionnaire(val === '' ? null : val === 'true'); // Convert back to boolean or null
-              }}
-              options={[
-                { label: 'Select...', value: '' },
-                { label: 'Yes', value: 'true' },
-                { label: 'No', value: 'false' },
-              ]}
-              colors={colors}
-              // required // Add back if this field is truly required
-            />
-          </div>
-          
-          <div style={{ marginTop: '1.5rem' }}>
-            <FormField 
-              label="Request additional information from Front Office" 
-              type="textarea" 
-              placeholder="Specify any additional information required from the Front Office" 
-              value={additionalInfo}
-              onChange={(e) => setAdditionalInfo(e.target.value)}
-              colors={colors}
-            />
-          </div>
-          
-          <div style={{ 
-            marginTop: '1.5rem',
-            padding: '1rem',
-            backgroundColor: colors.redLight,
-            borderRadius: '0.5rem'
-          }}>
-            <p style={{ 
-              fontSize: '0.875rem', 
-              fontWeight: '500', 
-              marginBottom: '0.5rem',
-              color: colors.icbcRed
-            }}>
-              Rejection Details
-            </p>
-            <FormField 
-              label="Rejection Reason" 
-              type="textarea" 
-              placeholder="If rejecting this credit request, please provide detailed reasons" 
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              colors={colors}
-            />
-          </div>
-        </FormSection>
-        
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center', // Align items vertically
-          marginTop: '2rem' 
-        }}>
-          <button 
-            onClick={() => navigate('/dashboard')}
-            style={{ 
-              display: 'inline-flex',
-              alignItems: 'center',
-              backgroundColor: 'white',
-              color: colors.neutral800,
-              fontWeight: '500',
-              fontSize: '0.875rem',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.375rem',
-              border: `1px solid ${colors.neutral400}`,
-              cursor: 'pointer'
-            }}
-          >
-            <span style={{ marginRight: '0.5rem' }}>←</span>
-            Back to Dashboard
-          </button>
-          
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            {allowedTransitionsList.map(transition => {
-              const isRejectTransition = transition.name.toLowerCase().includes('reject');
-              const isDisabledByLogic = isRejectTransition && !rejectionReason;
-
-              return (
-                <button
-                  key={transition.code}
-                  onClick={() => {
-                    let comments = '';
-                    if (isRejectTransition) {
-                      if (!rejectionReason) {
-                        // Consider replacing alert with an inline message for consistency
-                        alert('Please provide a rejection reason to perform this action.');
-                        return;
-                      }
-                      comments = rejectionReason;
-                    }
-                    handleWorkflowAction(transition.code, comments);
-                  }}
-                  disabled={transitionLoading || isDisabledByLogic}
-                  style={{
-                    backgroundColor: isRejectTransition ? colors.icbcRed : colors.standardBankBlue,
-                    border: 'none',
-                    color: 'white',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    cursor: (transitionLoading || isDisabledByLogic) ? 'not-allowed' : 'pointer',
-                    opacity: (transitionLoading || isDisabledByLogic) ? 0.7 : 1
-                  }}
-                >
-                  {transition.name} {/* Use name directly from backend */}
-                </button>
-              );
-            })}
-          </div>
+      <FormSection title="Credit Reviewer Information">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <FormField
+            label="Credit Reviewer"
+            type="text"
+            value={creditReviewer}
+            onChange={(e) => setCreditReviewer(e.target.value)}
+            required
+            disabled={true}
+            helperText="This will be set to the current logged-in user who performs the review"
+          />
+          <FormField 
+            label="Assigned Credit Analyst" 
+            type="select" 
+            value={assignedAnalyst}
+            onChange={(e) => setAssignedAnalyst(e.target.value)}
+            options={[
+              { value: '', label: loadingAnalysts ? 'Loading...' : 'Select an analyst' },
+              ...creditAnalysts.map(analyst => ({ value: analyst.id, label: `${analyst.first_name} ${analyst.last_name}` }))
+            ]}
+            required
+            disabled={loadingAnalysts}
+          />
         </div>
-        
-        {/* Inline messages for user guidance, errors, and success */}
-        {userGuidanceMessage && (
-          <div style={{ 
-            marginTop: '1rem', 
-            padding: '0.75rem', 
-            backgroundColor: colors.blueLight, // Softer color for guidance
-            color: colors.standardBankBlue,
-            borderRadius: '0.375rem',
-            fontSize: '0.875rem',
-            border: `1px solid ${colors.standardBankBlue}`
+      </FormSection>
+
+      <FormSection title="Delegated Authority" description="Specify the delegated authority level required for approval">
+        <FormField
+          label="Delegated Authority (DA) Level" 
+          type="select"
+          options={[
+            { value: "", label: "Select DA Level" },
+            { value: "DA1", label: "DA1 - Board" },
+            { value: "DA2", label: "DA2 - Credit Committee" },
+            { value: "DA3", label: "DA3 - Chief Risk Officer" },
+            { value: "DA4", label: "DA4 - Head of Credit" },
+            { value: "DA5", label: "DA5 - Department Head" },
+            { value: "DA6", label: "DA6 - Senior Credit Analyst" },
+            { value: "DA7", label: "DA7 - Credit Analyst" },
+            { value: "DA8", label: "DA8 - Junior Credit Analyst" }
+          ]} 
+          value={delegatedAuthority}
+          onChange={(e) => setDelegatedAuthority(e.target.value)}
+          required
+        />
+        <div style={{ marginTop: '1.5rem' }}>
+          <p style={{ 
+            fontSize: '0.875rem', 
+            fontWeight: '500', 
+            marginBottom: '0.5rem',
+            color: theme.palette.grey[600],
+            fontFamily: theme.typography.fontFamily
           }}>
-            {userGuidanceMessage}
-          </div>
-        )}
-        {transitionSuccessMessage && (
-          <div style={{ 
-            marginTop: '1rem', 
-            padding: '0.75rem', 
-            backgroundColor: '#E6FFFA', // Light green for success (Tailwind green-100)
-            color: '#2F855A', // Darker green for text (Tailwind green-700)
-            borderRadius: '0.375rem',
+            Need for additional Credit Questionnaire? <span style={{ color: theme.palette.secondary.main }}>*</span>
+          </p>
+          <FormField
+            type="select"
+            name="needQuestionnaire"
+            value={String(needQuestionnaire)}
+            onChange={(e) => setNeedQuestionnaire(e.target.value)}
+            options={[
+              { value: 'true', label: 'Yes' },
+              { value: 'false', label: 'No' },
+            ]}
+            required
+          />
+        </div>
+      </FormSection>
+
+      <FormSection title="Additional Information" description="Provide any additional information or comments">
+        <FormField 
+          label="Additional Information" 
+          type="textarea" 
+          placeholder="Enter any additional information here"
+          value={additionalInfo}
+          onChange={(e) => setAdditionalInfo(e.target.value)}
+        />
+      </FormSection>
+
+      <FormSection title="Rejection Reason" description="Required if you are rejecting the application">
+        <div style={{ 
+          backgroundColor: theme.palette.secondary.light, 
+          padding: '1rem', 
+          borderRadius: '6px', 
+          border: `1px solid ${theme.palette.secondary.main}`
+        }}>
+          <FormField 
+            label="Rejection Reason" 
+            type="textarea" 
+            placeholder="If rejecting this credit request, please provide detailed reasons" 
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+          />
+        </div>
+      </FormSection>
+
+      <div style={{ 
+        marginTop: theme.spacing(5), // 20px
+        paddingTop: theme.spacing(5), // 20px
+        borderTop: `1px solid ${theme.palette.grey[200]}`, 
+        display: 'flex', 
+        justifyContent: 'flex-end' 
+      }}>
+        <Button
+          variant="outlined"
+          onClick={handleSave}
+          disabled={transitionLoading}
+          style={{
+            minWidth: '120px',
+            height: '38px',
+            fontWeight: 500,
             fontSize: '0.875rem',
-            border: `1px solid #38A169` // Tailwind green-500
-          }}>
-            {transitionSuccessMessage}
-          </div>
-        )}
+            textTransform: 'none',
+            borderRadius: '6px',
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.grey[500],
+            border: `1px solid ${theme.palette.grey[300]}`,
+            opacity: transitionLoading ? 0.6 : 1,
+            cursor: transitionLoading ? 'not-allowed' : 'pointer',
+            fontFamily: theme.typography.fontFamily
+          }}
+        >
+          {transitionLoading ? 'Saving...' : 'Save'}
+        </Button>
       </div>
-    </div>
+    </FormPageWrapper>
   );
 };
 

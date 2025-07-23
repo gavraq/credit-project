@@ -4,7 +4,7 @@ import importlib
 from django.core.management.base import BaseCommand
 from django.apps import apps
 from django.db import models
-from workflow_engine.models import WorkflowDefinition
+from workflow_engine.models import Workflow
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class Command(BaseCommand):
         
         try:
             # Get the parent workflow definition
-            parent_workflow = WorkflowDefinition.objects.get(code='CREDIT_PAPER')
+            parent_workflow = Workflow.objects.get(code='CREDIT_PAPER')
             
             # Initialize metadata if it doesn't exist
             if not parent_workflow.metadata:
@@ -50,7 +50,7 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.WARNING('Dry run - no changes made'))
             
-        except WorkflowDefinition.DoesNotExist:
+        except Workflow.DoesNotExist:
             self.stdout.write(self.style.ERROR(f"Parent workflow 'CREDIT_PAPER' not found"))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Error loading form metadata: {e}'))

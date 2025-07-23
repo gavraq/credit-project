@@ -5,7 +5,10 @@ import CreditRequestForm from './CreditRequestForm/index';
 import CreditReviewForm from './CreditReviewForm/index';
 import BusinessSponsorshipForm from './BusinessSponsorshipForm/index';
 import CreditQuestionnaireForm from './CreditQuestionnaireForm/index';
-import LegalReviewForm from './LegalReviewForm/index'; // Added LegalReviewForm
+import LegalReviewForm from './LegalReviewForm/index';
+import CreditAnalysisForm from './CreditAnalysisForm/index';
+import CreditCompilationForm from './CreditCompilationForm/index';
+import CreditApprovalForm from './CreditApprovalForm/index';
 import TopNavBar from './TopNavBar'; // Assuming TopNavBar is used on these pages
 import LogoutButton from './LogoutButton'; // Assuming LogoutButton is part of TopNavBar
 
@@ -73,11 +76,23 @@ const ApplicationLoader = () => {
     'creditreviewform': CreditReviewForm,
     'businesssponsorshipform': BusinessSponsorshipForm,
     'creditquestionnaireform': CreditQuestionnaireForm,
-    'legalreviewform': LegalReviewForm, // Added LegalReviewForm
-    // Add other forms here as they are created, e.g., 'legalreviewform': LegalReviewForm
+    'legalreviewform': LegalReviewForm,
+    'creditanalysisform': CreditAnalysisForm,
+    'creditcompilationform': CreditCompilationForm,
+    'creditapprovalform': CreditApprovalForm,
   };
 
-  const FormComponentToRender = formTypeFromQuery ? formComponentMap[formTypeFromQuery.toLowerCase().replace(/_/g, '')] : null;
+  let formKeyToUse = null;
+  if (formTypeFromQuery) {
+    formKeyToUse = formTypeFromQuery.toLowerCase().replace(/_/g, '');
+  } else if (creditApplication && creditApplication.sub_processes && creditApplication.sub_processes.length > 0) {
+    const firstSubProcess = creditApplication.sub_processes[0];
+    if (firstSubProcess && firstSubProcess.form_key) {
+      formKeyToUse = firstSubProcess.form_key.toLowerCase().replace(/_/g, '');
+    }
+  }
+
+  const FormComponentToRender = formKeyToUse ? formComponentMap[formKeyToUse] : null;
   const mainWorkflowStep = 1; // This might need to be dynamic based on the form or state
 
   if (!FormComponentToRender) {

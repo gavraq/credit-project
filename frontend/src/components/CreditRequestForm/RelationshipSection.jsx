@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Relationship information section component
@@ -14,9 +15,9 @@ const RelationshipSection = ({
   lastClientVisitDate,
   setLastClientVisitDate,
   relationshipComments,
-  setRelationshipComments,
-  colors
+  setRelationshipComments
 }) => {
+  const theme = useTheme();
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -26,7 +27,6 @@ const RelationshipSection = ({
           placeholder="Enter revenue last 12 months" 
           value={revenueLast12Months}
           onChange={(e) => setRevenueLast12Months(e.target.value)}
-          colors={colors}
         />
         <FormField 
           label="Projected revenue next 12 months" 
@@ -34,7 +34,6 @@ const RelationshipSection = ({
           placeholder="Enter projected revenue next 12 months" 
           value={revenueProjected12Months}
           onChange={(e) => setRevenueProjected12Months(e.target.value)}
-          colors={colors}
         />
         <FormField 
           label="Projected RoRWA/RoC" 
@@ -42,7 +41,6 @@ const RelationshipSection = ({
           placeholder="Enter projected RoRWA/RoC" 
           value={projectedRorwa}
           onChange={(e) => setProjectedRorwa(e.target.value)}
-          colors={colors}
         />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
@@ -51,7 +49,6 @@ const RelationshipSection = ({
           placeholder="Enter most senior contact" 
           value={mostSeniorContact}
           onChange={(e) => setMostSeniorContact(e.target.value)}
-          colors={colors}
         />
         <FormField 
           label="Date of last client visit" 
@@ -59,7 +56,6 @@ const RelationshipSection = ({
           placeholder="Select date of last client visit" 
           value={lastClientVisitDate}
           onChange={(e) => setLastClientVisitDate(e.target.value)}
-          colors={colors}
         />
       </div>
       <FormField 
@@ -68,7 +64,6 @@ const RelationshipSection = ({
         placeholder="Enter relationship comments" 
         value={relationshipComments}
         onChange={(e) => setRelationshipComments(e.target.value)}
-        colors={colors}
       />
     </>
   );

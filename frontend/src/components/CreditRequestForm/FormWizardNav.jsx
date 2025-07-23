@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 
 // Wizard navigation component
-const FormWizardNav = ({ sectionRefs, currentStep, setCurrentStep, colors }) => {
+const FormWizardNav = ({ sectionRefs, currentStep, setCurrentStep }) => {
+  const theme = useTheme();
   const steps = [
     'Counterparty information',
     'Limit Information',
@@ -35,15 +37,15 @@ const FormWizardNav = ({ sectionRefs, currentStep, setCurrentStep, colors }) => 
             onClick={() => handleStepClick(index)}
             style={{
               flex: 1,
-              border: `1px solid ${colors.neutral400}`,
-              background: index === currentStep ? colors.blueLight : 'white',
-              color: index === currentStep ? colors.standardBankBlue : colors.neutral800,
+              border: `1px solid ${theme.palette.grey[300]}`,
+              background: index === currentStep ? theme.palette.primary.light : 'white',
+              color: index === currentStep ? theme.palette.primary.main : theme.palette.grey[700],
               fontWeight: index === currentStep ? '700' : '500',
               fontSize: '1rem',
               padding: '1rem 0',
               borderRadius: index === 0 ? '0.5rem 0 0 0.5rem' : index === steps.length - 1 ? '0 0.5rem 0.5rem 0' : '0',
-              borderRight: index === steps.length - 1 ? `1px solid ${colors.neutral400}` : 'none',
-              borderLeft: index === 0 ? `1px solid ${colors.neutral400}` : 'none',
+              borderRight: index === steps.length - 1 ? `1px solid ${theme.palette.grey[300]}` : 'none',
+              borderLeft: index === 0 ? `1px solid ${theme.palette.grey[300]}` : 'none',
               textAlign: 'center',
               cursor: 'pointer',
               outline: 'none',
@@ -52,7 +54,8 @@ const FormWizardNav = ({ sectionRefs, currentStep, setCurrentStep, colors }) => 
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0',
-              borderBottom: `2px solid ${index === currentStep ? colors.standardBankBlue : colors.neutral400}`,
+              borderBottom: `2px solid ${index === currentStep ? theme.palette.primary.main : theme.palette.grey[300]}`,
+              fontFamily: theme.typography.fontFamily,
               transition: 'background 0.2s, color 0.2s',
             }}
           >

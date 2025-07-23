@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Legal & Financial Documentation section component
@@ -10,9 +11,9 @@ const LegalSection = ({
   financialStatementsReceived,
   setFinancialStatementsReceived,
   interimStatementsAvailable,
-  setInterimStatementsAvailable,
-  colors
+  setInterimStatementsAvailable
 }) => {
+  const theme = useTheme();
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
       <FormField 
@@ -20,7 +21,6 @@ const LegalSection = ({
         placeholder="Enter legal document type" 
         value={legalDocumentType}
         onChange={(e) => setLegalDocumentType(e.target.value)}
-        colors={colors}
       />
       <FormField 
         label="Confirmation of positive legal opinion" 
@@ -32,7 +32,6 @@ const LegalSection = ({
         ]}
         value={positiveLegalOpinion}
         onChange={(e) => setPositiveLegalOpinion(e.target.value)}
-        colors={colors}
       />
       <FormField 
         label="Confirmation of receipt of audited financial statements" 
@@ -40,7 +39,6 @@ const LegalSection = ({
         placeholder="Audited financial statements received" 
         value={financialStatementsReceived}
         onChange={(e) => setFinancialStatementsReceived(e.target.checked)}
-        colors={colors}
       />
       <FormField 
         label="Client produces interim financial statements" 
@@ -48,7 +46,6 @@ const LegalSection = ({
         placeholder="Interim financial statements available" 
         value={interimStatementsAvailable}
         onChange={(e) => setInterimStatementsAvailable(e.target.checked)}
-        colors={colors}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 from django.contrib import admin
-from .models import WorkflowDefinition, State, Transition, WorkflowInstance, StateLog
+from .models import Workflow, State, Transition, WorkflowInstance, StateLog
 
-admin.site.register(WorkflowDefinition)
+admin.site.register(Workflow)
 admin.site.register(State)
 admin.site.register(Transition)
 admin.site.register(WorkflowInstance)

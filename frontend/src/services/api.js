@@ -3,12 +3,14 @@ import axios from 'axios';
 // Set the base URL for the API (can be set from env var or fallback)
 const BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
-// Create an Axios instance
+// Create axios instance with default config
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  // Use the default axios transformRequest
+  // This will ensure proper JSON serialization
 });
 
 // Flag to prevent multiple refresh attempts at once
@@ -118,7 +120,22 @@ api.interceptors.response.use(
 
 // Example API methods
 export const get = (url, config) => api.get(url, config);
-export const post = (url, data, config) => api.post(url, data, config);
+export const post = (url, data, config) => {
+  // Debug the request data
+  console.log('POST request to:', url);
+  console.log('POST data type:', typeof data);
+  console.log('POST data:', data);
+  
+  // If data contains limit_requests, log it specifically
+  if (data && data.limit_requests) {
+    console.log('limit_requests type:', typeof data.limit_requests);
+    console.log('limit_requests is array:', Array.isArray(data.limit_requests));
+    console.log('limit_requests[0] type:', data.limit_requests[0] ? typeof data.limit_requests[0] : 'N/A');
+    console.log('limit_requests:', JSON.stringify(data.limit_requests, null, 2));
+  }
+  
+  return api.post(url, data, config);
+};
 export const put = (url, data, config) => api.put(url, data, config);
 export const patch = (url, data, config) => api.patch(url, data, config);
 export const del = (url, config) => api.delete(url, config);
@@ -134,22 +151,42 @@ export const fetchCreditRequest = async (id) => {
   }
 };
 
-export const submitCreditRequest = async (formData) => {
+export const submitCreditRequest = async (payload) => {
   try {
-    const response = await post('/api/credit/credit-applications/', formData);
+    console.log('Submitting credit request with JSON payload:', payload);
+
+    if (!payload || !payload.title) {
+      throw new Error('Form data is incomplete. Title is required.');
+    }
+
+    if (!payload.counterparty_id) {
+      console.warn('WARNING: counterparty_id is null or undefined. This will likely cause a 400 error.');
+    }
+
+    const response = await api.post('/api/credit/credit-applications/', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
     return response.data;
   } catch (error) {
-    console.error('Error submitting credit request:', error);
+    console.error('Error submitting credit request:', error.response ? error.response.data : error.message);
     throw error;
   }
 };
 
-export const updateCreditRequest = async (id, formData) => {
+export const updateCreditRequest = async (id, payload) => {
   try {
-    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    console.log(`Updating credit request ${id} with JSON payload:`, payload);
+    const response = await api.patch(`/api/credit/credit-applications/${id}/`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     return response.data;
   } catch (error) {
-    console.error('Error updating credit request:', error);
+    console.error('Error updating credit request:', error.response ? error.response.data : error.message);
     throw error;
   }
 };
@@ -165,33 +202,13 @@ export const submitCreditReview = async (id, formData) => {
   }
 };
 
-export const performWorkflowTransition = async (workflowInstanceId, transitionCode, comments = '', systemContext = {}) => {
+export const performWorkflowTransition = async (workflowInstanceId, payload) => {
   try {
-    console.log(`DEBUG: Performing workflow transition: ${transitionCode} on instance ${workflowInstanceId}`);
-    const payload = {
-      transition_code: transitionCode,
-      comments: comments || ''
-    };
-    
-    if (Object.keys(systemContext).length > 0) {
-      payload.system_context = systemContext;
-    }
-    
-    // Make sure to use the correct API endpoint with the /api prefix
-    const url = `/api/workflow-instances/${workflowInstanceId}/transition/`;
-    console.log(`DEBUG: Making POST request to: ${url} with payload:`, payload);
-    
-    try {
-      const response = await post(url, payload);
-      console.log('DEBUG: Transition response:', response.data);
-      return response.data;
-    } catch (postError) {
-      console.error('DEBUG: Error in transition POST request:', postError);
-      console.error('DEBUG: Error response:', postError.response?.data);
-      throw postError;
-    }
+    console.log(`Performing workflow transition for instance ${workflowInstanceId} with payload:`, payload);
+    const response = await api.post(`/api/workflow-instances/${workflowInstanceId}/transition/`, payload);
+    return response.data;
   } catch (error) {
-    console.error('DEBUG: Error performing workflow transition:', error);
+    console.error('Error performing workflow transition:', error.response ? error.response.data : error.message);
     throw error;
   }
 };
@@ -223,6 +240,18 @@ export const saveCreditQuestionnaireForm = async (id, formData) => {
   }
 };
 
+export const saveCreditAnalysisForm = async (id, formData) => {
+  try {
+    console.log(`Submitting credit analysis form for ID ${id} with data:`, formData);
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting credit analysis form:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
 export const saveLegalReviewForm = async (id, formData) => {
   try {
     console.log(`Submitting legal review form for ID ${id} with data:`, formData);
@@ -233,6 +262,62 @@ export const saveLegalReviewForm = async (id, formData) => {
   } catch (error) {
     console.error('Error submitting legal review form:', error);
     console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+export const saveCreditCompilationForm = async (id, formData) => {
+  try {
+    console.log(`Submitting credit compilation form for ID ${id} with data:`, formData);
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting credit compilation form:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+export const saveCreditApprovalForm = async (id, formData) => {
+  try {
+    console.log(`Submitting credit approval form for ID ${id} with data:`, formData);
+    const response = await patch(`/api/credit/credit-applications/${id}/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting credit approval form:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+export const getApplicationsAwaitingMyApproval = async () => {
+  try {
+    const response = await get('/api/credit/credit-applications/awaiting-my-approval/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching applications awaiting approval:', error);
+    throw error;
+  }
+};
+
+// Function to fetch a list of counterparties
+export const fetchCounterpartyList = async () => {
+  try {
+    const response = await get(`/api/credit/counterparties/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching counterparty list:', error);
+    throw error;
+  }
+};
+
+// Function to fetch a list of limit types
+export const fetchLimitTypes = async () => {
+  try {
+    const response = await get(`/api/credit/limit-types/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching limit types:', error);
     throw error;
   }
 };

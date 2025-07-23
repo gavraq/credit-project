@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 
 // Document uploads section component
-const DocumentsSection = ({ colors, documents = [], setDocuments }) => {
+const DocumentsSection = ({ documents = [], setDocuments }) => {
+  const theme = useTheme();
   const handleFileChange = (e) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
@@ -17,9 +19,9 @@ const DocumentsSection = ({ colors, documents = [], setDocuments }) => {
 
   return (
     <>
-      <div style={{ padding: '1.5rem', border: `1px dashed ${colors.neutral400}`, borderRadius: '0.5rem', textAlign: 'center', marginBottom: '1rem' }}>
-        <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: colors.neutral500 }}>📄</div>
-        <p style={{ fontSize: '0.875rem', color: colors.neutral700, marginBottom: '1rem' }}>Drag and drop files here, or click to browse</p>
+      <div style={{ padding: '1.5rem', border: `1px dashed ${theme.palette.grey[300]}`, borderRadius: '6px', textAlign: 'center', marginBottom: '1rem' }}>
+        <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: theme.palette.grey[400] }}>📄</div>
+        <p style={{ fontSize: '0.875rem', color: theme.palette.grey[600], marginBottom: '1rem', fontFamily: theme.typography.fontFamily }}>Drag and drop files here, or click to browse</p>
         <input
           type="file"
           id="document-upload"
@@ -29,7 +31,7 @@ const DocumentsSection = ({ colors, documents = [], setDocuments }) => {
         />
         <label htmlFor="document-upload">
           <button 
-            style={{ backgroundColor: 'white', border: `1px solid ${colors.neutral400}`, color: colors.neutral800, padding: '0.5rem 1rem', borderRadius: '0.375rem', fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer' }}
+            style={{ backgroundColor: 'white', border: `1px solid ${theme.palette.grey[300]}`, color: theme.palette.grey[700], padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.875rem', fontWeight: '500', cursor: 'pointer', fontFamily: theme.typography.fontFamily }}
             onClick={() => document.getElementById('document-upload').click()}
             type="button"
           >
@@ -40,7 +42,7 @@ const DocumentsSection = ({ colors, documents = [], setDocuments }) => {
 
       {documents.length > 0 && (
         <div style={{ marginTop: '1rem' }}>
-          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>Selected Documents</h4>
+          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', fontFamily: theme.typography.fontFamily, color: theme.palette.grey[700] }}>Selected Documents</h4>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {documents.map((doc, index) => (
               <li 
@@ -50,8 +52,9 @@ const DocumentsSection = ({ colors, documents = [], setDocuments }) => {
                   justifyContent: 'space-between', 
                   alignItems: 'center',
                   padding: '0.5rem',
-                  borderBottom: `1px solid ${colors.neutral300}`,
-                  backgroundColor: index % 2 === 0 ? colors.neutral200 : 'white'
+                  borderBottom: `1px solid ${theme.palette.grey[200]}`,
+                  backgroundColor: index % 2 === 0 ? theme.palette.grey[100] : 'white',
+                  fontFamily: theme.typography.fontFamily
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -61,7 +64,7 @@ const DocumentsSection = ({ colors, documents = [], setDocuments }) => {
                 <button
                   type="button"
                   onClick={() => removeDocument(index)}
-                  style={{ background: 'none', border: 'none', color: colors.icbcRed, cursor: 'pointer', fontSize: '1rem' }}
+                  style={{ background: 'none', border: 'none', color: theme.palette.secondary.main, cursor: 'pointer', fontSize: '1rem', fontFamily: theme.typography.fontFamily }}
                   title="Remove document"
                 >
                   ✕

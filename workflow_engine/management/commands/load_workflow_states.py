@@ -1,8 +1,9 @@
 import csv
 import os
 from django.core.management.base import BaseCommand
-from workflow_engine.models import WorkflowDefinition, State, Transition
+from workflow_engine.models import Workflow, State, Transition
 from django.db import transaction
+from backend.users.models import Role, User
 
 # For simplicity, this version will use hardcoded state/transition data from the Transition State Model doc.
 # In the future, you can refactor to load from a CSV or markdown if desired.
@@ -13,7 +14,35 @@ WORKFLOWS = [
             'code': 'CREDIT_PAPER',
             'name': 'Credit Paper Approval Workflow',
             'description': 'Workflow for credit paper approval process',
-            'metadata': {},
+            'metadata': {
+                'form_metadata': {
+                    'credit_request_form': {
+                        'title': 'Credit Request Form',
+                        'form_key': 'credit_request_form',
+                        'model_name': 'CreditRequestForm'
+                    },
+                    'credit_review_form': {
+                        'title': 'Credit Review Form',
+                        'form_key': 'credit_review_form',
+                        'model_name': 'CreditReviewForm'
+                    },
+                    'business_sponsorship_form': {
+                        'title': 'Business Sponsorship Form',
+                        'form_key': 'business_sponsorship_form',
+                        'model_name': 'BusinessSponsorshipForm'
+                    },
+                    'legal_review_form': {
+                        'title': 'Legal Review Form',
+                        'form_key': 'legal_review_form',
+                        'model_name': 'LegalReviewForm'
+                    },
+                    'credit_questionnaire_form': {
+                        'title': 'Credit Questionnaire Form',
+                        'form_key': 'credit_questionnaire_form',
+                        'model_name': 'CreditQuestionnaireForm'
+                    }
+                }
+            },
         },
         'states': [
             {'code': 'CREDIT_PAPER_CREDIT_REQUEST', 'name': 'Credit Request', 'description': 'Initial state when a credit request is created', 'is_initial': True, 'is_terminal': False},
@@ -26,7 +55,7 @@ WORKFLOWS = [
             {'code': 'CREDIT_PAPER_REJECTED', 'name': 'Rejected', 'description': 'Credit paper rejected (terminal state)', 'is_initial': False, 'is_terminal': True},
         ],
         'transitions': [
-            {'code': 'PP_TR_1', 'name': 'Submit for Credit Review', 'from_code': 'CREDIT_PAPER_CREDIT_REQUEST', 'to_code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'allowed_roles': ['relationship_manager'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request form', 'conditions': {'subprocess_state': 'CREDIT_REQUEST_SUBMITTED'}},
+                        {'code': 'PP_TR_1', 'name': 'Submit for Credit Review', 'from_code': 'CREDIT_PAPER_CREDIT_REQUEST', 'to_code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'allowed_roles': ['relationship_manager', 'system'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request form', 'conditions': {'subprocess_state': 'CREDIT_REQUEST_SUBMITTED'}},
             {'code': 'PP_TR_2', 'name': 'Submit for Business Sponsorship', 'from_code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'to_code': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_review', 'description': 'Credit Analyst submits Credit Review form', 'conditions': {'subprocess_state': 'CREDIT_REVIEW_SUBMITTED'}},
             {'code': 'PP_TR_4', 'name': 'Submit for Analysis', 'from_code': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING', 'to_code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'allowed_roles': ['business_sponsor'], 'system_action': 'submit_business_sponsorship', 'description': 'Business Sponsor submits Business Sponsorship form', 'conditions': {'subprocess_state': 'BUSINESS_SPONSOR_SUBMITTED'}},
             {'code': 'PP_TR_5', 'name': 'Move to Compilation', 'from_code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'to_code': 'CREDIT_PAPER_COMPILATION', 'allowed_roles': ['system'], 'system_action': 'submit_credit_analysis', 'description': 'System transition when all analysis sub-processes complete', 'conditions': {'legal_review': 'LEGAL_REVIEW_SUBMITTED', 'credit_analysis': 'CREDIT_ANALYSIS_SUBMITTED', 'credit_questionnaire': 'CREDIT_QUESTIONNAIRE_SUBMITTED'}},
@@ -55,7 +84,7 @@ WORKFLOWS.append({
         {'code': 'CR_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_REQUEST_DRAFT', 'to_code': 'CREDIT_REQUEST_DRAFT', 'allowed_roles': ['relationship_manager'], 'system_action': 'edit_credit_request', 'description': 'Relationship Manager saves form as draft', 'conditions': {}},
         {'code': 'CR_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_REQUEST_DRAFT', 'to_code': 'CREDIT_REQUEST_IN_PROGRESS', 'allowed_roles': ['relationship_manager'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits draft for progress', 'conditions': {}},
         {'code': 'CR_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_REQUEST_IN_PROGRESS', 'to_code': 'CREDIT_REQUEST_DRAFT', 'allowed_roles': ['relationship_manager'], 'system_action': 'edit_credit_request', 'description': 'Relationship Manager saves form as draft from in progress', 'conditions': {}},
-        {'code': 'CR_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_REQUEST_IN_PROGRESS', 'to_code': 'CREDIT_REQUEST_SUBMITTED', 'allowed_roles': ['relationship_manager'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request', 'conditions': {}},
+        {'code': 'CR_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_REQUEST_IN_PROGRESS', 'to_code': 'CREDIT_REQUEST_SUBMITTED', 'allowed_roles': ['relationship_manager'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}}},
     ]
 })
 
@@ -202,11 +231,42 @@ WORKFLOWS.append({
 class Command(BaseCommand):
     help = 'Load workflow states and transitions for the Credit Risk Workflow'
 
+    def setup_system_user_and_role(self):
+        """Ensures the system user and role exist."""
+        # Create the system role
+        system_role, created_role = Role.objects.get_or_create(name='system', defaults={'description': 'A role for automated system actions.'})
+        if created_role:
+            self.stdout.write(self.style.SUCCESS("Role 'system' created."))
+        else:
+            self.stdout.write("Role 'system' already exists.")
+
+        # Create the system user
+        system_user, created_user = User.objects.get_or_create(
+            username='system',
+            defaults={'email': 'system@example.com', 'first_name': 'System', 'last_name': 'User'}
+        )
+        if created_user:
+            system_user.set_unusable_password()
+            system_user.save()
+            self.stdout.write(self.style.SUCCESS("User 'system' created."))
+        else:
+            self.stdout.write("User 'system' already exists.")
+
+        # Assign the system role to the system user
+        if system_user.role != system_role:
+            system_user.role = system_role
+            system_user.save()
+            self.stdout.write("Assigned 'system' role to 'system' user.")
+        else:
+            self.stdout.write("'system' user already has 'system' role.")
+
     @transaction.atomic
     def handle(self, *args, **options):
+        self.setup_system_user_and_role()
+
         for wf in WORKFLOWS:
             definition = wf['definition']
-            workflow_def, created = WorkflowDefinition.objects.update_or_create(
+            workflow_def, created = Workflow.objects.update_or_create(
                 code=definition['code'],
                 defaults={
                     'name': definition['name'],
@@ -215,9 +275,9 @@ class Command(BaseCommand):
                 }
             )
             if created:
-                self.stdout.write(self.style.SUCCESS(f"WorkflowDefinition '{workflow_def.code}' created."))
+                self.stdout.write(self.style.SUCCESS(f"Workflow '{workflow_def.code}' created."))
             else:
-                self.stdout.write(f"WorkflowDefinition '{workflow_def.code}' updated/loaded.")
+                self.stdout.write(f"Workflow '{workflow_def.code}' updated/loaded.")
 
             # Load states for this workflow
             state_objs = {}

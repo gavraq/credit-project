@@ -18,6 +18,9 @@ const ApplicationDetails = () => {
       try {
         setLoading(true);
         const response = await get(`/api/credit/credit-applications/${id}/`);
+        console.log('ApplicationDetails - Fetched application:', response.data);
+        console.log('ApplicationDetails - Sub-processes:', response.data.sub_processes);
+        console.log('ApplicationDetails - Workflow state:', response.data.workflow_state);
         setApplication(response.data);
       } catch (err) {
         setError('Failed to fetch application details.');
@@ -53,26 +56,37 @@ const ApplicationDetails = () => {
     );
   }
 
+  // Get workflow step dynamically from metadata (metadata-driven approach)
   let mainWorkflowStep = 1; // Default
-  if (application && application.workflow_state?.code) {
-    const workflowStateCode = application.workflow_state.code;
-    switch (workflowStateCode) {
-      case 'CREDIT_PAPER_CREDIT_REQUEST':
+  
+  if (application && application.workflow_state) {
+    console.log('ApplicationDetails - Workflow state:', application.workflow_state);
+    console.log('ApplicationDetails - State metadata:', application.workflow_state.metadata);
+    
+    if (application.workflow_state.metadata?.step_number) {
+      // Use metadata-driven step number (preferred approach)
+      mainWorkflowStep = application.workflow_state.metadata.step_number;
+      console.log('ApplicationDetails - Using metadata step_number:', mainWorkflowStep);
+    } else if (application.workflow_state.code) {
+      // Fallback: derive step from state name if metadata not available
+      const workflowStateCode = application.workflow_state.code;
+      console.log('ApplicationDetails - No step_number in metadata, falling back to string matching for:', workflowStateCode);
+      
+      if (workflowStateCode.includes('CREDIT_REQUEST')) {
         mainWorkflowStep = 1;
-        break;
-      case 'CREDIT_PAPER_CREDIT_REVIEW_PENDING':
+      } else if (workflowStateCode.includes('CREDIT_REVIEW') || workflowStateCode.includes('REVIEW_PENDING')) {
         mainWorkflowStep = 2;
-        break;
-      case 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING':
+      } else if (workflowStateCode.includes('BUSINESS_SPONSOR') || workflowStateCode.includes('SPONSOR_PENDING')) {
         mainWorkflowStep = 3;
-        break;
-      case 'CREDIT_PAPER_ANALYSIS_PENDING':
+      } else if (workflowStateCode.includes('ANALYSIS') || workflowStateCode.includes('ANALYSIS_PENDING')) {
         mainWorkflowStep = 4;
-        break;
-      // Future states can be added here
-      default:
-        mainWorkflowStep = 1;
-        break;
+      } else if (workflowStateCode.includes('COMPILATION')) {
+        mainWorkflowStep = 5;
+      } else if (workflowStateCode.includes('APPROVAL_PENDING') || workflowStateCode.includes('APPROVED') || workflowStateCode.includes('REJECTED')) {
+        mainWorkflowStep = 6;
+      }
+      
+      console.log('ApplicationDetails - Fallback determined step:', mainWorkflowStep, 'for state:', workflowStateCode);
     }
   }
 
@@ -88,9 +102,13 @@ const ApplicationDetails = () => {
   return (
     <>
       <TopNavBar LogoutButton={LogoutButton} />
-      {application && <WorkflowStatus creditApplication={application} currentStep={mainWorkflowStep} />}
       <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
+        {application && (
+          <Box sx={{ px: 3, pt: 2 }}>
+            <WorkflowStatus creditApplication={application} currentStep={mainWorkflowStep} />
+          </Box>
+        )}
+        <Box sx={{ my: 4, px: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           {application.title || 'Application Hub'}
         </Typography>
@@ -99,6 +117,11 @@ const ApplicationDetails = () => {
             Application: {application.reference_number}
           </Typography>
           <Typography>Status: {application.workflow_state?.name || 'N/A'}</Typography>
+          {application.current_user_role && (
+            <Typography variant="body2" color="text.secondary">
+              Your Role: {application.current_user_role.name}
+            </Typography>
+          )}
         </Paper>
 
         <Paper sx={{ p: 2 }}>
@@ -112,17 +135,18 @@ const ApplicationDetails = () => {
                   <ListItem>
                     <ListItemText 
                       primary={process.form_name} 
-                      secondary={`Status: ${process.data?.workflow_state_name || 'Not Started'}`}
+                      secondary={`Status: ${process.data?.workflow_instance?.current_state || 'Not Started'}`}
                     />
                     <Button 
                       variant="contained" 
                       onClick={() => {
-                        const mode = process.data?.available_transitions?.length > 0 ? 'edit' : 'view';
-                        handleNavigate(process.form_key, mode); // Use form_key
+                        // Use backend-determined permission for edit/view mode
+                        const mode = process.can_edit ? 'edit' : 'view';
+                        handleNavigate(process.form_key, mode);
                       }}
-                      disabled={!process.form_key} // Use form_key
+                      disabled={!process.form_key}
                     >
-                      {process.data?.available_transitions?.length > 0 ? 'Edit' : 'View'}
+                      {process.can_edit ? 'Edit' : 'View'}
                     </Button>
                   </ListItem>
                   {index < application.sub_processes.length - 1 && <Divider />}
@@ -133,8 +157,8 @@ const ApplicationDetails = () => {
             )}
           </List>
         </Paper>
-      </Box>
-    </Container>
+        </Box>
+      </Container>
     </>
   );
 };

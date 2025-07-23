@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from workflow_engine.models import WorkflowDefinition, State, Transition, WorkflowInstance
+from workflow_engine.models import Workflow, State, Transition, WorkflowInstance
 from backend.users.models import Role
 
 class WorkflowInstanceAllowedTransitionsTest(TestCase):
@@ -13,7 +13,7 @@ class WorkflowInstanceAllowedTransitionsTest(TestCase):
         self.user_rm = User.objects.create(username="rm1", role=self.role_rm, employee_id="E001")
         self.user_analyst = User.objects.create(username="ca1", role=self.role_analyst, employee_id="E002")
         # Create workflow definition
-        self.workflow_def = WorkflowDefinition.objects.create(code="credit_request", name="Credit Request Workflow")
+        self.workflow_def = Workflow.objects.create(code="credit_request", name="Credit Request Workflow")
         # Create states
         self.state_draft = State.objects.create(code="DRAFT", name="Draft", workflow_definition=self.workflow_def)
         self.state_review = State.objects.create(code="IN_REVIEW", name="In Review", workflow_definition=self.workflow_def)

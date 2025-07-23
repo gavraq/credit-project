@@ -22,12 +22,13 @@ from rest_framework_simplejwt.views import (
     # TokenObtainPairView, # Comment out or remove the default import
     TokenRefreshView,
 )
-from backend.views import ProtectedHelloView
+from backend.views import ProtectedHelloView, HealthCheckView
 from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView, WorkflowInstanceDetailView, WorkflowInstanceListView # MyTokenObtainPairView is now imported above
 
 urlpatterns = [
     path('', lambda request: redirect('/admin/')),  # Redirect root to admin
     path('admin/', admin.site.urls),
+    path('api/health/', HealthCheckView.as_view(), name='health_check'),
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'), # Use the custom view
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/hello/', ProtectedHelloView.as_view(), name='protected_hello'),

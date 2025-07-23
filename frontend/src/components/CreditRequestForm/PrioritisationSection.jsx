@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Prioritisation & Business Sponsorship section component
@@ -22,9 +23,9 @@ const PrioritisationSection = ({
   selectedSecondBusinessSponsor,
   setSelectedSecondBusinessSponsor,
   justificationForHighPriority,
-  setJustificationForHighPriority,
-  colors
+  setJustificationForHighPriority
 }) => {
+  const theme = useTheme();
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
@@ -39,7 +40,6 @@ const PrioritisationSection = ({
           ]}
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          colors={colors}
         />
         <FormField 
           label="Required by date" 
@@ -47,7 +47,6 @@ const PrioritisationSection = ({
           placeholder="Select required by date" 
           value={requiredByDate}
           onChange={(e) => setRequiredByDate(e.target.value)}
-          colors={colors}
         />
 
         <FormField 
@@ -55,12 +54,11 @@ const PrioritisationSection = ({
           placeholder="Enter account executive" 
           value={accountExecutive}
           onChange={(e) => setAccountExecutive(e.target.value)}
-          colors={colors}
         />
         {loadingRelationshipManagers ? (
-          <div style={{ color: '#888', fontSize: '0.95rem' }}>Loading relationship managers...</div>
+          <div style={{ color: theme.palette.text.secondary, fontSize: '0.95rem' }}>Loading relationship managers...</div>
         ) : relationshipManagerError ? (
-          <div style={{ color: 'red', fontSize: '0.95rem' }}>Error: {relationshipManagerError}</div>
+          <div style={{ color: theme.palette.error.main, fontSize: '0.95rem' }}>Error: {relationshipManagerError}</div>
         ) : (
           <FormField
             label="Relationship Manager"
@@ -71,16 +69,15 @@ const PrioritisationSection = ({
               { value: '', label: relationshipManagersList.length === 0 ? 'No relationship managers found' : 'Select relationship manager' },
               ...relationshipManagersList.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name} (${u.username})` }))
             ]}
-            colors={colors}
-            required // Assuming this field should be required, adjust if not
+              required // Assuming this field should be required, adjust if not
           />
         )}
         
         {/* Senior Business Sponsor Dropdown */}
         {loadingBusinessSponsors ? (
-          <div style={{ gridColumn: '1 / span 2', color: '#888', fontSize: '0.95rem' }}>Loading business sponsors...</div>
+          <div style={{ gridColumn: '1 / span 2', color: theme.palette.text.secondary, fontSize: '0.95rem' }}>Loading business sponsors...</div>
         ) : businessSponsorError ? (
-          <div style={{ gridColumn: '1 / span 2', color: 'red', fontSize: '0.95rem' }}>Error loading business sponsors: {businessSponsorError}</div>
+          <div style={{ gridColumn: '1 / span 2', color: theme.palette.error.main, fontSize: '0.95rem' }}>Error loading business sponsors: {businessSponsorError}</div>
         ) : (
           <>
             <FormField
@@ -93,8 +90,7 @@ const PrioritisationSection = ({
               ]}
               value={selectedBusinessSponsor}
               onChange={(e) => setSelectedBusinessSponsor(e.target.value)}
-              colors={colors}
-            />
+                />
             <FormField
               label="Optional second Senior Business Sponsor"
               type="select"
@@ -105,8 +101,7 @@ const PrioritisationSection = ({
               ]}
               value={selectedSecondBusinessSponsor}
               onChange={(e) => setSelectedSecondBusinessSponsor(e.target.value)}
-              colors={colors}
-            />
+                />
           </>
         )}
       </div>
@@ -116,7 +111,6 @@ const PrioritisationSection = ({
         placeholder="Enter justification for high priority" 
         value={justificationForHighPriority}
         onChange={(e) => setJustificationForHighPriority(e.target.value)}
-        colors={colors}
       />
     </>
   );
