@@ -44,5 +44,10 @@ urlpatterns = [
 ]
 
 # Serve static files in production
-if settings.DEBUG or True:  # Always serve static files since we're using Django to serve them
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+from django.views.static import serve
+from django.urls import re_path
+
+# Always serve static files since we're using Django to serve them
+urlpatterns += [
+    re_path(r'^static/(?P<path>.*)$', serve, {'document_root': settings.STATIC_ROOT}),
+]
