@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
+from django.conf import settings
+from django.conf.urls.static import static
 from backend.users.views import MyTokenObtainPairView # Import the custom view
 from rest_framework_simplejwt.views import (
     # TokenObtainPairView, # Comment out or remove the default import
@@ -40,3 +42,7 @@ urlpatterns = [
     path('api/documents/', include('documents.urls')),
     path('api/users/', UserListView.as_view(), name='user-list'),
 ]
+
+# Serve static files in production
+if settings.DEBUG or True:  # Always serve static files since we're using Django to serve them
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
