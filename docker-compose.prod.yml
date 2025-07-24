@@ -28,9 +28,6 @@ services:
       sh -c "
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
-        python manage.py loaddata fixtures/initial_data.json || true &&
-        python manage.py load_workflow_states || true &&
-        python manage.py seed_roles_departments || true &&
         gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 backend.wsgi:application
       "
 
@@ -51,6 +48,21 @@ services:
       retries: 3
       start_period: 40s
 
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: credit_project
+      POSTGRES_USER: credit_user
+      POSTGRES_PASSWORD: credit_password_2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U credit_user -d credit_project"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 volumes:
   static_volume:
   media_volume:
+  postgres_data:

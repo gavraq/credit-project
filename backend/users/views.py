@@ -55,49 +55,32 @@ class WorkflowInstanceTransitionView(APIView):
             print(f"Transition performed successfully for workflow instance {instance.id} to state {instance.current_state.code}")
 
             # Check if this workflow instance is for a CreditApplication
-            # and if so, ensure necessary sub-forms are created.
+            # and if so, auto-initialize forms based on new state metadata
             try:
                 credit_app_content_type = ContentType.objects.get_for_model(CreditApplication)
                 if instance.content_type == credit_app_content_type:
                     credit_application = instance.content_object
                     if credit_application:
-                        print(f"Workflow instance is for CreditApplication ID: {credit_application.id}. Ensuring sub-forms exist.")
+                        print(f"Workflow instance is for CreditApplication ID: {credit_application.id}. Auto-initializing forms for new state.")
                         
-                        # Ensure CreditReviewForm exists
-                        review_form, created_rf = CreditReviewForm.objects.get_or_create(credit_application=credit_application)
-                        if created_rf:
-                            print(f"  Created CreditReviewForm ID: {review_form.id}")
+                        # Use metadata-driven auto-initialization
+                        from workflow_engine.utils import auto_initialize_forms_for_state
+                        initialized_forms = auto_initialize_forms_for_state(
+                            credit_application, 
+                            state_code=instance.current_state.code
+                        )
+                        
+                        if initialized_forms:
+                            print(f"  Auto-initialized {len(initialized_forms)} forms: {list(initialized_forms.keys())}")
                         else:
-                            print(f"  CreditReviewForm ID: {review_form.id} already exists.")
-
-                        # Ensure BusinessSponsorshipForm exists
-                        bs_form, created_bsf = BusinessSponsorshipForm.objects.get_or_create(credit_application=credit_application)
-                        if created_bsf:
-                            print(f"  Created BusinessSponsorshipForm ID: {bs_form.id}")
-                        else:
-                            print(f"  BusinessSponsorshipForm ID: {bs_form.id} already exists.")
-
-                        # Ensure LegalReviewForm exists
-                        legal_form, created_lf = LegalReviewForm.objects.get_or_create(credit_application=credit_application)
-                        if created_lf:
-                            print(f"  Created LegalReviewForm ID: {legal_form.id}")
-                        else:
-                            print(f"  LegalReviewForm ID: {legal_form.id} already exists.")
-
-                        # Ensure CreditQuestionnaireForm exists
-                        cq_form, created_cqf = CreditQuestionnaireForm.objects.get_or_create(credit_application=credit_application)
-                        if created_cqf:
-                            print(f"  Created CreditQuestionnaireForm ID: {cq_form.id}")
-                        else:
-                            print(f"  CreditQuestionnaireForm ID: {cq_form.id} already exists.")
+                            print("  No forms needed for current state or auto-initialization failed")
                     else:
-                        print("Warning: Workflow instance content_object is None, cannot ensure sub-forms.")
+                        print("Warning: Workflow instance content_object is None, cannot auto-initialize forms.")
                 else:
-                    print(f"Workflow instance is for {instance.content_type}, not a CreditApplication. Skipping sub-form creation.")
+                    print(f"Workflow instance is for {instance.content_type}, not a CreditApplication. Skipping form auto-initialization.")
             except Exception as e_subform:
-                print(f"Error during automatic sub-form creation: {e_subform}")
-                # Optionally, decide if this error should affect the overall response.
-                # For now, we'll log it but still return success for the transition itself.
+                print(f"Error during automatic form auto-initialization: {e_subform}")
+                # Log the error but continue - the transition itself was successful
 
             return Response({'detail': 'Transition performed successfully.'}, status=status.HTTP_200_OK)
         except (ValueError, PermissionError) as e:
