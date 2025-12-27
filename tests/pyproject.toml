@@ -1,0 +1,37 @@
+[project]
+name = "credit-workflow-tests"
+version = "0.1.0"
+description = "Test harness for Credit Risk Workflow System"
+requires-python = ">=3.11"
+dependencies = [
+    "pytest>=7.4.0",
+    "pytest-html>=4.0.0",
+    "pytest-xdist>=3.4.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["api"]
+
+[tool.pytest.ini_options]
+testpaths = ["api"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "smoke: Quick smoke tests for basic connectivity",
+    "workflow: Full workflow transition tests",
+    "rbac: Role-based access control tests",
+    "phase1: Credit Request phase tests",
+    "phase2: Credit Review phase tests",
+    "phase3: Business Sponsorship phase tests",
+    "phase4: Analysis phase tests (Legal, Questionnaire, Analysis)",
+    "phase5: Credit Compilation phase tests",
+    "phase6: Credit Approval phase tests",
+]
+addopts = "-v --tb=short --html=reports/api/report.html --self-contained-html"

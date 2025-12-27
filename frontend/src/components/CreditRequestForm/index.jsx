@@ -173,18 +173,26 @@ const CreditRequestForm = ({ creditApplication: initialCreditApplication, mainWo
       credit_request_form_high_priority_justification: justificationForHighPriority,
       
       // Limit requests array (handled separately by backend)
-      limit_requests: limits.map(limit => ({
-        limit_type_id: typeof limit.type === 'object' && limit.type?.id 
-          ? limit.type.id 
-          : typeof limit.type === 'string' 
-            ? limit.type 
-            : limit.limit_type_id || null,
-        existing_amount: limit.existingAmount,
-        existing_tenor: limit.existingTenor,
-        proposed_amount: limit.proposedAmount,
-        proposed_tenor: limit.proposedTenor,
-        comments: limit.comments,
-      })),
+      // Filter out limits without a valid limit_type_id and convert empty strings to null
+      limit_requests: limits
+        .map(limit => {
+          // Extract limit_type_id - handle object, string UUID, or null
+          const limitTypeId = typeof limit.type === 'object' && limit.type?.id
+            ? limit.type.id
+            : (typeof limit.type === 'string' && limit.type.length > 0)
+              ? limit.type
+              : limit.limit_type_id || null;
+
+          return {
+            limit_type_id: limitTypeId,
+            existing_amount: limit.existingAmount || null,
+            existing_tenor: limit.existingTenor || null,
+            proposed_amount: limit.proposedAmount || null,
+            proposed_tenor: limit.proposedTenor || null,
+            comments: limit.comments || null,
+          };
+        })
+        .filter(limit => limit.limit_type_id), // Only keep limits with a valid type
     };
 
     return payload;

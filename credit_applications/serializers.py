@@ -187,7 +187,12 @@ class CreditReviewFormSerializer(serializers.ModelSerializer):
     # Add workflow instance serialization
     workflow_instance = serializers.SerializerMethodField()
     available_transitions = serializers.SerializerMethodField()
-    
+
+    # Handle ForeignKey fields - accept UUID, return User object
+    credit_reviewer_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), source='credit_reviewer', write_only=True, required=False, allow_null=True
+    )
+
     def get_workflow_instance(self, obj):
         """Return workflow instance details for the CreditReviewForm"""
         if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
@@ -214,7 +219,7 @@ class CreditReviewFormSerializer(serializers.ModelSerializer):
     class Meta:
         model = CreditReviewForm
         fields = '__all__'
-        read_only_fields = ['id', 'credit_application']
+        read_only_fields = ['id', 'credit_application', 'credit_reviewer']
 
 class BusinessSponsorshipFormSerializer(serializers.ModelSerializer):
     # Add workflow instance serialization
@@ -618,7 +623,27 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         # Add known ForeignKey fields for credit_approval_form
         if form_type == 'credit_approval_form':
             user_fields_to_process.extend(['approver'])
-        
+
+        # Add known ForeignKey fields for credit_review_form
+        if form_type == 'credit_review_form':
+            user_fields_to_process.extend(['credit_reviewer', 'assigned_credit_analyst'])
+
+        # Add known ForeignKey fields for business_sponsorship_form
+        if form_type == 'business_sponsorship_form':
+            user_fields_to_process.extend(['senior_business_sponsor', 'second_business_sponsor'])
+
+        # Add known ForeignKey fields for legal_review_form
+        if form_type == 'legal_review_form':
+            user_fields_to_process.extend(['legal_reviewer'])
+
+        # Add known ForeignKey fields for credit_questionnaire_form
+        if form_type == 'credit_questionnaire_form':
+            user_fields_to_process.extend(['questionnaire_completor'])
+
+        # Add known ForeignKey fields for credit_analysis_form
+        if form_type == 'credit_analysis_form':
+            user_fields_to_process.extend(['credit_analyst'])
+
         if user_fields_to_process:
             form_data = self._resolve_user_fields(form_data, user_fields_to_process)
         

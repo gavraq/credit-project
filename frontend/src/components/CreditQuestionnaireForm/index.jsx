@@ -161,7 +161,7 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
     } else {
       setLoading(false);
     }
-  }, [id, initialCreditApplication, user]);
+  }, [id, initialCreditApplication, user, refetchTrigger]);
 
   // Save function - returns true/false for success
   const handleSave = async () => {

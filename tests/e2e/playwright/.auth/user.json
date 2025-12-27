@@ -1,0 +1,18 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://credit.gavinslater.co.uk",
+      "localStorage": [
+        {
+          "name": "jwt_refresh",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2Njk0NDA4NCwiaWF0IjoxNzY2ODU3Njg0LCJqdGkiOiJkYzM3ZWFjZTc2Y2E0ZDY3YTM2MDhkZjdkMGQ4Y2YwZCIsInVzZXJfaWQiOiI0MzRiYzE5OC03N2Y5LTRjNzAtODEwMS04MGY0M2Q0YzRkNDMifQ.MtbBy5fYjXszZhFaqOse2A2YKO94VF1Y9dLdWq5bJFg"
+        },
+        {
+          "name": "jwt",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY2ODU4NTg0LCJpYXQiOjE3NjY4NTc2ODQsImp0aSI6IjdmZTk0MjEzYmQ3ZTRiY2M4NzhmYzg3MjUyNmJmOWVlIiwidXNlcl9pZCI6IjQzNGJjMTk4LTc3ZjktNGM3MC04MTAxLTgwZjQzZDRjNGQ0MyJ9.UPseB7GRSQVNf4Q9JCcrQEUtk-htUUgJaPhmBE1iIKc"
+        }
+      ]
+    }
+  ]
+}

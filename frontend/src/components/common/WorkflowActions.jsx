@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -17,6 +17,8 @@ const WorkflowActions = ({
 }) => {
   const [comments, setComments] = useState('');
   const [selectedTransition, setSelectedTransition] = useState(null);
+  // Use ref to prevent double-clicks (React state updates can be batched)
+  const isProcessingRef = useRef(false);
 
   console.log('WorkflowActions - Props received:', {
     allowedTransitions,
@@ -29,9 +31,15 @@ const WorkflowActions = ({
   const handleTransitionClick = async (transition) => {
     console.log('🎯 WorkflowActions handleTransitionClick called with:', transition);
     console.log('🎯 About to call handleTransition function:', typeof handleTransition);
-    
-    if (transitionLoading) return;
-    
+
+    // Use ref for immediate check (prevents race condition with React state batching)
+    if (transitionLoading || isProcessingRef.current) {
+      console.log('🎯 Transition blocked - already processing');
+      return;
+    }
+
+    isProcessingRef.current = true;
+
     try {
       setSelectedTransition(transition.code);
       await handleTransition(transition, comments || `${transition.name} performed`);
@@ -40,6 +48,8 @@ const WorkflowActions = ({
     } catch (error) {
       console.error('Transition failed:', error);
       setSelectedTransition(null);
+    } finally {
+      isProcessingRef.current = false;
     }
   };
 

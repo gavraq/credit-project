@@ -1,0 +1,48 @@
+{
+  "relationship_manager": {
+    "username": "john.smith",
+    "password": "password123",
+    "role": "Relationship Manager",
+    "permissions": [
+      "create_credit_applications",
+      "submit_credit_request",
+      "complete_credit_questionnaire"
+    ]
+  },
+  "credit_analyst": {
+    "username": "david.green",
+    "password": "password123",
+    "role": "Credit Analyst",
+    "permissions": [
+      "perform_credit_review",
+      "perform_credit_analysis",
+      "compile_credit_paper",
+      "approve_credit"
+    ]
+  },
+  "business_sponsor": {
+    "username": "mike.brown",
+    "password": "password123",
+    "role": "Business Sponsor",
+    "permissions": [
+      "provide_business_sponsorship"
+    ]
+  },
+  "legal_reviewer": {
+    "username": "david.guthrie",
+    "password": "password123",
+    "role": "Legal Reviewer",
+    "permissions": [
+      "perform_legal_review"
+    ]
+  },
+  "credit_approver": {
+    "username": "david.green",
+    "password": "password123",
+    "role": "Credit Approver",
+    "permissions": [
+      "approve_credit",
+      "reject_credit"
+    ]
+  }
+}

@@ -88,10 +88,10 @@ class WorkflowInstance(models.Model):
             
             # Check DA-level authorization for approval transitions
             da_permits = True
-            if (role_permits and 
-                user_role_name == 'Credit Analyst' and 
-                'approve' in t.code.lower() and 
-                self.content_type and 
+            if (role_permits and
+                user_role_name == 'Credit Analyst' and
+                'approve' in t.code.lower() and
+                self.content_type and
                 self.content_type.model == 'creditapplication'):
                 try:
                     from .da_authorization import can_user_approve_credit_application
@@ -101,13 +101,30 @@ class WorkflowInstance(models.Model):
                 except Exception as e:
                     logger.error(f"Error checking DA authorization: {e}")
                     da_permits = False
-            
+
+            # Check assigned sponsor authorization for Business Sponsorship workflows
+            sponsor_permits = True
+            if role_permits and self.workflow.code == 'BUSINESS_SPONSORSHIP':
+                try:
+                    # Get the BusinessSponsorshipForm linked to this workflow instance
+                    bsf = self.business_sponsorship_forms.first()
+                    if bsf:
+                        # User must be one of the assigned sponsors
+                        is_senior_sponsor = bsf.senior_business_sponsor and bsf.senior_business_sponsor.id == user.id
+                        is_second_sponsor = bsf.second_business_sponsor and bsf.second_business_sponsor.id == user.id
+                        sponsor_permits = is_senior_sponsor or is_second_sponsor
+                        if not sponsor_permits:
+                            logger.debug(f"User {user.username} is not an assigned sponsor for this application")
+                except Exception as e:
+                    logger.error(f"Error checking sponsor authorization: {e}")
+                    sponsor_permits = False
+
             # Placeholder for checking additional conditions defined in t.conditions
             # For now, we assume other conditions are met or not yet implemented.
-            # conditions_permit = self._check_custom_conditions(t, user) 
-            conditions_permit = True 
+            # conditions_permit = self._check_custom_conditions(t, user)
+            conditions_permit = True
 
-            if role_permits and conditions_permit and da_permits:
+            if role_permits and conditions_permit and da_permits and sponsor_permits:
                 allowed.append(t)
                 
         return allowed

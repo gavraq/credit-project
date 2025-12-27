@@ -19,40 +19,75 @@ WORKFLOWS = [
                     'credit_request_form': {
                         'title': 'Credit Request Form',
                         'form_key': 'credit_request_form',
-                        'model_name': 'CreditRequestForm'
+                        'model_name': 'CreditRequestForm',
+                        'workflow_code': 'CREDIT_REQUEST',
+                        'field_mappings': {
+                            'boolean_fields': ['country_risk_limit_available', 'kyc_approval_status', 'positive_legal_opinion', 'financial_statements_received', 'interim_statements_available']
+                        }
                     },
                     'credit_review_form': {
                         'title': 'Credit Review Form',
                         'form_key': 'credit_review_form',
-                        'model_name': 'CreditReviewForm'
+                        'model_name': 'CreditReviewForm',
+                        'workflow_code': 'CREDIT_REVIEW',
+                        'field_mappings': {
+                            'boolean_fields': ['questionnaire_required']
+                        }
                     },
                     'business_sponsorship_form': {
                         'title': 'Business Sponsorship Form',
                         'form_key': 'business_sponsorship_form',
-                        'model_name': 'BusinessSponsorshipForm'
+                        'model_name': 'BusinessSponsorshipForm',
+                        'workflow_code': 'BUSINESS_SPONSORSHIP'
                     },
                     'legal_review_form': {
                         'title': 'Legal Review Form',
                         'form_key': 'legal_review_form',
-                        'model_name': 'LegalReviewForm'
+                        'model_name': 'LegalReviewForm',
+                        'workflow_code': 'LEGAL_REVIEW',
+                        'field_mappings': {
+                            'boolean_fields': ['positive_netting_opinion', 'has_csa', 'iosco_compliant', 'positive_collateral_opinion']
+                        }
                     },
                     'credit_questionnaire_form': {
                         'title': 'Credit Questionnaire Form',
                         'form_key': 'credit_questionnaire_form',
-                        'model_name': 'CreditQuestionnaireForm'
+                        'model_name': 'CreditQuestionnaireForm',
+                        'workflow_code': 'CREDIT_QUESTIONNAIRE'
+                    },
+                    'credit_analysis_form': {
+                        'title': 'Credit Analysis Form',
+                        'form_key': 'credit_analysis_form',
+                        'model_name': 'CreditAnalysisForm',
+                        'workflow_code': 'CREDIT_ANALYSIS'
+                    },
+                    'credit_compilation_form': {
+                        'title': 'Credit Compilation Form',
+                        'form_key': 'credit_compilation_form',
+                        'model_name': 'CreditCompilationForm',
+                        'workflow_code': 'CREDIT_COMPILATION',
+                        'field_mappings': {
+                            'boolean_fields': ['all_forms_reviewed', 'ready_for_approval']
+                        }
+                    },
+                    'credit_approval_form': {
+                        'title': 'Credit Approval Form',
+                        'form_key': 'credit_approval_form',
+                        'model_name': 'CreditApprovalForm',
+                        'workflow_code': 'CREDIT_APPROVAL'
                     }
                 }
             },
         },
         'states': [
-            {'code': 'CREDIT_PAPER_CREDIT_REQUEST', 'name': 'Credit Request', 'description': 'Initial state when a credit request is created', 'is_initial': True, 'is_terminal': False},
-            {'code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'name': 'Credit Review Pending', 'description': 'Credit paper in credit review phase', 'is_initial': False, 'is_terminal': False},
-            {'code': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING', 'name': 'Business Sponsor Pending', 'description': 'Credit paper in business sponsor phase', 'is_initial': False, 'is_terminal': False},
-            {'code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'name': 'Analysis Pending', 'description': 'Credit paper in analysis phase (Credit Questionnaire, Legal Review, Credit Analysis)', 'is_initial': False, 'is_terminal': False},
-            {'code': 'CREDIT_PAPER_COMPILATION', 'name': 'Credit Compilation', 'description': 'Credit paper in compilation phase', 'is_initial': False, 'is_terminal': False},
-            {'code': 'CREDIT_PAPER_APPROVAL_PENDING', 'name': 'Approval Pending', 'description': 'Credit paper pending approval', 'is_initial': False, 'is_terminal': False},
-            {'code': 'CREDIT_PAPER_APPROVED', 'name': 'Approved', 'description': 'Credit paper approved (terminal state)', 'is_initial': False, 'is_terminal': True},
-            {'code': 'CREDIT_PAPER_REJECTED', 'name': 'Rejected', 'description': 'Credit paper rejected (terminal state)', 'is_initial': False, 'is_terminal': True},
+            {'code': 'CREDIT_PAPER_CREDIT_REQUEST', 'name': 'Credit Request', 'description': 'Initial state when a credit request is created', 'is_initial': True, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form']}},
+            {'code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'name': 'Credit Review Pending', 'description': 'Credit paper in credit review phase', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form']}},
+            {'code': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING', 'name': 'Business Sponsor Pending', 'description': 'Credit paper in business sponsor phase', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form']}},
+            {'code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'name': 'Analysis Pending', 'description': 'Credit paper in analysis phase (Credit Questionnaire, Legal Review, Credit Analysis)', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form']}},
+            {'code': 'CREDIT_PAPER_COMPILATION', 'name': 'Credit Compilation', 'description': 'Credit paper in compilation phase', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form']}},
+            {'code': 'CREDIT_PAPER_APPROVAL_PENDING', 'name': 'Approval Pending', 'description': 'Credit paper pending approval', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form']}},
+            {'code': 'CREDIT_PAPER_APPROVED', 'name': 'Approved', 'description': 'Credit paper approved (terminal state)', 'is_initial': False, 'is_terminal': True, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form']}},
+            {'code': 'CREDIT_PAPER_REJECTED', 'name': 'Rejected', 'description': 'Credit paper rejected (terminal state)', 'is_initial': False, 'is_terminal': True, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form']}},
         ],
         'transitions': [
                         {'code': 'PP_TR_1', 'name': 'Submit for Credit Review', 'from_code': 'CREDIT_PAPER_CREDIT_REQUEST', 'to_code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'allowed_roles': ['relationship_manager', 'system'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request form', 'conditions': {'subprocess_state': 'CREDIT_REQUEST_SUBMITTED'}},
@@ -60,8 +95,8 @@ WORKFLOWS = [
             {'code': 'PP_TR_4', 'name': 'Submit for Analysis', 'from_code': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING', 'to_code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'allowed_roles': ['business_sponsor'], 'system_action': 'submit_business_sponsorship', 'description': 'Business Sponsor submits Business Sponsorship form', 'conditions': {'subprocess_state': 'BUSINESS_SPONSOR_SUBMITTED'}},
             {'code': 'PP_TR_5', 'name': 'Move to Compilation', 'from_code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'to_code': 'CREDIT_PAPER_COMPILATION', 'allowed_roles': ['system'], 'system_action': 'submit_credit_analysis', 'description': 'System transition when all analysis sub-processes complete', 'conditions': {'legal_review': 'LEGAL_REVIEW_SUBMITTED', 'credit_analysis': 'CREDIT_ANALYSIS_SUBMITTED', 'credit_questionnaire': 'CREDIT_QUESTIONNAIRE_SUBMITTED'}},
             {'code': 'PP_TR_7', 'name': 'Submit for Approval', 'from_code': 'CREDIT_PAPER_COMPILATION', 'to_code': 'CREDIT_PAPER_APPROVAL_PENDING', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_compilation', 'description': 'Credit Analyst submits Credit Compilation form', 'conditions': {'subprocess_state': 'CREDIT_COMPILATION_SUBMITTED'}},
-            {'code': 'PP_TR_8', 'name': 'Approve Credit Paper', 'from_code': 'CREDIT_PAPER_APPROVAL_PENDING', 'to_code': 'CREDIT_PAPER_APPROVED', 'allowed_roles': ['approver'], 'system_action': 'approve_credit_paper', 'description': 'Approver submits approval', 'conditions': {'subprocess_state': 'CREDIT_APPROVAL_SUBMITTED'}},
-            {'code': 'PP_TR_9', 'name': 'Reject Credit Paper', 'from_code': 'CREDIT_PAPER_APPROVAL_PENDING', 'to_code': 'CREDIT_PAPER_REJECTED', 'allowed_roles': ['approver'], 'system_action': 'reject_credit_paper', 'description': 'Approver rejects credit paper', 'conditions': {}},
+            {'code': 'PP_TR_8', 'name': 'Approve Credit Paper', 'from_code': 'CREDIT_PAPER_APPROVAL_PENDING', 'to_code': 'CREDIT_PAPER_APPROVED', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst', 'system'], 'system_action': 'approve_credit_paper', 'description': 'Approver submits approval', 'conditions': {'subprocess_state': 'CREDIT_APPROVAL_SUBMITTED'}},
+            {'code': 'PP_TR_9', 'name': 'Reject Credit Paper', 'from_code': 'CREDIT_PAPER_APPROVAL_PENDING', 'to_code': 'CREDIT_PAPER_REJECTED', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst', 'system'], 'system_action': 'reject_credit_paper', 'description': 'Approver rejects credit paper', 'conditions': {}},
         ]
     },
     # --- Sub-process workflows will be added here in the same format ---
@@ -82,9 +117,9 @@ WORKFLOWS.append({
     ],
     'transitions': [
         {'code': 'CR_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_REQUEST_DRAFT', 'to_code': 'CREDIT_REQUEST_DRAFT', 'allowed_roles': ['relationship_manager'], 'system_action': 'edit_credit_request', 'description': 'Relationship Manager saves form as draft', 'conditions': {}},
-        {'code': 'CR_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_REQUEST_DRAFT', 'to_code': 'CREDIT_REQUEST_IN_PROGRESS', 'allowed_roles': ['relationship_manager'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits draft for progress', 'conditions': {}},
+        {'code': 'CR_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_REQUEST_DRAFT', 'to_code': 'CREDIT_REQUEST_IN_PROGRESS', 'allowed_roles': ['relationship_manager'], 'system_action': 'edit_credit_request', 'description': 'Relationship Manager submits draft for progress', 'conditions': {}},
         {'code': 'CR_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_REQUEST_IN_PROGRESS', 'to_code': 'CREDIT_REQUEST_DRAFT', 'allowed_roles': ['relationship_manager'], 'system_action': 'edit_credit_request', 'description': 'Relationship Manager saves form as draft from in progress', 'conditions': {}},
-        {'code': 'CR_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_REQUEST_IN_PROGRESS', 'to_code': 'CREDIT_REQUEST_SUBMITTED', 'allowed_roles': ['relationship_manager'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}}},
+        {'code': 'CR_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_REQUEST_IN_PROGRESS', 'to_code': 'CREDIT_REQUEST_SUBMITTED', 'allowed_roles': ['relationship_manager'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}, 'parent_workflow': {'transition_code': 'PP_TR_1', 'from_state': 'CREDIT_PAPER_CREDIT_REQUEST'}}},
     ]
 })
 
@@ -101,10 +136,10 @@ WORKFLOWS.append({
         {'code': 'CREDIT_REVIEW_SUBMITTED', 'name': 'Submitted', 'description': 'Submitted state for Credit Review', 'is_initial': False, 'is_terminal': True},
     ],
     'transitions': [
-        {'code': 'CRV_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_REVIEW_DRAFT', 'to_code': 'CREDIT_REVIEW_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_review', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
-        {'code': 'CRV_TR_2', 'name': 'Update Credit Paper', 'from_code': 'CREDIT_REVIEW_DRAFT', 'to_code': 'CREDIT_REVIEW_IN_PROGRESS', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_review', 'description': 'Credit Analyst updates Credit Paper', 'conditions': {}},
-        {'code': 'CRV_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_REVIEW_IN_PROGRESS', 'to_code': 'CREDIT_REVIEW_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_review', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
-        {'code': 'CRV_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_REVIEW_IN_PROGRESS', 'to_code': 'CREDIT_REVIEW_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_review', 'description': 'Credit Analyst submits Credit Review', 'conditions': {}},
+        {'code': 'CRV_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_REVIEW_DRAFT', 'to_code': 'CREDIT_REVIEW_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_review', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
+        {'code': 'CRV_TR_2', 'name': 'Update Credit Paper', 'from_code': 'CREDIT_REVIEW_DRAFT', 'to_code': 'CREDIT_REVIEW_IN_PROGRESS', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_review', 'description': 'Credit Analyst updates Credit Paper', 'conditions': {}},
+        {'code': 'CRV_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_REVIEW_IN_PROGRESS', 'to_code': 'CREDIT_REVIEW_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_review', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
+        {'code': 'CRV_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_REVIEW_IN_PROGRESS', 'to_code': 'CREDIT_REVIEW_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_review', 'description': 'Credit Analyst submits Credit Review', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}}},
     ]
 })
 
@@ -122,9 +157,9 @@ WORKFLOWS.append({
     ],
     'transitions': [
         {'code': 'BS_TR_1', 'name': 'Save as Draft', 'from_code': 'BUSINESS_SPONSOR_DRAFT', 'to_code': 'BUSINESS_SPONSOR_DRAFT', 'allowed_roles': ['business_sponsor'], 'system_action': 'edit_business_sponsorship', 'description': 'Business Sponsor saves form as draft', 'conditions': {}},
-        {'code': 'BS_TR_2', 'name': 'Submit for In Progress', 'from_code': 'BUSINESS_SPONSOR_DRAFT', 'to_code': 'BUSINESS_SPONSOR_IN_PROGRESS', 'allowed_roles': ['business_sponsor'], 'system_action': 'submit_business_sponsorship', 'description': 'Business Sponsor submits draft for progress', 'conditions': {}},
+        {'code': 'BS_TR_2', 'name': 'Submit for In Progress', 'from_code': 'BUSINESS_SPONSOR_DRAFT', 'to_code': 'BUSINESS_SPONSOR_IN_PROGRESS', 'allowed_roles': ['business_sponsor'], 'system_action': 'edit_business_sponsorship', 'description': 'Business Sponsor submits draft for progress', 'conditions': {}},
         {'code': 'BS_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'BUSINESS_SPONSOR_IN_PROGRESS', 'to_code': 'BUSINESS_SPONSOR_DRAFT', 'allowed_roles': ['business_sponsor'], 'system_action': 'edit_business_sponsorship', 'description': 'Business Sponsor saves form as draft from in progress', 'conditions': {}},
-        {'code': 'BS_TR_4', 'name': 'Submit', 'from_code': 'BUSINESS_SPONSOR_IN_PROGRESS', 'to_code': 'BUSINESS_SPONSOR_SUBMITTED', 'allowed_roles': ['business_sponsor'], 'system_action': 'submit_business_sponsorship', 'description': 'Business Sponsor submits Business Sponsorship', 'conditions': {}},
+        {'code': 'BS_TR_4', 'name': 'Submit', 'from_code': 'BUSINESS_SPONSOR_IN_PROGRESS', 'to_code': 'BUSINESS_SPONSOR_SUBMITTED', 'allowed_roles': ['business_sponsor'], 'system_action': 'submit_business_sponsorship', 'description': 'Business Sponsor submits Business Sponsorship', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}, 'parent_workflow': {'transition_code': 'PP_TR_4', 'from_state': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING'}}},
     ]
 })
 
@@ -141,10 +176,10 @@ WORKFLOWS.append({
         {'code': 'CREDIT_QUESTIONNAIRE_SUBMITTED', 'name': 'Submitted', 'description': 'Submitted state for Credit Questionnaire', 'is_initial': False, 'is_terminal': True},
     ],
     'transitions': [
-        {'code': 'CQ_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'allowed_roles': ['credit_analyst', 'Relationship Manager'], 'system_action': 'edit_credit_questionnaire', 'description': 'User saves form as draft', 'conditions': {}},
-        {'code': 'CQ_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'allowed_roles': ['credit_analyst', 'Relationship Manager'], 'system_action': 'submit_credit_questionnaire', 'description': 'User submits draft for progress', 'conditions': {}},
-        {'code': 'CQ_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'to_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_questionnaire', 'description': 'Credit Analyst saves form as draft from in progress', 'conditions': {}},
-        {'code': 'CQ_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'to_code': 'CREDIT_QUESTIONNAIRE_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_questionnaire', 'description': 'Credit Analyst submits Credit Questionnaire', 'conditions': {}},
+        {'code': 'CQ_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'allowed_roles': ['credit_analyst', 'relationship_manager'], 'system_action': 'edit_credit_questionnaire', 'description': 'User saves form as draft', 'conditions': {}},
+        {'code': 'CQ_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'to_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'allowed_roles': ['credit_analyst', 'relationship_manager'], 'system_action': 'edit_credit_questionnaire', 'description': 'User submits draft for progress', 'conditions': {}},
+        {'code': 'CQ_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'to_code': 'CREDIT_QUESTIONNAIRE_DRAFT', 'allowed_roles': ['credit_analyst', 'relationship_manager'], 'system_action': 'edit_credit_questionnaire', 'description': 'User saves form as draft from in progress', 'conditions': {}},
+        {'code': 'CQ_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_QUESTIONNAIRE_IN_PROGRESS', 'to_code': 'CREDIT_QUESTIONNAIRE_SUBMITTED', 'allowed_roles': ['credit_analyst', 'relationship_manager'], 'system_action': 'submit_credit_questionnaire', 'description': 'User submits Credit Questionnaire', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}}},
     ]
 })
 
@@ -161,10 +196,10 @@ WORKFLOWS.append({
         {'code': 'LEGAL_REVIEW_SUBMITTED', 'name': 'Submitted', 'description': 'Submitted state for Legal Review', 'is_initial': False, 'is_terminal': True},
     ],
     'transitions': [
-        {'code': 'LR_TR_1', 'name': 'Save as Draft', 'from_code': 'LEGAL_REVIEW_DRAFT', 'to_code': 'LEGAL_REVIEW_DRAFT', 'allowed_roles': ['legal_reviewer'], 'system_action': 'perform_legal_review', 'description': 'Legal Reviewer saves form as draft', 'conditions': {}},
-        {'code': 'LR_TR_2', 'name': 'Submit for In Progress', 'from_code': 'LEGAL_REVIEW_DRAFT', 'to_code': 'LEGAL_REVIEW_IN_PROGRESS', 'allowed_roles': ['legal_reviewer'], 'system_action': 'perform_legal_review', 'description': 'Legal Reviewer submits draft for progress', 'conditions': {}},
-        {'code': 'LR_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'LEGAL_REVIEW_IN_PROGRESS', 'to_code': 'LEGAL_REVIEW_DRAFT', 'allowed_roles': ['legal_reviewer'], 'system_action': 'perform_legal_review', 'description': 'Legal Reviewer saves form as draft from in progress', 'conditions': {}},
-        {'code': 'LR_TR_4', 'name': 'Submit', 'from_code': 'LEGAL_REVIEW_IN_PROGRESS', 'to_code': 'LEGAL_REVIEW_SUBMITTED', 'allowed_roles': ['legal_reviewer'], 'system_action': 'perform_legal_review', 'description': 'Legal Reviewer submits Legal Review', 'conditions': {}},
+        {'code': 'LR_TR_1', 'name': 'Save as Draft', 'from_code': 'LEGAL_REVIEW_DRAFT', 'to_code': 'LEGAL_REVIEW_DRAFT', 'allowed_roles': ['legal_reviewer'], 'system_action': 'edit_legal_review', 'description': 'Legal Reviewer saves form as draft', 'conditions': {}},
+        {'code': 'LR_TR_2', 'name': 'Submit for In Progress', 'from_code': 'LEGAL_REVIEW_DRAFT', 'to_code': 'LEGAL_REVIEW_IN_PROGRESS', 'allowed_roles': ['legal_reviewer'], 'system_action': 'edit_legal_review', 'description': 'Legal Reviewer submits draft for progress', 'conditions': {}},
+        {'code': 'LR_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'LEGAL_REVIEW_IN_PROGRESS', 'to_code': 'LEGAL_REVIEW_DRAFT', 'allowed_roles': ['legal_reviewer'], 'system_action': 'edit_legal_review', 'description': 'Legal Reviewer saves form as draft from in progress', 'conditions': {}},
+        {'code': 'LR_TR_4', 'name': 'Submit', 'from_code': 'LEGAL_REVIEW_IN_PROGRESS', 'to_code': 'LEGAL_REVIEW_SUBMITTED', 'allowed_roles': ['legal_reviewer'], 'system_action': 'submit_legal_review', 'description': 'Legal Reviewer submits Legal Review', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}}},
     ]
 })
 
@@ -181,10 +216,10 @@ WORKFLOWS.append({
         {'code': 'CREDIT_ANALYSIS_SUBMITTED', 'name': 'Submitted', 'description': 'Submitted state for Credit Analysis', 'is_initial': False, 'is_terminal': True},
     ],
     'transitions': [
-        {'code': 'CA_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_ANALYSIS_DRAFT', 'to_code': 'CREDIT_ANALYSIS_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_analysis', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
-        {'code': 'CA_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_ANALYSIS_DRAFT', 'to_code': 'CREDIT_ANALYSIS_IN_PROGRESS', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_analysis', 'description': 'Credit Analyst submits draft for progress', 'conditions': {}},
-        {'code': 'CA_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_ANALYSIS_IN_PROGRESS', 'to_code': 'CREDIT_ANALYSIS_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_analysis', 'description': 'Credit Analyst saves form as draft from in progress', 'conditions': {}},
-        {'code': 'CA_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_ANALYSIS_IN_PROGRESS', 'to_code': 'CREDIT_ANALYSIS_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'perform_credit_analysis', 'description': 'Credit Analyst submits Credit Analysis', 'conditions': {}},
+        {'code': 'CAN_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_ANALYSIS_DRAFT', 'to_code': 'CREDIT_ANALYSIS_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_analysis', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
+        {'code': 'CAN_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_ANALYSIS_DRAFT', 'to_code': 'CREDIT_ANALYSIS_IN_PROGRESS', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_analysis', 'description': 'Credit Analyst submits draft for progress', 'conditions': {}},
+        {'code': 'CAN_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_ANALYSIS_IN_PROGRESS', 'to_code': 'CREDIT_ANALYSIS_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_analysis', 'description': 'Credit Analyst saves form as draft from in progress', 'conditions': {}},
+        {'code': 'CAN_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_ANALYSIS_IN_PROGRESS', 'to_code': 'CREDIT_ANALYSIS_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_analysis', 'description': 'Credit Analyst submits Credit Analysis', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}}},
     ]
 })
 
@@ -202,9 +237,9 @@ WORKFLOWS.append({
     ],
     'transitions': [
         {'code': 'CC_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_COMPILATION_DRAFT', 'to_code': 'CREDIT_COMPILATION_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_compilation', 'description': 'Credit Analyst saves form as draft', 'conditions': {}},
-        {'code': 'CC_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_COMPILATION_DRAFT', 'to_code': 'CREDIT_COMPILATION_IN_PROGRESS', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_compilation', 'description': 'Credit Analyst submits draft for progress', 'conditions': {}},
+        {'code': 'CC_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_COMPILATION_DRAFT', 'to_code': 'CREDIT_COMPILATION_IN_PROGRESS', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_compilation', 'description': 'Credit Analyst submits draft for progress', 'conditions': {}},
         {'code': 'CC_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_COMPILATION_IN_PROGRESS', 'to_code': 'CREDIT_COMPILATION_DRAFT', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_credit_compilation', 'description': 'Credit Analyst saves form as draft from in progress', 'conditions': {}},
-        {'code': 'CC_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_COMPILATION_IN_PROGRESS', 'to_code': 'CREDIT_COMPILATION_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_compilation', 'description': 'Credit Analyst submits Credit Compilation', 'conditions': {}},
+        {'code': 'CC_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_COMPILATION_IN_PROGRESS', 'to_code': 'CREDIT_COMPILATION_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_credit_compilation', 'description': 'Credit Analyst submits Credit Compilation', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}, 'parent_workflow': {'transition_code': 'PP_TR_7', 'from_state': 'CREDIT_PAPER_COMPILATION'}}},
     ]
 })
 
@@ -221,10 +256,10 @@ WORKFLOWS.append({
         {'code': 'CREDIT_APPROVAL_SUBMITTED', 'name': 'Submitted', 'description': 'Submitted state for Credit Approval', 'is_initial': False, 'is_terminal': True},
     ],
     'transitions': [
-        {'code': 'CA_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_APPROVAL_DRAFT', 'to_code': 'CREDIT_APPROVAL_DRAFT', 'allowed_roles': ['approver'], 'system_action': 'edit_credit_approval', 'description': 'Approver saves form as draft', 'conditions': {}},
-        {'code': 'CA_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_APPROVAL_DRAFT', 'to_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'allowed_roles': ['approver'], 'system_action': 'submit_credit_approval', 'description': 'Approver submits draft for progress', 'conditions': {}},
-        {'code': 'CA_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'to_code': 'CREDIT_APPROVAL_DRAFT', 'allowed_roles': ['approver'], 'system_action': 'edit_credit_approval', 'description': 'Approver saves form as draft from in progress', 'conditions': {}},
-        {'code': 'CA_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'to_code': 'CREDIT_APPROVAL_SUBMITTED', 'allowed_roles': ['approver'], 'system_action': 'submit_credit_approval', 'description': 'Approver submits Credit Approval', 'conditions': {}},
+        {'code': 'CAP_TR_1', 'name': 'Save as Draft', 'from_code': 'CREDIT_APPROVAL_DRAFT', 'to_code': 'CREDIT_APPROVAL_DRAFT', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst'], 'system_action': 'edit_credit_approval', 'description': 'Approver saves form as draft', 'conditions': {}},
+        {'code': 'CAP_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_APPROVAL_DRAFT', 'to_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst'], 'system_action': 'edit_credit_approval', 'description': 'Approver submits draft for progress', 'conditions': {}},
+        {'code': 'CAP_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'to_code': 'CREDIT_APPROVAL_DRAFT', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst'], 'system_action': 'edit_credit_approval', 'description': 'Approver saves form as draft from in progress', 'conditions': {}},
+        {'code': 'CAP_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'to_code': 'CREDIT_APPROVAL_SUBMITTED', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst'], 'system_action': 'submit_credit_approval', 'description': 'Approver submits Credit Approval', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}, 'parent_workflow': {'transition_code': 'PP_TR_8', 'from_state': 'CREDIT_PAPER_APPROVAL_PENDING'}}},
     ]
 })
 
@@ -243,7 +278,7 @@ class Command(BaseCommand):
         # Create the system user
         system_user, created_user = User.objects.get_or_create(
             username='system',
-            defaults={'email': 'system@example.com', 'first_name': 'System', 'last_name': 'User'}
+            defaults={'email': 'system@example.com', 'first_name': 'System', 'last_name': 'User', 'employee_id': 'SYSTEM001'}
         )
         if created_user:
             system_user.set_unusable_password()
@@ -283,7 +318,7 @@ class Command(BaseCommand):
             state_objs = {}
             for state_data in wf['states']:
                 state, created_state = State.objects.update_or_create(
-                    workflow_definition=workflow_def,
+                    workflow=workflow_def,
                     code=state_data['code'],
                     defaults={
                         'name': state_data['name'],
@@ -304,7 +339,7 @@ class Command(BaseCommand):
                 from_state = state_objs[trans_data['from_code']]
                 to_state = state_objs[trans_data['to_code']]
                 transition, created_transition = Transition.objects.update_or_create(
-                    workflow_definition=workflow_def,
+                    workflow=workflow_def,
                     code=trans_data['code'],
                     defaults={
                         'name': trans_data['name'],

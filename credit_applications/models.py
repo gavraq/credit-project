@@ -169,27 +169,27 @@ class CreditRequestForm(models.Model):
     kyc_approval_status = models.BooleanField(default=False)
     
     # Relationship Information
-    relationship_comments = models.TextField(blank=True)
+    relationship_comments = models.TextField(blank=True, null=True)
     relationship_manager_name = models.CharField(max_length=255, blank=True, null=True, help_text='Denormalized field for relationship manager name')
-    most_senior_contact = models.CharField(max_length=255, blank=True)
+    most_senior_contact = models.CharField(max_length=255, blank=True, null=True)
     last_client_visit_date = models.DateField(blank=True, null=True)
     
     # Documentation
-    legal_documentation = models.TextField(blank=True)
+    legal_documentation = models.TextField(blank=True, null=True)
     positive_legal_opinion = models.BooleanField(default=False)
     financial_statements_received = models.BooleanField(default=False)
     interim_statements_available = models.BooleanField(default=False)
     detailed_limit_comments = models.TextField(blank=True, null=True, help_text='Denormalized field for detailed limit comments')
-    
+
     # Stakeholders
-    account_executive = models.CharField(max_length=255, blank=True)
+    account_executive = models.CharField(max_length=255, blank=True, null=True)
     senior_business_sponsor_name = models.CharField(max_length=255, blank=True, null=True) # Renamed, was senior_business_sponsor
     senior_business_sponsor_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='crf_senior_sponsors')
     second_business_sponsor_name = models.CharField(max_length=255, blank=True, null=True) # Renamed, was second_business_sponsor
     second_business_sponsor_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='crf_second_sponsors')
     
     # Additional Information
-    high_priority_justification = models.TextField(blank=True)
+    high_priority_justification = models.TextField(blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -357,15 +357,29 @@ class BusinessSponsorshipForm(models.Model):
     form_last_saved_at = models.DateTimeField(null=True, blank=True)
     
     def save(self, *args, **kwargs):
-        # Auto-populate denormalized names
+        # Auto-populate sponsors from Credit Request Form if not already set
+        if self.credit_application and hasattr(self.credit_application, 'credit_request_form'):
+            crf = self.credit_application.credit_request_form
+            if crf:
+                # Copy senior business sponsor from Credit Request
+                if not self.senior_business_sponsor and crf.senior_business_sponsor_id:
+                    self.senior_business_sponsor = crf.senior_business_sponsor_id
+                    self.senior_business_sponsor_name = crf.senior_business_sponsor_name
+
+                # Copy second business sponsor from Credit Request
+                if not self.second_business_sponsor and crf.second_business_sponsor_id:
+                    self.second_business_sponsor = crf.second_business_sponsor_id
+                    self.second_business_sponsor_name = crf.second_business_sponsor_name
+
+        # Auto-populate denormalized names from ForeignKey if names not set
         if self.senior_business_sponsor and not self.senior_business_sponsor_name:
             user = self.senior_business_sponsor
             self.senior_business_sponsor_name = f"{user.first_name} {user.last_name}".strip()
-            
+
         if self.second_business_sponsor and not self.second_business_sponsor_name:
             user = self.second_business_sponsor
             self.second_business_sponsor_name = f"{user.first_name} {user.last_name}".strip()
-            
+
         super().save(*args, **kwargs)
 
 class LegalReviewForm(models.Model):
@@ -385,24 +399,29 @@ class LegalReviewForm(models.Model):
     agreement_template = models.CharField(
         max_length=100,
         blank=True,
+        null=True,
         help_text='Agreement template used (e.g., ISDA, CSA)'
     )
     governing_law = models.CharField(
         max_length=100,
         blank=True,
+        null=True,
         help_text='Governing law for the agreement'
     )
     counterparty_events_of_default = models.TextField(
         blank=True,
+        null=True,
         help_text='Counterparty events of default provisions'
     )
     grace_period = models.CharField(
         max_length=100,
         blank=True,
+        null=True,
         help_text='Grace period for defaults'
     )
     non_standard_provisions = models.TextField(
         blank=True,
+        null=True,
         help_text='Any non-standard provisions in the agreement'
     )
     positive_netting_opinion = models.BooleanField(
@@ -420,6 +439,7 @@ class LegalReviewForm(models.Model):
     csa_type = models.CharField(
         max_length=50,
         blank=True,
+        null=True,
         help_text='Type of CSA agreement'
     )
     iosco_compliant = models.BooleanField(
