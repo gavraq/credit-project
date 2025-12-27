@@ -921,6 +921,7 @@ class CreditCompilationForm(models.Model):
     )
     compiler_notes = models.TextField(
         blank=True,
+        null=True,
         help_text='Internal notes from the compiler'
     )
     
