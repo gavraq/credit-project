@@ -182,12 +182,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1125,
+                  "duration": 1053,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2025-12-27T18:12:46.418Z",
+                  "startTime": "2025-12-27T18:15:29.329Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -224,14 +224,14 @@
                   "timeout": 300000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
                   "results": [
                     {
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 98355,
+                      "duration": 184913,
                       "errors": [],
                       "stdout": [
                         {
@@ -241,7 +241,7 @@
                           "text": "Found 6 tabs, clicking tab 4\n"
                         },
                         {
-                          "text": "Created application with ID: 3adbc123-4591-4541-91df-336b30077d11\n"
+                          "text": "Created application with ID: 13a66c94-617d-4d44-9a9f-f448e3e9d07b\n"
                         },
                         {
                           "text": "Looking for sub-process: Credit Request Form\n"
@@ -250,7 +250,7 @@
                           "text": "Found sub-process Credit Request Form with status: Status: Draft\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'Save as Draft'\u001b[39m, \u001b[32m'✅ Submit for In Progress'\u001b[39m ]\n"
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Phase 1 complete\n"
@@ -262,25 +262,37 @@
                           "text": "Looking for sub-process: Credit Review Form\n"
                         },
                         {
-                          "text": "Found sub-process Credit Review Form with status: Status: Draft\n"
+                          "text": "Parent workflow state: Credit Request (refresh 1)\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'Update Credit Paper'\u001b[39m, \u001b[32m'Save as Draft'\u001b[39m ]\n"
+                          "text": "Parent workflow state: Credit Request (refresh 2)\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'Update Credit Paper'\u001b[39m, \u001b[32m'Save as Draft'\u001b[39m ]\n"
+                          "text": "Parent workflow state: Credit Request (refresh 3)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 4)\n"
+                        },
+                        {
+                          "text": "Sub-process Credit Review Form not found in details, navigating directly\n"
+                        },
+                        {
+                          "text": "Available transitions: []\n"
+                        },
+                        {
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Current state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
-                          "text": "Performing transition: Update Credit Paper\n"
+                          "text": "Transitions after in-progress: []\n"
                         },
                         {
-                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
+                          "text": "No standard submit transition found, trying alternatives...\n"
                         },
                         {
-                          "text": "Performing transition: Submit\n"
+                          "text": "Final state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
                           "text": "Phase 2 complete\n"
@@ -292,25 +304,37 @@
                           "text": "Looking for sub-process: Business Sponsorship Form\n"
                         },
                         {
-                          "text": "Found sub-process Business Sponsorship Form with status: Status: Draft\n"
+                          "text": "Parent workflow state: Credit Request (refresh 1)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 2)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 3)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 4)\n"
+                        },
+                        {
+                          "text": "Sub-process Business Sponsorship Form not found in details, navigating directly\n"
                         },
                         {
                           "text": "Clicking Approve button for sponsor decision\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'Save as Draft'\u001b[39m, \u001b[32m'✅ Submit for In Progress'\u001b[39m ]\n"
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Current state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
-                          "text": "Performing transition: Submit for In Progress\n"
+                          "text": "Transitions after in-progress: []\n"
                         },
                         {
-                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
+                          "text": "No standard submit transition found, trying alternatives...\n"
                         },
                         {
-                          "text": "Performing transition: Submit\n"
+                          "text": "Final state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
                           "text": "Phase 3 complete\n"
@@ -322,22 +346,34 @@
                           "text": "Looking for sub-process: Legal Review Form\n"
                         },
                         {
-                          "text": "Found sub-process Legal Review Form with status: Status: Draft\n"
+                          "text": "Parent workflow state: Credit Request (refresh 1)\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'Save as Draft'\u001b[39m, \u001b[32m'✅ Submit for In Progress'\u001b[39m ]\n"
+                          "text": "Parent workflow state: Credit Request (refresh 2)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 3)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 4)\n"
+                        },
+                        {
+                          "text": "Sub-process Legal Review Form not found in details, navigating directly\n"
+                        },
+                        {
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Current state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
-                          "text": "Performing transition: Submit for In Progress\n"
+                          "text": "Transitions after in-progress: []\n"
                         },
                         {
-                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
+                          "text": "No standard submit transition found, trying alternatives...\n"
                         },
                         {
-                          "text": "Performing transition: Submit\n"
+                          "text": "Final state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
                           "text": "Phase 4a complete\n"
@@ -349,22 +385,34 @@
                           "text": "Looking for sub-process: Credit Questionnaire Form\n"
                         },
                         {
-                          "text": "Found sub-process Credit Questionnaire Form with status: Status: Draft\n"
+                          "text": "Parent workflow state: Credit Request (refresh 1)\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'Save as Draft'\u001b[39m, \u001b[32m'✅ Submit for In Progress'\u001b[39m ]\n"
+                          "text": "Parent workflow state: Credit Request (refresh 2)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 3)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 4)\n"
+                        },
+                        {
+                          "text": "Sub-process Credit Questionnaire Form not found in details, navigating directly\n"
+                        },
+                        {
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Current state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
-                          "text": "Performing transition: Submit for In Progress\n"
+                          "text": "Transitions after in-progress: []\n"
                         },
                         {
-                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
+                          "text": "No standard submit transition found, trying alternatives...\n"
                         },
                         {
-                          "text": "Performing transition: Submit\n"
+                          "text": "Final state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
                           "text": "Phase 4b complete\n"
@@ -376,22 +424,34 @@
                           "text": "Looking for sub-process: Credit Analysis Form\n"
                         },
                         {
-                          "text": "Found sub-process Credit Analysis Form with status: Status: Draft\n"
+                          "text": "Parent workflow state: Credit Request (refresh 1)\n"
                         },
                         {
-                          "text": "Available transitions: [\n  \u001b[32m'Save as Draft'\u001b[39m,\n  \u001b[32m'✅ Submit for In Progress'\u001b[39m,\n  \u001b[32m'Save as Draft'\u001b[39m,\n  \u001b[32m'✅ Submit for In Progress'\u001b[39m\n]\n"
+                          "text": "Parent workflow state: Credit Request (refresh 2)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 3)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 4)\n"
+                        },
+                        {
+                          "text": "Sub-process Credit Analysis Form not found in details, navigating directly\n"
+                        },
+                        {
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Current state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
-                          "text": "Performing transition: Submit for In Progress\n"
+                          "text": "Transitions after in-progress: []\n"
                         },
                         {
-                          "text": "Transitions after in-progress: [\n  \u001b[32m'Save as Draft from In Progress'\u001b[39m,\n  \u001b[32m'✅ Submit'\u001b[39m,\n  \u001b[32m'Save as Draft from In Progress'\u001b[39m,\n  \u001b[32m'✅ Submit'\u001b[39m\n]\n"
+                          "text": "No standard submit transition found, trying alternatives...\n"
                         },
                         {
-                          "text": "Performing transition: Submit\n"
+                          "text": "Final state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
                           "text": "Phase 4c complete\n"
@@ -403,22 +463,34 @@
                           "text": "Looking for sub-process: Credit Compilation Form\n"
                         },
                         {
-                          "text": "Found sub-process Credit Compilation Form with status: Status: Draft\n"
+                          "text": "Parent workflow state: Credit Request (refresh 1)\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'Save as Draft'\u001b[39m, \u001b[32m'✅ Submit for In Progress'\u001b[39m ]\n"
+                          "text": "Parent workflow state: Credit Request (refresh 2)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 3)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 4)\n"
+                        },
+                        {
+                          "text": "Sub-process Credit Compilation Form not found in details, navigating directly\n"
+                        },
+                        {
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Current state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
-                          "text": "Performing transition: Submit for In Progress\n"
+                          "text": "Transitions after in-progress: []\n"
                         },
                         {
-                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
+                          "text": "No standard submit transition found, trying alternatives...\n"
                         },
                         {
-                          "text": "Performing transition: Submit\n"
+                          "text": "Final state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
                           "text": "Phase 5 complete\n"
@@ -430,22 +502,34 @@
                           "text": "Looking for sub-process: Credit Approval Form\n"
                         },
                         {
-                          "text": "Found sub-process Credit Approval Form with status: Status: Draft\n"
+                          "text": "Parent workflow state: Credit Request (refresh 1)\n"
                         },
                         {
-                          "text": "Available transitions: [ \u001b[32m'✅ Submit for In Progress'\u001b[39m, \u001b[32m'Save as Draft'\u001b[39m ]\n"
+                          "text": "Parent workflow state: Credit Request (refresh 2)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 3)\n"
+                        },
+                        {
+                          "text": "Parent workflow state: Credit Request (refresh 4)\n"
+                        },
+                        {
+                          "text": "Sub-process Credit Approval Form not found in details, navigating directly\n"
+                        },
+                        {
+                          "text": "Available transitions: []\n"
                         },
                         {
                           "text": "Current state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
-                          "text": "Performing transition: Submit for In Progress\n"
+                          "text": "Transitions after in-progress: []\n"
                         },
                         {
-                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
+                          "text": "No standard submit transition found, trying alternatives...\n"
                         },
                         {
-                          "text": "Performing transition: Submit\n"
+                          "text": "Final state: \u001b[1mnull\u001b[22m\n"
                         },
                         {
                           "text": "Phase 6 complete\n"
@@ -454,13 +538,16 @@
                           "text": "=== Final Verification ===\n"
                         },
                         {
-                          "text": "Application found: false\n"
+                          "text": "Application found in All Requests\n"
                         },
                         {
-                          "text": "Full workflow test complete for: E2E Full Workflow 1766859168285\n"
+                          "text": "Application found: true\n"
                         },
                         {
-                          "text": "Application ID: 3adbc123-4591-4541-91df-336b30077d11\n"
+                          "text": "Full workflow test complete for: E2E Full Workflow 1766859333388\n"
+                        },
+                        {
+                          "text": "Application ID: 13a66c94-617d-4d44-9a9f-f448e3e9d07b\n"
                         },
                         {
                           "text": "✅ Test completed - All 6 workflow phases verified with workflow transitions\n"
@@ -471,42 +558,42 @@
                       "steps": [
                         {
                           "title": "Phase 1: Create and submit credit request",
-                          "duration": 14471
+                          "duration": 12195
                         },
                         {
                           "title": "Phase 2: Complete credit review",
-                          "duration": 11566
+                          "duration": 24387
                         },
                         {
                           "title": "Phase 3: Complete business sponsorship",
-                          "duration": 13093
+                          "duration": 25575
                         },
                         {
                           "title": "Phase 4a: Complete legal review",
-                          "duration": 10916
+                          "duration": 23877
                         },
                         {
                           "title": "Phase 4b: Complete credit questionnaire",
-                          "duration": 11337
+                          "duration": 24555
                         },
                         {
                           "title": "Phase 4c: Complete credit analysis",
-                          "duration": 11171
+                          "duration": 23709
                         },
                         {
                           "title": "Phase 5: Complete credit compilation",
-                          "duration": 11039
+                          "duration": 23167
                         },
                         {
                           "title": "Phase 6: Approve credit application",
-                          "duration": 10561
+                          "duration": 22167
                         },
                         {
                           "title": "Verify workflow completion",
-                          "duration": 4050
+                          "duration": 3019
                         }
                       ],
-                      "startTime": "2025-12-27T18:12:48.131Z",
+                      "startTime": "2025-12-27T18:15:30.771Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -514,7 +601,7 @@
                   "status": "expected"
                 }
               ],
-              "id": "e7794be0e464d3b86c2c-607193ce242e544a8816",
+              "id": "e7794be0e464d3b86c2c-54a358c3870afc1c5a26",
               "file": "workflows/full-workflow-journey.spec.ts",
               "line": 112,
               "column": 7
@@ -526,8 +613,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-12-27T18:12:46.096Z",
-    "duration": 100491.236,
+    "startTime": "2025-12-27T18:15:29.059Z",
+    "duration": 187066.119,
     "expected": 2,
     "skipped": 0,
     "unexpected": 0,

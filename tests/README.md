@@ -93,6 +93,7 @@ tests/
 ├── e2e/                    # Playwright E2E Tests
 │   ├── playwright.config.ts
 │   ├── package.json
+│   ├── README.md          # E2E-specific documentation
 │   ├── fixtures/
 │   │   └── users.json     # Test user credentials
 │   ├── pages/             # Page Object Models
@@ -100,11 +101,15 @@ tests/
 │   │   ├── login.page.ts
 │   │   ├── dashboard.page.ts
 │   │   ├── credit-request.page.ts
+│   │   ├── generic-form.page.ts  # Generic handler for all workflow phases
 │   │   └── workflow-actions.component.ts
+│   ├── utils/
+│   │   └── auth-helpers.ts  # Role switching utilities
 │   └── tests/
 │       ├── auth.setup.ts
 │       └── workflows/
-│           └── full-workflow-journey.spec.ts
+│           ├── full-workflow-journey.spec.ts  # Complete 6-phase test
+│           └── complete-workflow.spec.ts
 │
 └── reports/                # Generated test reports
     ├── api/
@@ -136,6 +141,8 @@ TEST_APPROVER_USER=approver_test
 
 The following test users must exist in the target system:
 
+**API Tests** (configured in `.env`):
+
 | Role | Username | Purpose |
 |------|----------|---------|
 | Relationship Manager | rm_test | Credit Request, Questionnaire |
@@ -143,6 +150,17 @@ The following test users must exist in the target system:
 | Business Sponsor | bs_test | Business Sponsorship |
 | Legal Reviewer | lr_test | Legal Review |
 | Credit Approver | approver_test | Final Approval |
+
+**E2E Tests** (configured in `e2e/fixtures/users.json`):
+
+| Role | Username | Purpose |
+|------|----------|---------|
+| Relationship Manager | john.smith | Credit Request (Phase 1), Questionnaire (Phase 4b) |
+| Credit Analyst | david.green | Credit Review (Phase 2), Analysis (Phase 4c), Compilation (Phase 5), Approval (Phase 6) |
+| Business Sponsor | mike.brown | Business Sponsorship (Phase 3) - **Must be set as Senior Sponsor in Phase 1** |
+| Legal Reviewer | david.guthrie | Legal Review (Phase 4a) |
+
+> **Important**: For Phase 3 to work correctly, the Business Sponsor must be assigned as the Senior Business Sponsor when creating the credit application in Phase 1.
 
 ## Test Markers
 
@@ -229,6 +247,20 @@ npx playwright install
 npx playwright test --debug
 ```
 
+**networkidle timeout on dashboards:**
+Dashboard pages with continuous polling can timeout on `networkidle`. Use `domcontentloaded` instead:
+```typescript
+await page.waitForLoadState('domcontentloaded');
+```
+
+**Phase 3 shows no transitions:**
+The Business Sponsorship workflow checks that the current user is an assigned sponsor. Ensure:
+1. Senior Business Sponsor is set in Phase 1 using `selectSeniorBusinessSponsor()`
+2. The sponsor user matches the one set in Phase 1
+
+**NOT NULL constraint errors:**
+If form transitions fail with database constraint errors, the model may need `null=True` on text fields. See migrations 0024-0027 in `credit_applications`.
+
 **Screenshots on failure:**
 Check `tests/reports/e2e/test-results/` for failure screenshots.
 
@@ -280,9 +312,28 @@ def test_my_new_test(rm_client: APIClient, credit_application_data: Dict):
 ### E2E Test Example
 
 ```typescript
-test('my new e2e test', async ({ page }) => {
-  const loginPage = new LoginPage(page);
-  await loginPage.loginAndWait(users.rm.username, users.rm.password);
-  // ... test steps
+import { test, expect } from '@playwright/test';
+import { DashboardPage } from '../../pages/dashboard.page';
+import { GenericFormPage } from '../../pages/generic-form.page';
+import { loginAsRole } from '../../utils/auth-helpers';
+
+test('complete workflow phase', async ({ page }) => {
+  const dashboardPage = new DashboardPage(page);
+  const genericFormPage = new GenericFormPage(page);
+
+  // Auth is handled by setup project, navigate directly
+  await dashboardPage.navigate();
+
+  // Navigate to a specific form and complete the phase
+  await genericFormPage.navigateToApplication(applicationId, 'CreditReviewForm');
+  await genericFormPage.waitForFormReady();
+
+  // Complete the workflow transitions (Draft → In Progress → Submitted)
+  await genericFormPage.completePhase({
+    comments: 'Test comment'
+  });
+
+  // Switch roles for the next phase
+  await loginAsRole(page, 'business_sponsor');
 });
 ```
