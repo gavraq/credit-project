@@ -154,9 +154,10 @@ export class WorkflowActionsComponent {
 
   /**
    * Check if a specific transition button is available.
+   * Uses .first() to handle cases where duplicate buttons exist on the page.
    */
   async hasTransition(transitionName: string): Promise<boolean> {
-    const button = this.page.locator(`button:has-text("${transitionName}")`);
+    const button = this.page.locator(`button:has-text("${transitionName}")`).first();
     return await button.isVisible();
   }
 

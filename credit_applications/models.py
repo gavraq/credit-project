@@ -720,48 +720,58 @@ class CreditAnalysisForm(models.Model):
     # Basic Details
     industry_analysis = models.TextField(
         blank=True,
+        null=True,
         help_text='Industry analysis and outlook'
     )
     business_model_assessment = models.TextField(
         blank=True,
+        null=True,
         help_text='Assessment of business model and strategy'
     )
     management_quality = models.CharField(
         max_length=20,
         choices=[('excellent', 'Excellent'), ('good', 'Good'), ('satisfactory', 'Satisfactory'), ('poor', 'Poor')],
         blank=True,
+        null=True,
         help_text='Management quality assessment'
     )
     
     # Executive Summary
     executive_summary = models.TextField(
         blank=True,
+        null=True,
         help_text='Executive summary of the credit analysis'
     )
     key_risks = models.TextField(
         blank=True,
+        null=True,
         help_text='Key risks identified'
     )
     mitigating_factors = models.TextField(
         blank=True,
+        null=True,
         help_text='Mitigating factors and risk controls'
     )
     
     # Financial Analysis
     revenue_analysis = models.TextField(
         blank=True,
+        null=True,
         help_text='Analysis of revenue trends and sustainability'
     )
     profitability_analysis = models.TextField(
         blank=True,
+        null=True,
         help_text='Analysis of profitability metrics'
     )
     cash_flow_analysis = models.TextField(
         blank=True,
+        null=True,
         help_text='Cash flow analysis and projections'
     )
     debt_capacity_analysis = models.TextField(
         blank=True,
+        null=True,
         help_text='Assessment of debt capacity and leverage'
     )
     
@@ -769,6 +779,7 @@ class CreditAnalysisForm(models.Model):
     credit_rating_recommendation = models.CharField(
         max_length=10,
         blank=True,
+        null=True,
         help_text='Internal credit rating recommendation'
     )
     probability_of_default = models.DecimalField(
@@ -844,42 +855,52 @@ class CreditCompilationForm(models.Model):
     # Credit Paper sections
     credit_paper_summary = models.TextField(
         blank=True,
+        null=True,
         help_text='Executive summary of the credit paper'
     )
     facility_summary = models.TextField(
         blank=True,
+        null=True,
         help_text='Summary of requested facilities'
     )
     counterparty_background = models.TextField(
         blank=True,
+        null=True,
         help_text='Background information on counterparty'
     )
     business_rationale = models.TextField(
         blank=True,
+        null=True,
         help_text='Business rationale for the facilities'
     )
     risk_assessment_summary = models.TextField(
         blank=True,
+        null=True,
         help_text='Summary of risk assessment findings'
     )
     financial_analysis_summary = models.TextField(
         blank=True,
+        null=True,
         help_text='Summary of financial analysis'
     )
     legal_documentation_summary = models.TextField(
         blank=True,
+        null=True,
         help_text='Summary of legal documentation review'
     )
     conditions_precedent = models.TextField(
         blank=True,
+        null=True,
         help_text='Conditions precedent to drawdown'
     )
     ongoing_covenants = models.TextField(
         blank=True,
+        null=True,
         help_text='Ongoing covenants and monitoring requirements'
     )
     pricing_summary = models.TextField(
         blank=True,
+        null=True,
         help_text='Pricing and fee structure summary'
     )
     
