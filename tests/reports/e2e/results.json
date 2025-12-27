@@ -182,20 +182,14 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1175,
+                  "duration": 1141,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2025-12-27T18:03:14.642Z",
+                  "startTime": "2025-12-27T18:06:34.050Z",
                   "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "/Users/gavinslater/projects/credit-project/tests/reports/e2e/test-results/auth.setup.ts-authenticate-setup/trace.zip"
-                    }
-                  ]
+                  "attachments": []
                 }
               ],
               "status": "expected"
@@ -237,10 +231,10 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 54671,
+                      "duration": 53046,
                       "error": {
-                        "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"business_model_assessment\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (b2bc9f82-92cc-485a-9562-d92cef25d6a3, 2025-12-27 18:03:41.564651+00, 2025-12-27 18:04:09.857249+00, 40d37f55-7c02-4488-b9eb-30fa6192de3d, 5712af58-53bf-4450-97c6-cfd3e2a7a8b9, 2025-12-27 18:04:09.419+00, 2025-12-27 18:04:09.852618+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)",
-                        "stack": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"business_model_assessment\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (b2bc9f82-92cc-485a-9562-d92cef25d6a3, 2025-12-27 18:03:41.564651+00, 2025-12-27 18:04:09.857249+00, 40d37f55-7c02-4488-b9eb-30fa6192de3d, 5712af58-53bf-4450-97c6-cfd3e2a7a8b9, 2025-12-27 18:04:09.419+00, 2025-12-27 18:04:09.852618+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:323:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:312:5",
+                        "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"climate_risk_score\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (4199dbf9-5b02-4823-a1ae-52452340abba, 2025-12-27 18:07:01.291723+00, 2025-12-27 18:07:28.362917+00, b4d8d87a-58db-4efd-abd2-3b9e524ae43c, e61ecc19-7755-4ede-b255-494aef572b99, 2025-12-27 18:07:28.17+00, 2025-12-27 18:07:28.355212+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)",
+                        "stack": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"climate_risk_score\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (4199dbf9-5b02-4823-a1ae-52452340abba, 2025-12-27 18:07:01.291723+00, 2025-12-27 18:07:28.362917+00, b4d8d87a-58db-4efd-abd2-3b9e524ae43c, e61ecc19-7755-4ede-b255-494aef572b99, 2025-12-27 18:07:28.17+00, 2025-12-27 18:07:28.355212+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:323:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:312:5",
                         "location": {
                           "file": "/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts",
                           "column": 13,
@@ -255,7 +249,7 @@
                             "column": 13,
                             "line": 333
                           },
-                          "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"business_model_assessment\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (b2bc9f82-92cc-485a-9562-d92cef25d6a3, 2025-12-27 18:03:41.564651+00, 2025-12-27 18:04:09.857249+00, 40d37f55-7c02-4488-b9eb-30fa6192de3d, 5712af58-53bf-4450-97c6-cfd3e2a7a8b9, 2025-12-27 18:04:09.419+00, 2025-12-27 18:04:09.852618+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n\n   at ../pages/generic-form.page.ts:333\n\n  331 |     if (hasError) {\n  332 |       const errorMessage = await this.workflowActions.getErrorMessage();\n> 333 |       throw new Error(`Workflow error: ${errorMessage}`);\n      |             ^\n  334 |     }\n  335 |   }\n  336 |\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:323:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:312:5"
+                          "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"climate_risk_score\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (4199dbf9-5b02-4823-a1ae-52452340abba, 2025-12-27 18:07:01.291723+00, 2025-12-27 18:07:28.362917+00, b4d8d87a-58db-4efd-abd2-3b9e524ae43c, e61ecc19-7755-4ede-b255-494aef572b99, 2025-12-27 18:07:28.17+00, 2025-12-27 18:07:28.355212+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n\n   at ../pages/generic-form.page.ts:333\n\n  331 |     if (hasError) {\n  332 |       const errorMessage = await this.workflowActions.getErrorMessage();\n> 333 |       throw new Error(`Workflow error: ${errorMessage}`);\n      |             ^\n  334 |     }\n  335 |   }\n  336 |\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:323:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:312:5"
                         }
                       ],
                       "stdout": [
@@ -266,7 +260,7 @@
                           "text": "Found 6 tabs, clicking tab 4\n"
                         },
                         {
-                          "text": "Created application with ID: 40d37f55-7c02-4488-b9eb-30fa6192de3d\n"
+                          "text": "Created application with ID: b4d8d87a-58db-4efd-abd2-3b9e524ae43c\n"
                         },
                         {
                           "text": "Looking for sub-process: Credit Request Form\n"
@@ -413,7 +407,7 @@
                           "text": "Performing transition: Submit for In Progress\n"
                         },
                         {
-                          "text": "Transition error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"business_model_assessment\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (b2bc9f82-92cc-485a-9562-d92cef25d6a3, 2025-12-27 18:03:41.564651+00, 2025-12-27 18:04:04.852401+00, 40d37f55-7c02-4488-b9eb-30fa6192de3d, 5712af58-53bf-4450-97c6-cfd3e2a7a8b9, 2025-12-27 18:04:04.665+00, 2025-12-27 18:04:04.847497+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n"
+                          "text": "Transition error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"climate_risk_score\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (4199dbf9-5b02-4823-a1ae-52452340abba, 2025-12-27 18:07:01.291723+00, 2025-12-27 18:07:23.651355+00, b4d8d87a-58db-4efd-abd2-3b9e524ae43c, e61ecc19-7755-4ede-b255-494aef572b99, 2025-12-27 18:07:23.444+00, 2025-12-27 18:07:23.64373+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n"
                         },
                         {
                           "text": "Transitions after in-progress: [\n  \u001b[32m'Save as Draft'\u001b[39m,\n  \u001b[32m'✅ Submit for In Progress'\u001b[39m,\n  \u001b[32m'Save as Draft'\u001b[39m,\n  \u001b[32m'✅ Submit for In Progress'\u001b[39m\n]\n"
@@ -427,30 +421,30 @@
                       "steps": [
                         {
                           "title": "Phase 1: Create and submit credit request",
-                          "duration": 8993
+                          "duration": 9431
                         },
                         {
                           "title": "Phase 2: Complete credit review",
-                          "duration": 7809
+                          "duration": 7633
                         },
                         {
                           "title": "Phase 3: Complete business sponsorship",
-                          "duration": 9354
+                          "duration": 8876
                         },
                         {
                           "title": "Phase 4a: Complete legal review",
-                          "duration": 8660
+                          "duration": 8585
                         },
                         {
                           "title": "Phase 4b: Complete credit questionnaire",
-                          "duration": 9385
+                          "duration": 9165
                         },
                         {
                           "title": "Phase 4c: Complete credit analysis",
-                          "duration": 9953,
+                          "duration": 9206,
                           "error": {
-                            "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"business_model_assessment\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (b2bc9f82-92cc-485a-9562-d92cef25d6a3, 2025-12-27 18:03:41.564651+00, 2025-12-27 18:04:09.857249+00, 40d37f55-7c02-4488-b9eb-30fa6192de3d, 5712af58-53bf-4450-97c6-cfd3e2a7a8b9, 2025-12-27 18:04:09.419+00, 2025-12-27 18:04:09.852618+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)",
-                            "stack": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"business_model_assessment\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (b2bc9f82-92cc-485a-9562-d92cef25d6a3, 2025-12-27 18:03:41.564651+00, 2025-12-27 18:04:09.857249+00, 40d37f55-7c02-4488-b9eb-30fa6192de3d, 5712af58-53bf-4450-97c6-cfd3e2a7a8b9, 2025-12-27 18:04:09.419+00, 2025-12-27 18:04:09.852618+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:323:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:312:5",
+                            "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"climate_risk_score\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (4199dbf9-5b02-4823-a1ae-52452340abba, 2025-12-27 18:07:01.291723+00, 2025-12-27 18:07:28.362917+00, b4d8d87a-58db-4efd-abd2-3b9e524ae43c, e61ecc19-7755-4ede-b255-494aef572b99, 2025-12-27 18:07:28.17+00, 2025-12-27 18:07:28.355212+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)",
+                            "stack": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"climate_risk_score\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (4199dbf9-5b02-4823-a1ae-52452340abba, 2025-12-27 18:07:01.291723+00, 2025-12-27 18:07:28.362917+00, b4d8d87a-58db-4efd-abd2-3b9e524ae43c, e61ecc19-7755-4ede-b255-494aef572b99, 2025-12-27 18:07:28.17+00, 2025-12-27 18:07:28.355212+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:323:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:312:5",
                             "location": {
                               "file": "/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts",
                               "column": 13,
@@ -460,7 +454,7 @@
                           }
                         }
                       ],
-                      "startTime": "2025-12-27T18:03:16.399Z",
+                      "startTime": "2025-12-27T18:06:35.894Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -477,11 +471,6 @@
                           "name": "error-context",
                           "contentType": "text/markdown",
                           "path": "/Users/gavinslater/projects/credit-project/tests/reports/e2e/test-results/workflows-full-workflow-jo-0d01b-flow-from-start-to-approval-chromium/error-context.md"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "/Users/gavinslater/projects/credit-project/tests/reports/e2e/test-results/workflows-full-workflow-jo-0d01b-flow-from-start-to-approval-chromium/trace.zip"
                         }
                       ],
                       "errorLocation": {
@@ -506,8 +495,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-12-27T18:03:14.372Z",
-    "duration": 57131.272,
+    "startTime": "2025-12-27T18:06:33.769Z",
+    "duration": 55280.82,
     "expected": 1,
     "skipped": 0,
     "unexpected": 1,

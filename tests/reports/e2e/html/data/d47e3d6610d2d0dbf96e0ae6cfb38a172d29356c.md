@@ -48,10 +48,10 @@
           - generic [ref=e60]:
             - paragraph [ref=e62]:
               - strong [ref=e63]: "Reference Number:"
-              - text: CR-2025-0194
+              - text: CR-2025-0195
             - paragraph [ref=e65]:
               - strong [ref=e66]: "Title:"
-              - text: E2E Full Workflow 1766858596564
+              - text: E2E Full Workflow 1766858796064
             - paragraph [ref=e68]:
               - strong [ref=e69]: "Counterparty:"
               - text: Test Corporation Ltd
@@ -97,7 +97,7 @@
         - heading "📋 Workflow Actions" [level=6] [ref=e107]
         - alert [ref=e108]:
           - img [ref=e110]
-          - generic [ref=e112]: "Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"business_model_assessment\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL: Failing row contains (b2bc9f82-92cc-485a-9562-d92cef25d6a3, 2025-12-27 18:03:41.564651+00, 2025-12-27 18:04:09.857249+00, 40d37f55-7c02-4488-b9eb-30fa6192de3d, 5712af58-53bf-4450-97c6-cfd3e2a7a8b9, 2025-12-27 18:04:09.419+00, 2025-12-27 18:04:09.852618+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)"
+          - generic [ref=e112]: "Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"climate_risk_score\\\" of relation \\\"credit_applications_creditanalysisform\\\" violates not-null constraint\\nDETAIL: Failing row contains (4199dbf9-5b02-4823-a1ae-52452340abba, 2025-12-27 18:07:01.291723+00, 2025-12-27 18:07:28.362917+00, b4d8d87a-58db-4efd-abd2-3b9e524ae43c, e61ecc19-7755-4ede-b255-494aef572b99, 2025-12-27 18:07:28.17+00, 2025-12-27 18:07:28.355212+00, 2025-12-27 00:00:00+00, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null).\\n\"} (Status: 500)"
         - generic [ref=e113]:
           - paragraph [ref=e114]: "Comments (optional):"
           - generic [ref=e116]:

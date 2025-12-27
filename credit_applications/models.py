@@ -802,32 +802,38 @@ class CreditAnalysisForm(models.Model):
         max_length=10,
         choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High')],
         blank=True,
+        null=True,
         help_text='Climate risk assessment score'
     )
     esg_score = models.CharField(
         max_length=10,
         choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High')],
         blank=True,
+        null=True,
         help_text='ESG risk score'
     )
     transition_risk_assessment = models.TextField(
         blank=True,
+        null=True,
         help_text='Assessment of transition risks'
     )
     physical_risk_assessment = models.TextField(
         blank=True,
+        null=True,
         help_text='Assessment of physical climate risks'
     )
-    
+
     # Final recommendations
     recommendation = models.CharField(
         max_length=25,
         choices=[('approve', 'Approve'), ('approve_with_conditions', 'Approve with Conditions'), ('reject', 'Reject')],
         blank=True,
+        null=True,
         help_text='Final recommendation'
     )
     recommended_conditions = models.TextField(
         blank=True,
+        null=True,
         help_text='Recommended conditions if applicable'
     )
     
