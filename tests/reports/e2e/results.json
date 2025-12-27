@@ -182,12 +182,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1127,
+                  "duration": 1125,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2025-12-27T18:08:35.238Z",
+                  "startTime": "2025-12-27T18:12:46.418Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -217,7 +217,7 @@
           "specs": [
             {
               "title": "complete workflow from start to approval",
-              "ok": false,
+              "ok": true,
               "tags": [],
               "tests": [
                 {
@@ -230,28 +230,9 @@
                     {
                       "workerIndex": 1,
                       "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 62105,
-                      "error": {
-                        "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"compiler_notes\\\" of relation \\\"credit_applications_creditcompilationform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (47666702-5932-4afb-8267-e21698e63d02, 2025-12-27 18:09:28.73217+00, 2025-12-27 18:09:38.434454+00, 98ec2e20-0d54-4d14-b09b-756df4da4553, 57991f2c-e460-4e04-9a8d-1e54509a5c8d, null, 2025-12-27 18:09:38.429017+00, 2025-12-27 18:09:28.729334+00, f, null, null, null, null, null, null, null, null, null, null, null, f, null).\\n\"} (Status: 500)",
-                        "stack": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"compiler_notes\\\" of relation \\\"credit_applications_creditcompilationform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (47666702-5932-4afb-8267-e21698e63d02, 2025-12-27 18:09:28.73217+00, 2025-12-27 18:09:38.434454+00, 98ec2e20-0d54-4d14-b09b-756df4da4553, 57991f2c-e460-4e04-9a8d-1e54509a5c8d, null, 2025-12-27 18:09:38.429017+00, 2025-12-27 18:09:28.729334+00, f, null, null, null, null, null, null, null, null, null, null, null, f, null).\\n\"} (Status: 500)\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:342:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:333:5",
-                        "location": {
-                          "file": "/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts",
-                          "column": 13,
-                          "line": 333
-                        },
-                        "snippet": "\u001b[90m   at \u001b[39m../pages/generic-form.page.ts:333\n\n  331 |     if (hasError) {\n  332 |       const errorMessage = await this.workflowActions.getErrorMessage();\n> 333 |       throw new Error(`Workflow error: ${errorMessage}`);\n      |             ^\n  334 |     }\n  335 |   }\n  336 |"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts",
-                            "column": 13,
-                            "line": 333
-                          },
-                          "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"compiler_notes\\\" of relation \\\"credit_applications_creditcompilationform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (47666702-5932-4afb-8267-e21698e63d02, 2025-12-27 18:09:28.73217+00, 2025-12-27 18:09:38.434454+00, 98ec2e20-0d54-4d14-b09b-756df4da4553, 57991f2c-e460-4e04-9a8d-1e54509a5c8d, null, 2025-12-27 18:09:38.429017+00, 2025-12-27 18:09:28.729334+00, f, null, null, null, null, null, null, null, null, null, null, null, f, null).\\n\"} (Status: 500)\n\n   at ../pages/generic-form.page.ts:333\n\n  331 |     if (hasError) {\n  332 |       const errorMessage = await this.workflowActions.getErrorMessage();\n> 333 |       throw new Error(`Workflow error: ${errorMessage}`);\n      |             ^\n  334 |     }\n  335 |   }\n  336 |\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:342:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:333:5"
-                        }
-                      ],
+                      "status": "passed",
+                      "duration": 98355,
+                      "errors": [],
                       "stdout": [
                         {
                           "text": "=== Phase 1: Credit Request ===\n"
@@ -260,7 +241,7 @@
                           "text": "Found 6 tabs, clicking tab 4\n"
                         },
                         {
-                          "text": "Created application with ID: 98ec2e20-0d54-4d14-b09b-756df4da4553\n"
+                          "text": "Created application with ID: 3adbc123-4591-4541-91df-336b30077d11\n"
                         },
                         {
                           "text": "Looking for sub-process: Credit Request Form\n"
@@ -434,13 +415,55 @@
                           "text": "Performing transition: Submit for In Progress\n"
                         },
                         {
-                          "text": "Transition error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"compiler_notes\\\" of relation \\\"credit_applications_creditcompilationform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (47666702-5932-4afb-8267-e21698e63d02, 2025-12-27 18:09:28.73217+00, 2025-12-27 18:09:33.69062+00, 98ec2e20-0d54-4d14-b09b-756df4da4553, 57991f2c-e460-4e04-9a8d-1e54509a5c8d, null, 2025-12-27 18:09:33.687776+00, 2025-12-27 18:09:28.729334+00, f, null, null, null, null, null, null, null, null, null, null, null, f, null).\\n\"} (Status: 500)\n"
-                        },
-                        {
-                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft'\u001b[39m, \u001b[32m'✅ Submit for In Progress'\u001b[39m ]\n"
+                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
                         },
                         {
                           "text": "Performing transition: Submit\n"
+                        },
+                        {
+                          "text": "Phase 5 complete\n"
+                        },
+                        {
+                          "text": "=== Phase 6: Credit Approval ===\n"
+                        },
+                        {
+                          "text": "Looking for sub-process: Credit Approval Form\n"
+                        },
+                        {
+                          "text": "Found sub-process Credit Approval Form with status: Status: Draft\n"
+                        },
+                        {
+                          "text": "Available transitions: [ \u001b[32m'✅ Submit for In Progress'\u001b[39m, \u001b[32m'Save as Draft'\u001b[39m ]\n"
+                        },
+                        {
+                          "text": "Current state: \u001b[1mnull\u001b[22m\n"
+                        },
+                        {
+                          "text": "Performing transition: Submit for In Progress\n"
+                        },
+                        {
+                          "text": "Transitions after in-progress: [ \u001b[32m'Save as Draft from In Progress'\u001b[39m, \u001b[32m'✅ Submit'\u001b[39m ]\n"
+                        },
+                        {
+                          "text": "Performing transition: Submit\n"
+                        },
+                        {
+                          "text": "Phase 6 complete\n"
+                        },
+                        {
+                          "text": "=== Final Verification ===\n"
+                        },
+                        {
+                          "text": "Application found: false\n"
+                        },
+                        {
+                          "text": "Full workflow test complete for: E2E Full Workflow 1766859168285\n"
+                        },
+                        {
+                          "text": "Application ID: 3adbc123-4591-4541-91df-336b30077d11\n"
+                        },
+                        {
+                          "text": "✅ Test completed - All 6 workflow phases verified with workflow transitions\n"
                         }
                       ],
                       "stderr": [],
@@ -448,70 +471,47 @@
                       "steps": [
                         {
                           "title": "Phase 1: Create and submit credit request",
-                          "duration": 9550
+                          "duration": 14471
                         },
                         {
                           "title": "Phase 2: Complete credit review",
-                          "duration": 7092
+                          "duration": 11566
                         },
                         {
                           "title": "Phase 3: Complete business sponsorship",
-                          "duration": 8150
+                          "duration": 13093
                         },
                         {
                           "title": "Phase 4a: Complete legal review",
-                          "duration": 8051
+                          "duration": 10916
                         },
                         {
                           "title": "Phase 4b: Complete credit questionnaire",
-                          "duration": 9609
+                          "duration": 11337
                         },
                         {
                           "title": "Phase 4c: Complete credit analysis",
-                          "duration": 10140
+                          "duration": 11171
                         },
                         {
                           "title": "Phase 5: Complete credit compilation",
-                          "duration": 9359,
-                          "error": {
-                            "message": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"compiler_notes\\\" of relation \\\"credit_applications_creditcompilationform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (47666702-5932-4afb-8267-e21698e63d02, 2025-12-27 18:09:28.73217+00, 2025-12-27 18:09:38.434454+00, 98ec2e20-0d54-4d14-b09b-756df4da4553, 57991f2c-e460-4e04-9a8d-1e54509a5c8d, null, 2025-12-27 18:09:38.429017+00, 2025-12-27 18:09:28.729334+00, f, null, null, null, null, null, null, null, null, null, null, null, f, null).\\n\"} (Status: 500)",
-                            "stack": "Error: Workflow error: Backend Error: {\"detail\":\"An error occurred during the update: null value in column \\\"compiler_notes\\\" of relation \\\"credit_applications_creditcompilationform\\\" violates not-null constraint\\nDETAIL:  Failing row contains (47666702-5932-4afb-8267-e21698e63d02, 2025-12-27 18:09:28.73217+00, 2025-12-27 18:09:38.434454+00, 98ec2e20-0d54-4d14-b09b-756df4da4553, 57991f2c-e460-4e04-9a8d-1e54509a5c8d, null, 2025-12-27 18:09:38.429017+00, 2025-12-27 18:09:28.729334+00, f, null, null, null, null, null, null, null, null, null, null, null, f, null).\\n\"} (Status: 500)\n    at GenericFormPage.expectNoError (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:333:13)\n    at GenericFormPage.completePhase (/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts:428:9)\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:342:7\n    at /Users/gavinslater/projects/credit-project/tests/e2e/tests/workflows/full-workflow-journey.spec.ts:333:5",
-                            "location": {
-                              "file": "/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts",
-                              "column": 13,
-                              "line": 333
-                            },
-                            "snippet": "\u001b[90m   at \u001b[39m../pages/generic-form.page.ts:333\n\n  331 |     if (hasError) {\n  332 |       const errorMessage = await this.workflowActions.getErrorMessage();\n> 333 |       throw new Error(`Workflow error: ${errorMessage}`);\n      |             ^\n  334 |     }\n  335 |   }\n  336 |"
-                          }
+                          "duration": 11039
+                        },
+                        {
+                          "title": "Phase 6: Approve credit application",
+                          "duration": 10561
+                        },
+                        {
+                          "title": "Verify workflow completion",
+                          "duration": 4050
                         }
                       ],
-                      "startTime": "2025-12-27T18:08:36.946Z",
+                      "startTime": "2025-12-27T18:12:48.131Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/Users/gavinslater/projects/credit-project/tests/reports/e2e/test-results/workflows-full-workflow-jo-0d01b-flow-from-start-to-approval-chromium/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/Users/gavinslater/projects/credit-project/tests/reports/e2e/test-results/workflows-full-workflow-jo-0d01b-flow-from-start-to-approval-chromium/video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "/Users/gavinslater/projects/credit-project/tests/reports/e2e/test-results/workflows-full-workflow-jo-0d01b-flow-from-start-to-approval-chromium/error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/Users/gavinslater/projects/credit-project/tests/e2e/pages/generic-form.page.ts",
-                        "column": 13,
-                        "line": 333
-                      }
+                      "attachments": []
                     }
                   ],
-                  "status": "unexpected"
+                  "status": "expected"
                 }
               ],
               "id": "e7794be0e464d3b86c2c-607193ce242e544a8816",
@@ -526,11 +526,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-12-27T18:08:34.973Z",
-    "duration": 64190.829999999994,
-    "expected": 1,
+    "startTime": "2025-12-27T18:12:46.096Z",
+    "duration": 100491.236,
+    "expected": 2,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 0,
     "flaky": 0
   }
 }
