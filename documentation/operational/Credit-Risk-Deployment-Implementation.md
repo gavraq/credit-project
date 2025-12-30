@@ -8,9 +8,10 @@ This document details the deployment configuration for the Credit Risk Workflow 
 3. [Environment Configuration](#3-environment-configuration)
 4. [Development Deployment](#4-development-deployment)
 5. [Production Deployment](#5-production-deployment)
-6. [nginx Reverse Proxy](#6-nginx-reverse-proxy)
-7. [Database Management](#7-database-management)
-8. [Troubleshooting](#8-troubleshooting)
+6. [Initial Setup & Workflow Metadata](#6-initial-setup--workflow-metadata)
+7. [Nginx Proxy Manager](#7-nginx-proxy-manager)
+8. [Database Management](#8-database-management)
+9. [Troubleshooting](#9-troubleshooting)
 
 ## 1. Overview
 
@@ -404,6 +405,7 @@ docker-compose -f docker-compose.prod.yml ps
 docker-compose -f docker-compose.prod.yml exec backend python manage.py migrate
 docker-compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
 docker-compose -f docker-compose.prod.yml exec backend python manage.py load_workflow_states
+docker-compose -f docker-compose.prod.yml exec backend python manage.py load_form_metadata
 
 # Access container shell
 docker-compose -f docker-compose.prod.yml exec backend bash
@@ -427,7 +429,75 @@ scp -r . pi@192.168.5.190:~/docker/credit-project/
 ssh pi@192.168.5.190 "cd ~/docker/credit-project && docker-compose -f docker-compose.prod.yml up -d --build"
 ```
 
-## 6. Nginx Proxy Manager
+## 6. Initial Setup & Workflow Metadata
+
+### 6.1 Required Management Commands
+
+After deploying to a new environment or resetting the database, run these commands in order:
+
+```bash
+# 1. Apply database migrations
+docker-compose -f docker-compose.prod.yml exec backend python manage.py migrate
+
+# 2. Load workflow states and transitions
+docker-compose -f docker-compose.prod.yml exec backend python manage.py load_workflow_states
+
+# 3. Load form metadata (permissions, roles, etc.)
+docker-compose -f docker-compose.prod.yml exec backend python manage.py load_form_metadata
+
+# 4. Create admin user
+docker-compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
+```
+
+### 6.2 Workflow Metadata
+
+The system uses **metadata-driven** workflow configuration stored in the database. This includes:
+
+| Metadata Type | Purpose | Management Command |
+|---------------|---------|-------------------|
+| Workflow states | Define workflow steps and transitions | `load_workflow_states` |
+| Form metadata | Form permissions, editable roles, ownership rules | `load_form_metadata` |
+| State metadata | Step numbers, navigation, system actions | `add_workflow_step_metadata` |
+
+### 6.3 Form Permissions
+
+The `load_form_metadata` command configures which roles can edit each form:
+
+| Form | Editable By | Ownership Required |
+|------|-------------|-------------------|
+| Credit Request Form | Relationship Manager | Yes (own applications only) |
+| Business Sponsorship Form | Business Sponsor | No |
+| Credit Questionnaire Form | Relationship Manager | No |
+| Legal Review Form | Legal Reviewer | No |
+| Credit Review Form | Credit Analyst, Credit Approver | No |
+| Credit Analysis Form | Credit Analyst, Credit Approver | No |
+| Credit Compilation Form | Credit Analyst | No |
+| Credit Approval Form | Credit Analyst | No |
+
+**IMPORTANT**: If form permissions are not loading correctly (e.g., "View" button instead of "Edit"), run:
+
+```bash
+docker-compose -f docker-compose.prod.yml exec backend python manage.py load_form_metadata --update-only
+```
+
+### 6.4 Syncing Metadata Between Environments
+
+When updating workflow metadata, ensure both development and production databases are synchronized:
+
+```bash
+# On production server
+docker-compose -f docker-compose.prod.yml exec backend python manage.py load_form_metadata
+
+# Verify the metadata was applied
+docker-compose -f docker-compose.prod.yml exec backend python manage.py shell -c "
+from workflow_engine.models import Workflow
+import json
+w = Workflow.objects.get(code='CREDIT_PAPER')
+print(json.dumps(w.metadata.get('form_metadata', {}).get('credit_request_form', {}), indent=2))
+"
+```
+
+## 7. Nginx Proxy Manager
 
 Production uses Nginx Proxy Manager (NPM) as a reverse proxy to:
 - Terminate SSL (HTTPS) with Let's Encrypt certificates
@@ -453,9 +523,9 @@ See [Nginx Proxy Manager Setup](./nginx-proxy-manager-setup.md) for detailed con
 - **HTTP/2**: Enabled for better performance
 - **Proxy Headers**: Host, X-Real-IP, X-Forwarded-For, X-Forwarded-Proto
 
-## 7. Database Management
+## 8. Database Management
 
-### 7.1 Accessing PostgreSQL
+### 8.1 Accessing PostgreSQL
 
 ```bash
 # Development
@@ -465,7 +535,7 @@ docker-compose exec postgres psql -U credit_user -d credit_project
 docker-compose -f docker-compose.prod.yml exec postgres psql -U credit_user -d credit_project
 ```
 
-### 7.2 Database Backup
+### 8.2 Database Backup
 
 ```bash
 # Create backup
@@ -475,7 +545,7 @@ docker-compose -f docker-compose.prod.yml exec postgres pg_dump -U credit_user c
 cat backup_20241229.sql | docker-compose -f docker-compose.prod.yml exec -T postgres psql -U credit_user -d credit_project
 ```
 
-### 7.3 Running Migrations
+### 8.3 Running Migrations
 
 ```bash
 # Development
@@ -485,9 +555,9 @@ docker-compose exec backend python manage.py migrate
 docker-compose -f docker-compose.prod.yml exec backend python manage.py migrate
 ```
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
-### 8.1 Container Won't Start
+### 9.1 Container Won't Start
 
 ```bash
 # Check container logs
@@ -500,7 +570,7 @@ sudo lsof -i :8001
 sudo systemctl status docker
 ```
 
-### 8.2 Database Connection Issues
+### 9.2 Database Connection Issues
 
 ```bash
 # Check postgres container is running
@@ -513,7 +583,7 @@ docker-compose -f docker-compose.prod.yml logs postgres
 docker-compose -f docker-compose.prod.yml exec backend python -c "import django; django.setup(); from django.db import connection; connection.ensure_connection(); print('Connected!')"
 ```
 
-### 8.3 Static Files Not Loading
+### 9.3 Static Files Not Loading
 
 ```bash
 # Collect static files manually
@@ -523,7 +593,7 @@ docker-compose -f docker-compose.prod.yml exec backend python manage.py collects
 docker volume inspect credit-project_static_volume
 ```
 
-### 8.4 Permission Denied Errors
+### 9.4 Permission Denied Errors
 
 ```bash
 # Check file ownership in container
@@ -533,7 +603,7 @@ docker-compose -f docker-compose.prod.yml exec backend ls -la /app
 docker-compose -f docker-compose.prod.yml exec -u root backend chown -R app:app /app
 ```
 
-### 8.5 Out of Disk Space (Raspberry Pi)
+### 9.5 Out of Disk Space (Raspberry Pi)
 
 ```bash
 # Check disk usage
