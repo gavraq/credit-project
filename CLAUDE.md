@@ -156,9 +156,57 @@ When working with credit forms, remember:
 - Database requires proper timezone configuration for datetime fields
 
 ## Key File Locations
-- Form lifecycle documentation: `requirements/Credit-Risk-Form-Lifecycle.md`
-- Architecture overview: `requirements/Credit-Risk-Architecture-Overview.md` 
+
+### Documentation Structure
+```
+documentation/
+├── requirements/           # Business requirements & design
+│   ├── PRD (v3).md
+│   ├── Credit Workflow Design Brief.md
+│   └── Feature-Request-*.md
+│
+├── implementation/
+│   ├── architecture/       # System architecture
+│   │   ├── Credit-Risk-Architecture-Overview.md
+│   │   ├── metadata-driven-workflow-system.md
+│   │   └── transition-workflow-process.md
+│   │
+│   ├── backend/            # Backend implementation
+│   │   ├── Credit-Risk-Form-Lifecycle.md
+│   │   ├── Credit-Risk-Serializer-Implementation.md
+│   │   ├── Frontend-Backend-Integration-Patterns.md
+│   │   └── Credit-Risk-Workflow-Engine-Implementation.md
+│   │
+│   └── frontend/           # UI implementation
+│       ├── UI-Implementation-Guide.md
+│       ├── UI-Developer-Quick-Reference.md
+│       └── UI-Component-Visual-Guide.md
+│
+└── operational/            # Deployment & operations
+    ├── GCP-Deployment-Guide.md
+    └── nginx-proxy-manager-setup.md
+
+oldfiles/documentation/     # Archived/obsolete docs
+```
+
+### Key Documentation Files
+| Purpose | File |
+|---------|------|
+| Product requirements | `documentation/requirements/PRD (v3).md` |
+| Architecture overview | `documentation/implementation/architecture/Credit-Risk-Architecture-Overview.md` |
+| Workflow metadata system | `documentation/implementation/architecture/metadata-driven-workflow-system.md` |
+| Form data lifecycle | `documentation/implementation/backend/Credit-Risk-Form-Lifecycle.md` |
+| Serializer patterns | `documentation/implementation/backend/Credit-Risk-Serializer-Implementation.md` |
+| Frontend-backend integration | `documentation/implementation/backend/Frontend-Backend-Integration-Patterns.md` |
+| UI components guide | `documentation/implementation/frontend/UI-Implementation-Guide.md` |
+| UI quick reference | `documentation/implementation/frontend/UI-Developer-Quick-Reference.md` |
+
+### Code
 - Backend settings: `backend/settings.py`
 - Main serializer: `credit_applications/serializers.py`
 - API service: `frontend/src/services/api.js`
 - Workflow utilities: `workflow_engine/utils.py`
+
+### Tests
+- E2E tests: `tests/e2e/`
+- API tests: `tests/api/`
