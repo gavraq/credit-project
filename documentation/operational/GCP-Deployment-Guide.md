@@ -258,11 +258,43 @@ docker-compose -f docker-compose.prod.yml exec backend python manage.py migrate
 # Collect static files
 docker-compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
 
-# Load workflow states
+# Load workflow states and transitions
 docker-compose -f docker-compose.prod.yml exec backend python manage.py load_workflow_states
+
+# Load form metadata (permissions, roles, etc.)
+docker-compose -f docker-compose.prod.yml exec backend python manage.py load_form_metadata
 
 # Create superuser
 docker-compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
+```
+
+### 6.5 Workflow Metadata
+
+The system uses **metadata-driven** workflow configuration. After deployment, ensure all metadata is loaded:
+
+| Command | Purpose |
+|---------|---------|
+| `load_workflow_states` | Load workflow states and transitions |
+| `load_form_metadata` | Load form permissions (editable roles, ownership rules) |
+| `add_workflow_step_metadata` | Load step numbers and navigation metadata |
+
+**Form Permissions**: The `load_form_metadata` command configures which roles can edit each form:
+
+| Form | Editable By | Ownership Required |
+|------|-------------|-------------------|
+| Credit Request Form | Relationship Manager | Yes |
+| Business Sponsorship Form | Business Sponsor | No |
+| Credit Questionnaire Form | Relationship Manager | No |
+| Legal Review Form | Legal Reviewer | No |
+| Credit Review Form | Credit Analyst, Credit Approver | No |
+| Credit Analysis Form | Credit Analyst, Credit Approver | No |
+| Credit Compilation Form | Credit Analyst | No |
+| Credit Approval Form | Credit Analyst | No |
+
+**IMPORTANT**: If form buttons show "View" instead of "Edit" for users who should be able to edit, run:
+
+```bash
+docker-compose -f docker-compose.prod.yml exec backend python manage.py load_form_metadata --update-only
 ```
 
 ## 7. Nginx Proxy Manager Setup
