@@ -85,7 +85,12 @@ The Risk Agent should analyse **all provided documents** for climate-relevant in
 | Science-Based Targets Initiative (SBTi) Commitment | Validated targets, scope coverage |
 | Investor Presentations | Strategic climate commitments, green revenue |
 
-**Key principle:** The Risk Agent should extract climate-related information from whatever documents are available, not expect specific document types. Many counterparties may only have an Annual Report, while others may have comprehensive TCFD disclosures.
+**Key principles:**
+- Extract climate-related information from whatever documents are available, not expect specific document types
+- Many counterparties may only have an Annual Report, while others may have comprehensive TCFD disclosures
+- **Always use the latest/most recent documents available** - climate disclosures evolve rapidly and older data may be outdated
+- When multiple years of the same document type are available, prioritise the most recent
+- If data conflicts between documents, prefer the newer source
 
 **PRA SS5/25 Focus Areas:**
 - Transition risk preparedness (net-zero targets, TCFD, governance, transition plans, capex)
