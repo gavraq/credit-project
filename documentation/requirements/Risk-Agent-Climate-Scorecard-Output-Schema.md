@@ -10,30 +10,37 @@ The Climate Scorecard is a PRA SS5/25-compliant climate risk assessment with app
 
 ## Request Identification
 
+### Delivery Method: Telegram Message with JSON
+
+Requests from the Credit Risk Workflow System are sent via **Telegram message** containing structured JSON. The Risk Agent (Claude) should parse the JSON from the message body to identify the source system.
+
 ### Source System Identifier
 
-When a request originates from the **Credit Risk Workflow System**, it will include the following identifier in the request payload:
+When a Telegram message contains the following JSON structure, it indicates a request from the Credit Risk Workflow System:
 
 ```json
 {
   "source_system": "credit_workflow",
   "request_type": "climate_scorecard_generation",
-  "version": "1.0"
+  "version": "1.0",
+  ...
 }
 ```
 
 ### Trigger Conditions
 
-The Risk Agent skill should use this Climate Scorecard output template when **ALL** of the following conditions are met:
+The Risk Agent skill should use this Climate Scorecard output template when the Telegram message contains JSON with **ALL** of the following:
 
 1. `source_system` equals `"credit_workflow"`
 2. `request_type` equals `"climate_scorecard_generation"`
 
-### Request Payload Structure
+### Example Telegram Message
 
-The Credit Workflow System will send requests in this format:
+The Credit Workflow System will send a Telegram message like this:
 
-```json
+```
+Generate climate scorecard for this credit application:
+
 {
   "source_system": "credit_workflow",
   "request_type": "climate_scorecard_generation",
@@ -60,18 +67,18 @@ The Credit Workflow System will send requests in this format:
       "url": "..."
     }
   ],
-  "existing_data": {
-    // Any pre-existing climate data from other forms
-  }
+  "existing_data": {}
 }
 ```
 
 ### Response Requirements
 
-When the above conditions are met, the Risk Agent **MUST** return a response using the exact JSON schema defined in this document, including:
+When the above JSON identifiers are detected in the message, the Risk Agent **MUST** return a response using the exact JSON schema defined in this document, including:
 - All ~80 fields populated (use reasonable defaults if data unavailable)
 - Confidence scores for each field (0.0-1.0)
 - Generation notes explaining data sources and assumptions
+
+The response should be returned as a JSON code block in the Telegram reply
 
 ---
 
