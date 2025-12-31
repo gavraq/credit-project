@@ -58,18 +58,40 @@ Generate climate scorecard for this credit application:
   },
   "documents": [
     {
-      "type": "annual_report",
-      "url": "...",
-      "year": 2024
+      "name": "Annual Report 2024.pdf",
+      "url": "..."
     },
     {
-      "type": "sustainability_report",
+      "name": "TCFD Report 2024.pdf",
       "url": "..."
     }
   ],
   "existing_data": {}
 }
 ```
+
+### Document Analysis Requirements
+
+The Risk Agent should analyse **all provided documents** for climate-relevant information to populate the PRA SS5/25 compliant scorecard. Documents may include (but are not limited to):
+
+| Document Type | Climate Information Typically Found |
+|---------------|-------------------------------------|
+| Annual Report / Annual Accounts | Emissions data, climate governance disclosures, risk factors |
+| TCFD Report | Governance, strategy, risk management, metrics & targets |
+| CDP Questionnaire Response | Detailed emissions, targets, transition plans |
+| Net Zero Transition Plan | Decarbonisation pathway, milestones, capex alignment |
+| ESG/Sustainability Report | ESG ratings, environmental initiatives, performance |
+| Climate Risk Assessment | Physical and transition risk exposures |
+| Science-Based Targets Initiative (SBTi) Commitment | Validated targets, scope coverage |
+| Investor Presentations | Strategic climate commitments, green revenue |
+
+**Key principle:** The Risk Agent should extract climate-related information from whatever documents are available, not expect specific document types. Many counterparties may only have an Annual Report, while others may have comprehensive TCFD disclosures.
+
+**PRA SS5/25 Focus Areas:**
+- Transition risk preparedness (net-zero targets, TCFD, governance, transition plans, capex)
+- Transition risk vulnerability (carbon intensity, stranded assets, policy exposure, litigation)
+- Physical risk exposure (acute hazards, chronic exposure, adaptation capability)
+- Scenario analysis integration
 
 ### Response Requirements
 
