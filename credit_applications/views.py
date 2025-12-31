@@ -376,6 +376,13 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
             from django.db.models import DateField
             date_fields = {f.name for f in scorecard._meta.get_fields() if isinstance(f, DateField)}
 
+            # Get CharField max_length constraints
+            from django.db.models import CharField
+            char_field_limits = {}
+            for f in scorecard._meta.get_fields():
+                if isinstance(f, CharField) and hasattr(f, 'max_length') and f.max_length:
+                    char_field_limits[f.name] = f.max_length
+
             for field_name, value in result.get('fields', {}).items():
                 if hasattr(scorecard, field_name):
                     # Validate date fields
@@ -386,6 +393,12 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                             if not re.match(r'^\d{4}-\d{2}-\d{2}$', value):
                                 logger.warning(f"Skipping invalid date value for {field_name}: {value}")
                                 continue
+                    # Truncate CharField values that exceed max_length
+                    if field_name in char_field_limits and isinstance(value, str):
+                        max_len = char_field_limits[field_name]
+                        if len(value) > max_len:
+                            logger.warning(f"Truncating {field_name} from {len(value)} to {max_len} chars")
+                            value = value[:max_len]
                     setattr(scorecard, field_name, value)
 
             # Set AI metadata
