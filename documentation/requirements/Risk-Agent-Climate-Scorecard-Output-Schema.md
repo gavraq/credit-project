@@ -364,29 +364,51 @@ The Risk Agent skill must return a JSON object with the following structure:
 
 ## Field Type Reference
 
-### Enum/Choice Fields
+### ⚠️ CRITICAL: Enum Fields Must Use Exact Values
 
-| Field | Valid Values |
-|-------|--------------|
-| `assessment_type` | `initial`, `annual_review`, `event_triggered`, `material_change` |
-| `net_zero_target_scope` | `scope_1`, `scope_1_2`, `scope_1_2_3` |
-| `tcfd_disclosure_level` | `none`, `partial`, `full`, `verified` |
-| `capex_alignment_trajectory` | `increasing`, `stable`, `decreasing` |
-| `carbon_intensity_trend` | `declining`, `stable`, `increasing` |
-| `stranded_asset_exposure` | `none`, `low`, `medium`, `high` |
-| `tech_disruption_risk_level` | `low`, `medium`, `high`, `critical` |
-| `market_sentiment_investor_pressure` | `low`, `medium`, `high` |
-| `green_market_growth_potential` | `none`, `low`, `medium`, `high`, `transformative` |
-| `green_revenue_trend` | `declining`, `stable`, `growing`, `rapidly_growing` |
-| `acute_hazard_exposure` | `low`, `medium`, `high`, `critical` |
-| `ecosystem_dependency_level` | `none`, `low`, `medium`, `high` |
-| `adaptation_capability_level` | `none`, `limited`, `developing`, `mature` |
-| `risk_appetite_category` | `avoid`, `manage`, `monitor`, `acceptable` |
-| `pillar_2_treatment` | `not_material`, `low_add_on`, `medium_add_on`, `high_add_on` |
-| `data_quality_overall` | `poor`, `fair`, `good`, `excellent` |
-| `overall_transition_risk_score` | `low`, `medium`, `high`, `critical` |
-| `overall_physical_risk_score` | `low`, `medium`, `high`, `critical` |
-| `overall_climate_risk_rating` | `A`, `B`, `C`, `D`, `E` |
+**DO NOT** return descriptions or explanations for enum/choice fields. The database has strict character limits and will truncate or reject invalid values.
+
+**WRONG:**
+```json
+"capex_alignment_trajectory": "The company's green capital expenditure is projected to increase significantly over the next 5 years as they transition away from fossil fuels"
+```
+
+**CORRECT:**
+```json
+"capex_alignment_trajectory": "increasing"
+```
+
+### Enum/Choice Fields (Use EXACT values only)
+
+| Field | Valid Values | Max Length |
+|-------|--------------|------------|
+| `assessment_type` | `initial`, `annual_review`, `event_triggered`, `material_change` | 50 |
+| `net_zero_target_scope` | `scope_1`, `scope_1_2`, `scope_1_2_3` | 50 |
+| `tcfd_disclosure_level` | `none`, `partial`, `full`, `verified` | 50 |
+| `capex_alignment_trajectory` | `increasing`, `stable`, `decreasing` | **50** |
+| `carbon_intensity_trend` | `declining`, `stable`, `increasing` | 50 |
+| `stranded_asset_exposure` | `none`, `low`, `medium`, `high` | 50 |
+| `tech_disruption_risk_level` | `low`, `medium`, `high`, `critical` | 50 |
+| `market_sentiment_investor_pressure` | `low`, `medium`, `high` | **50** |
+| `green_market_growth_potential` | `none`, `low`, `medium`, `high`, `transformative` | 50 |
+| `green_revenue_trend` | `declining`, `stable`, `growing`, `rapidly_growing` | 50 |
+| `acute_hazard_exposure` | `low`, `medium`, `high`, `critical` | 50 |
+| `ecosystem_dependency_level` | `none`, `low`, `medium`, `high` | 50 |
+| `adaptation_capability_level` | `none`, `limited`, `developing`, `mature` | 50 |
+| `risk_appetite_category` | `avoid`, `manage`, `monitor`, `acceptable` | 50 |
+| `pillar_2_treatment` | `not_material`, `low_add_on`, `medium_add_on`, `high_add_on` | **50** |
+| `data_quality_overall` | `poor`, `fair`, `good`, `excellent` | 50 |
+| `overall_transition_risk_score` | `low`, `medium`, `high`, `critical` | 50 |
+| `overall_physical_risk_score` | `low`, `medium`, `high`, `critical` | 50 |
+| `overall_climate_risk_rating` | `A`, `B`, `C`, `D`, `E` | 10 |
+
+### Short String Fields (Limited Length)
+
+| Field | Max Length | Notes |
+|-------|------------|-------|
+| `market_sentiment_esg_rating` | **20** | Keep brief, e.g., "MSCI BB" or "Sustainalytics 38.6" |
+
+**Fields highlighted in bold** were found to be truncated during testing. Use only the exact enum values listed.
 
 ### Score Fields (Integer 1-5)
 
