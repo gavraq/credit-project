@@ -8,6 +8,73 @@ The Climate Scorecard is a PRA SS5/25-compliant climate risk assessment with app
 
 ---
 
+## Request Identification
+
+### Source System Identifier
+
+When a request originates from the **Credit Risk Workflow System**, it will include the following identifier in the request payload:
+
+```json
+{
+  "source_system": "credit_workflow",
+  "request_type": "climate_scorecard_generation",
+  "version": "1.0"
+}
+```
+
+### Trigger Conditions
+
+The Risk Agent skill should use this Climate Scorecard output template when **ALL** of the following conditions are met:
+
+1. `source_system` equals `"credit_workflow"`
+2. `request_type` equals `"climate_scorecard_generation"`
+
+### Request Payload Structure
+
+The Credit Workflow System will send requests in this format:
+
+```json
+{
+  "source_system": "credit_workflow",
+  "request_type": "climate_scorecard_generation",
+  "version": "1.0",
+  "counterparty": {
+    "name": "Company Name Ltd",
+    "sector": "Energy",
+    "country": "United Kingdom",
+    "id": "uuid-here"
+  },
+  "credit_application": {
+    "id": "uuid-here",
+    "credit_request_amount": 5000000,
+    "currency": "GBP"
+  },
+  "documents": [
+    {
+      "type": "annual_report",
+      "url": "...",
+      "year": 2024
+    },
+    {
+      "type": "sustainability_report",
+      "url": "..."
+    }
+  ],
+  "existing_data": {
+    // Any pre-existing climate data from other forms
+  }
+}
+```
+
+### Response Requirements
+
+When the above conditions are met, the Risk Agent **MUST** return a response using the exact JSON schema defined in this document, including:
+- All ~80 fields populated (use reasonable defaults if data unavailable)
+- Confidence scores for each field (0.0-1.0)
+- Generation notes explaining data sources and assumptions
+
+---
+
 ## Current Issues Identified
 
 Based on testing, the following fields are **not being populated** by the current Risk Agent skill:
