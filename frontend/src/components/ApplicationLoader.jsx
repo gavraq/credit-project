@@ -9,6 +9,7 @@ import LegalReviewForm from './LegalReviewForm/index';
 import CreditAnalysisForm from './CreditAnalysisForm/index';
 import CreditCompilationForm from './CreditCompilationForm/index';
 import CreditApprovalForm from './CreditApprovalForm/index';
+import ClimateScorecard from './ClimateScorecard/index';
 import TopNavBar from './TopNavBar'; // Assuming TopNavBar is used on these pages
 import LogoutButton from './LogoutButton'; // Assuming LogoutButton is part of TopNavBar
 
@@ -80,6 +81,7 @@ const ApplicationLoader = () => {
     'creditanalysisform': CreditAnalysisForm,
     'creditcompilationform': CreditCompilationForm,
     'creditapprovalform': CreditApprovalForm,
+    'climatescorecard': ClimateScorecard,
   };
 
   let formKeyToUse = null;
