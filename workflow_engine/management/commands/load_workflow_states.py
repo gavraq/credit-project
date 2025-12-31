@@ -75,6 +75,15 @@ WORKFLOWS = [
                         'form_key': 'credit_approval_form',
                         'model_name': 'CreditApprovalForm',
                         'workflow_code': 'CREDIT_APPROVAL'
+                    },
+                    'climate_scorecard': {
+                        'title': 'Climate Scorecard',
+                        'form_key': 'climate_scorecard',
+                        'model_name': 'ClimateScorecard',
+                        'workflow_code': 'CLIMATE_SCORECARD',
+                        'field_mappings': {
+                            'boolean_fields': ['net_zero_target_exists', 'net_zero_science_based', 'climate_governance_board', 'climate_governance_exec_accountability', 'climate_governance_incentives_linked', 'transition_plan_exists', 'transition_plan_published', 'policy_pressure_carbon_pricing_exposure', 'scenario_analysis_conducted', 'ai_generated']
+                        }
                     }
                 }
             },
@@ -83,11 +92,11 @@ WORKFLOWS = [
             {'code': 'CREDIT_PAPER_CREDIT_REQUEST', 'name': 'Credit Request', 'description': 'Initial state when a credit request is created', 'is_initial': True, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form']}},
             {'code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'name': 'Credit Review Pending', 'description': 'Credit paper in credit review phase', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form']}},
             {'code': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING', 'name': 'Business Sponsor Pending', 'description': 'Credit paper in business sponsor phase', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form']}},
-            {'code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'name': 'Analysis Pending', 'description': 'Credit paper in analysis phase (Credit Questionnaire, Legal Review, Credit Analysis)', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form']}},
-            {'code': 'CREDIT_PAPER_COMPILATION', 'name': 'Credit Compilation', 'description': 'Credit paper in compilation phase', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form']}},
-            {'code': 'CREDIT_PAPER_APPROVAL_PENDING', 'name': 'Approval Pending', 'description': 'Credit paper pending approval', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form']}},
-            {'code': 'CREDIT_PAPER_APPROVED', 'name': 'Approved', 'description': 'Credit paper approved (terminal state)', 'is_initial': False, 'is_terminal': True, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form']}},
-            {'code': 'CREDIT_PAPER_REJECTED', 'name': 'Rejected', 'description': 'Credit paper rejected (terminal state)', 'is_initial': False, 'is_terminal': True, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form']}},
+            {'code': 'CREDIT_PAPER_ANALYSIS_PENDING', 'name': 'Analysis Pending', 'description': 'Credit paper in analysis phase (Credit Questionnaire, Legal Review, Credit Analysis)', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard']}},
+            {'code': 'CREDIT_PAPER_COMPILATION', 'name': 'Credit Compilation', 'description': 'Credit paper in compilation phase', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form']}},
+            {'code': 'CREDIT_PAPER_APPROVAL_PENDING', 'name': 'Approval Pending', 'description': 'Credit paper pending approval', 'is_initial': False, 'is_terminal': False, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form', 'credit_approval_form']}},
+            {'code': 'CREDIT_PAPER_APPROVED', 'name': 'Approved', 'description': 'Credit paper approved (terminal state)', 'is_initial': False, 'is_terminal': True, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form', 'credit_approval_form']}},
+            {'code': 'CREDIT_PAPER_REJECTED', 'name': 'Rejected', 'description': 'Credit paper rejected (terminal state)', 'is_initial': False, 'is_terminal': True, 'metadata': {'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form', 'credit_approval_form']}},
         ],
         'transitions': [
                         {'code': 'PP_TR_1', 'name': 'Submit for Credit Review', 'from_code': 'CREDIT_PAPER_CREDIT_REQUEST', 'to_code': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING', 'allowed_roles': ['relationship_manager', 'system'], 'system_action': 'submit_credit_request', 'description': 'Relationship Manager submits Credit Request form', 'conditions': {'subprocess_state': 'CREDIT_REQUEST_SUBMITTED'}},
@@ -260,6 +269,29 @@ WORKFLOWS.append({
         {'code': 'CAP_TR_2', 'name': 'Submit for In Progress', 'from_code': 'CREDIT_APPROVAL_DRAFT', 'to_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst'], 'system_action': 'edit_credit_approval', 'description': 'Approver submits draft for progress', 'conditions': {}},
         {'code': 'CAP_TR_3', 'name': 'Save as Draft from In Progress', 'from_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'to_code': 'CREDIT_APPROVAL_DRAFT', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst'], 'system_action': 'edit_credit_approval', 'description': 'Approver saves form as draft from in progress', 'conditions': {}},
         {'code': 'CAP_TR_4', 'name': 'Submit', 'from_code': 'CREDIT_APPROVAL_IN_PROGRESS', 'to_code': 'CREDIT_APPROVAL_SUBMITTED', 'allowed_roles': ['credit_approver', 'committee_approver', 'credit_analyst'], 'system_action': 'submit_credit_approval', 'description': 'Approver submits Credit Approval', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}, 'parent_workflow': {'transition_code': 'PP_TR_8', 'from_state': 'CREDIT_PAPER_APPROVAL_PENDING'}}},
+    ]
+})
+
+WORKFLOWS.append({
+    'definition': {
+        'code': 'CLIMATE_SCORECARD',
+        'name': 'Climate Scorecard Sub-Process',
+        'description': 'Workflow for PRA SS5/25 Climate Scorecard with AI generation',
+        'metadata': {},
+    },
+    'states': [
+        {'code': 'CS_DRAFT', 'name': 'Draft', 'description': 'Draft state for Climate Scorecard - no data entered', 'is_initial': True, 'is_terminal': False},
+        {'code': 'CS_AI_GENERATED', 'name': 'AI Generated', 'description': 'AI has populated fields, pending analyst review', 'is_initial': False, 'is_terminal': False},
+        {'code': 'CS_ANALYST_REVIEW', 'name': 'Analyst Review', 'description': 'Analyst is reviewing/editing the scorecard', 'is_initial': False, 'is_terminal': False},
+        {'code': 'CS_SUBMITTED', 'name': 'Submitted', 'description': 'Climate Scorecard submitted (terminal state)', 'is_initial': False, 'is_terminal': True},
+    ],
+    'transitions': [
+        {'code': 'CS_TR_1', 'name': 'Generate with AI', 'from_code': 'CS_DRAFT', 'to_code': 'CS_AI_GENERATED', 'allowed_roles': ['credit_analyst'], 'system_action': 'generate_climate_scorecard', 'description': 'Credit Analyst triggers AI generation of scorecard fields', 'conditions': {}},
+        {'code': 'CS_TR_2', 'name': 'Start Manual Entry', 'from_code': 'CS_DRAFT', 'to_code': 'CS_ANALYST_REVIEW', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_climate_scorecard', 'description': 'Credit Analyst starts manual data entry', 'conditions': {}},
+        {'code': 'CS_TR_3', 'name': 'Review AI Output', 'from_code': 'CS_AI_GENERATED', 'to_code': 'CS_ANALYST_REVIEW', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_climate_scorecard', 'description': 'Credit Analyst begins reviewing AI-generated data', 'conditions': {}},
+        {'code': 'CS_TR_4', 'name': 'Save Draft', 'from_code': 'CS_ANALYST_REVIEW', 'to_code': 'CS_ANALYST_REVIEW', 'allowed_roles': ['credit_analyst'], 'system_action': 'edit_climate_scorecard', 'description': 'Credit Analyst saves draft changes', 'conditions': {}},
+        {'code': 'CS_TR_5', 'name': 'Regenerate', 'from_code': 'CS_ANALYST_REVIEW', 'to_code': 'CS_AI_GENERATED', 'allowed_roles': ['credit_analyst'], 'system_action': 'generate_climate_scorecard', 'description': 'Credit Analyst requests AI regeneration', 'conditions': {}},
+        {'code': 'CS_TR_6', 'name': 'Submit Scorecard', 'from_code': 'CS_ANALYST_REVIEW', 'to_code': 'CS_SUBMITTED', 'allowed_roles': ['credit_analyst'], 'system_action': 'submit_climate_scorecard', 'description': 'Credit Analyst submits finalized Climate Scorecard', 'conditions': {}, 'metadata': {'ui_behavior': {'navigate_on_success': '/'}}},
     ]
 })
 

@@ -89,6 +89,16 @@ FORM_PERMISSIONS = {
         'workflow_code': 'CREDIT_APPROVAL',
         'model_name': 'CreditApprovalForm',
     },
+    'climate_scorecard': {
+        'editable_by_roles': ['credit_analyst'],
+        'viewable_by_roles': [
+            'relationship_manager', 'credit_analyst', 'business_sponsor',
+            'legal_reviewer', 'credit_approver', 'committee_approver'
+        ],
+        'ownership_required': False,
+        'workflow_code': 'CLIMATE_SCORECARD',
+        'model_name': 'ClimateScorecard',
+    },
 }
 
 

@@ -167,15 +167,11 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
       }
     };
 
-    if (initialCreditApplication) {
-      populateFormData(initialCreditApplication);
-      setLoading(false);
-    } else {
-      fetchData();
-    }
-
+    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
+    // This ensures workflow transitions are always up-to-date
+    fetchData();
     fetchAndSetAnalysts();
-  }, [id, initialCreditApplication, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
+  }, [id, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
 
   const buildPayload = useCallback(() => {
     // Use FLAT PREFIXED FIELDS to match backend expectation (credit_analysis_form_ prefix)

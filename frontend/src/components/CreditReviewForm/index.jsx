@@ -111,15 +111,11 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
       }
     };
 
-    if (initialCreditApplication) {
-      populateFormData(initialCreditApplication);
-      setLoading(false); // Important: set loading to false when using initialCreditApplication
-    } else {
-      fetchData();
-    }
-
+    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
+    // This ensures workflow transitions are always up-to-date
+    fetchData();
     fetchAndSetAnalysts();
-  }, [id, initialCreditApplication, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
+  }, [id, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
 
   const buildPayload = useCallback(() => {
     // Use FLAT PREFIXED FIELDS - SAME PATTERN as working CreditRequestForm 

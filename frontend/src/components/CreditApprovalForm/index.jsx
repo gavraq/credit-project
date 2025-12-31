@@ -226,10 +226,9 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
   }, [user]);
 
   useEffect(() => {
-    if (initialCreditApplication) {
-      populateFormData(initialCreditApplication);
-      setLoading(false);
-    } else if (id) {
+    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
+    // This ensures workflow transitions are always up-to-date
+    if (id) {
       setLoading(true);
       fetchCreditRequest(id)
         .then(response => {
@@ -247,7 +246,7 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
     }
 
     fetchAndSetApprovers();
-  }, [id, initialCreditApplication, refetchTrigger, populateFormData, fetchAndSetApprovers]);
+  }, [id, refetchTrigger, populateFormData, fetchAndSetApprovers]);
 
   // Debug effect to track DA authorization changes
   useEffect(() => {

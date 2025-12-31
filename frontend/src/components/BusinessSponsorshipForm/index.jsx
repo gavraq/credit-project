@@ -85,6 +85,8 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
       }
       setLoading(true);
       try {
+        // ALWAYS fetch fresh data to ensure we have current workflow state and transitions
+        // This prevents stale data issues when navigating back to the form
         const data = await fetchCreditRequest(id);
         populateFormData(data);
       } catch (error) {
@@ -95,13 +97,10 @@ const BusinessSponsorshipForm = ({ creditApplication: initialCreditApplication, 
       }
     };
 
-    if (initialCreditApplication) {
-      populateFormData(initialCreditApplication);
-      setLoading(false);
-    } else {
-      fetchData();
-    }
-  }, [id, initialCreditApplication, refetchTrigger, populateFormData]);
+    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
+    // This ensures workflow transitions are always up-to-date
+    fetchData();
+  }, [id, refetchTrigger, populateFormData]);
 
   const buildPayload = useCallback(() => {
     // Use FLAT PREFIXED FIELDS matching the backend model field names

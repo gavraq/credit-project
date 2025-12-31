@@ -23,7 +23,9 @@ export type FormTabName =
   | 'Credit Compilation Form'
   | 'Credit Paper'
   | 'Credit Approval'
-  | 'Credit Approval Form';
+  | 'Credit Approval Form'
+  | 'Climate Scorecard'
+  | 'Climate Scorecard Form';
 
 /**
  * Generic Form Page Object.

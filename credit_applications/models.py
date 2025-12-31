@@ -1051,7 +1051,7 @@ class CreditApprovalForm(models.Model):
         blank=True,
         help_text='Names of credit committee members present at the meeting'
     )
-    
+
     # Documentation and legal requirements
     documentation_requirements = models.TextField(
         null=True,
@@ -1063,9 +1063,778 @@ class CreditApprovalForm(models.Model):
         blank=True,
         help_text='Any special conditions or requirements'
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     form_started_at = models.DateTimeField(null=True, blank=True)
     form_completed_at = models.DateTimeField(null=True, blank=True)
     form_last_saved_at = models.DateTimeField(null=True, blank=True)
+
+
+class ClimateScorecard(models.Model):
+    """
+    PRA SS5/25 Enhanced Climate Scorecard
+    Comprehensive climate risk assessment for counterparties.
+
+    This is the first AI-powered form in the Credit Risk system.
+    Supports AI-generated field population with confidence scores
+    and analyst review/override capabilities.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    credit_application = models.OneToOneField(
+        CreditApplication,
+        on_delete=models.CASCADE,
+        related_name='climate_scorecard'
+    )
+    workflow_instance = models.ForeignKey(
+        WorkflowInstance,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='climate_scorecards'
+    )
+
+    # =========================================================================
+    # SECTION 1: Assessment Context & Metadata
+    # =========================================================================
+    analyst = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='climate_scorecards',
+        help_text='Analyst completing the scorecard'
+    )
+    assessment_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Date of assessment'
+    )
+    assessment_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('initial', 'Initial Assessment'),
+            ('annual_review', 'Annual Review'),
+            ('event_triggered', 'Event Triggered'),
+            ('material_change', 'Material Change')
+        ],
+        blank=True,
+        null=True,
+        help_text='Type of climate assessment'
+    )
+    framework_version = models.CharField(
+        max_length=50,
+        default='PRA_SS5_25_ENHANCED',
+        help_text='Regulatory framework version used'
+    )
+
+    # =========================================================================
+    # SECTION 2: Transition Risk - Preparedness (5 factors)
+    # =========================================================================
+
+    # Factor 1: Net-Zero Target
+    net_zero_target_exists = models.BooleanField(
+        default=False,
+        help_text='Does the counterparty have a net-zero target?'
+    )
+    net_zero_target_year = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Target year for net-zero (e.g., 2050)'
+    )
+    net_zero_target_scope = models.CharField(
+        max_length=50,
+        choices=[
+            ('scope_1', 'Scope 1 Only'),
+            ('scope_1_2', 'Scope 1 & 2'),
+            ('scope_1_2_3', 'All Scopes (1, 2 & 3)')
+        ],
+        blank=True,
+        null=True,
+        help_text='Emissions scope coverage of the target'
+    )
+    net_zero_science_based = models.BooleanField(
+        default=False,
+        help_text='Is the target validated by Science Based Targets initiative (SBTi)?'
+    )
+    net_zero_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=Weak, 5=Strong)'
+    )
+
+    # Factor 2: TCFD Disclosure
+    tcfd_disclosure_level = models.CharField(
+        max_length=50,
+        choices=[
+            ('none', 'No Disclosure'),
+            ('partial', 'Partial Disclosure'),
+            ('full', 'Full TCFD Aligned'),
+            ('verified', 'Externally Verified')
+        ],
+        blank=True,
+        null=True,
+        help_text='Level of TCFD-aligned climate disclosure'
+    )
+    tcfd_disclosure_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=Weak, 5=Strong)'
+    )
+
+    # Factor 3: Governance
+    climate_governance_board = models.BooleanField(
+        default=False,
+        help_text='Board-level climate risk oversight in place?'
+    )
+    climate_governance_exec_accountability = models.BooleanField(
+        default=False,
+        help_text='Executive accountability for climate strategy?'
+    )
+    climate_governance_incentives_linked = models.BooleanField(
+        default=False,
+        help_text='Executive incentives linked to climate performance?'
+    )
+    climate_governance_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=Weak, 5=Strong)'
+    )
+
+    # Factor 4: Transition Plan
+    transition_plan_exists = models.BooleanField(
+        default=False,
+        help_text='Does a formal transition plan exist?'
+    )
+    transition_plan_published = models.BooleanField(
+        default=False,
+        help_text='Is the transition plan publicly available?'
+    )
+    transition_plan_milestones = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Key milestones and interim targets'
+    )
+    transition_plan_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=Weak, 5=Strong)'
+    )
+
+    # Factor 5: Capex Alignment
+    green_capex_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Percentage of capex aligned with Paris goals'
+    )
+    capex_alignment_trajectory = models.CharField(
+        max_length=50,
+        choices=[
+            ('increasing', 'Increasing'),
+            ('stable', 'Stable'),
+            ('decreasing', 'Decreasing')
+        ],
+        blank=True,
+        null=True,
+        help_text='Trend in green capex allocation'
+    )
+    capex_alignment_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=Weak, 5=Strong)'
+    )
+
+    # Transition Risk - Preparedness Subtotal
+    transition_preparedness_total = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Average score across preparedness factors'
+    )
+
+    # =========================================================================
+    # SECTION 3: Transition Risk - Vulnerability (7 factors)
+    # =========================================================================
+
+    # Factor 1: Carbon Intensity
+    carbon_intensity_scope1 = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Scope 1 emissions intensity (tCO2e per unit revenue)'
+    )
+    carbon_intensity_scope2 = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Scope 2 emissions intensity'
+    )
+    carbon_intensity_scope3 = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Scope 3 emissions intensity'
+    )
+    carbon_intensity_trend = models.CharField(
+        max_length=50,
+        choices=[
+            ('declining', 'Declining'),
+            ('stable', 'Stable'),
+            ('increasing', 'Increasing')
+        ],
+        blank=True,
+        null=True,
+        help_text='Year-over-year trend in carbon intensity'
+    )
+    carbon_intensity_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High intensity/risk, 5=Low intensity/risk)'
+    )
+
+    # Factor 2: Stranded Asset Risk
+    stranded_asset_exposure = models.CharField(
+        max_length=50,
+        choices=[
+            ('none', 'None'),
+            ('low', 'Low (<10% of assets)'),
+            ('medium', 'Medium (10-30%)'),
+            ('high', 'High (>30%)')
+        ],
+        blank=True,
+        null=True,
+        help_text='Exposure to potentially stranded assets'
+    )
+    stranded_asset_types = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Types of assets at risk (e.g., coal plants, oil reserves)'
+    )
+    stranded_asset_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High risk, 5=Low risk)'
+    )
+
+    # Factor 3: Policy & Regulatory Pressure
+    policy_pressure_jurisdictions = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Key jurisdictions with regulatory pressure'
+    )
+    policy_pressure_carbon_pricing_exposure = models.BooleanField(
+        default=False,
+        help_text='Significant exposure to carbon pricing mechanisms?'
+    )
+    policy_pressure_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High pressure, 5=Low pressure)'
+    )
+
+    # Factor 4: Technology Disruption
+    tech_disruption_risk_level = models.CharField(
+        max_length=50,
+        choices=[
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High'),
+            ('critical', 'Critical')
+        ],
+        blank=True,
+        null=True,
+        help_text='Risk of business model disruption from clean technology'
+    )
+    tech_disruption_assessment = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Assessment of technology disruption risks'
+    )
+    tech_disruption_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High risk, 5=Low risk)'
+    )
+
+    # Factor 5: Market Sentiment
+    market_sentiment_esg_rating = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text='Current ESG rating from major agencies'
+    )
+    market_sentiment_investor_pressure = models.CharField(
+        max_length=50,
+        choices=[
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High')
+        ],
+        blank=True,
+        null=True,
+        help_text='Level of investor pressure on climate action'
+    )
+    market_sentiment_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=Negative sentiment, 5=Positive sentiment)'
+    )
+
+    # Factor 6: Litigation Risk
+    litigation_current_cases = models.IntegerField(
+        default=0,
+        help_text='Number of ongoing climate-related litigation cases'
+    )
+    litigation_historical_cases = models.IntegerField(
+        default=0,
+        help_text='Number of historical climate litigation cases'
+    )
+    litigation_exposure_assessment = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Assessment of litigation exposure and potential impact'
+    )
+    litigation_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High litigation risk, 5=Low risk)'
+    )
+
+    # Factor 7: Country/Region Dependency
+    country_dependency_high_risk_revenue = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Percentage of revenue from high-transition-risk jurisdictions'
+    )
+    country_dependency_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High dependency, 5=Low dependency)'
+    )
+
+    # Transition Risk - Vulnerability Subtotal
+    transition_vulnerability_total = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Average score across vulnerability factors'
+    )
+
+    # =========================================================================
+    # SECTION 4: Transition Risk - Opportunity (3 factors)
+    # =========================================================================
+
+    # Factor 1: Green Market Growth
+    green_market_growth_potential = models.CharField(
+        max_length=50,
+        choices=[
+            ('none', 'None'),
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High'),
+            ('transformative', 'Transformative')
+        ],
+        blank=True,
+        null=True,
+        help_text='Potential to benefit from green market growth'
+    )
+    green_market_growth_assessment = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Assessment of green market opportunities'
+    )
+    green_market_growth_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=No opportunity, 5=High opportunity)'
+    )
+
+    # Factor 2: Green Revenue
+    green_revenue_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Current percentage of revenue from green products/services'
+    )
+    green_revenue_trend = models.CharField(
+        max_length=50,
+        choices=[
+            ('declining', 'Declining'),
+            ('stable', 'Stable'),
+            ('growing', 'Growing'),
+            ('rapidly_growing', 'Rapidly Growing')
+        ],
+        blank=True,
+        null=True,
+        help_text='Trend in green revenue share'
+    )
+    green_revenue_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=No green revenue, 5=High green revenue)'
+    )
+
+    # Factor 3: Competitive Advantage
+    competitive_advantage_assessment = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Assessment of competitive positioning in low-carbon transition'
+    )
+    competitive_advantage_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=Disadvantaged, 5=Strong advantage)'
+    )
+
+    # Transition Risk - Opportunity Subtotal
+    transition_opportunity_total = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Average score across opportunity factors'
+    )
+
+    # =========================================================================
+    # SECTION 5: Physical Risk Assessment (5 factors)
+    # =========================================================================
+
+    # Factor 1: Acute Hazards
+    acute_hazard_exposure = models.CharField(
+        max_length=50,
+        choices=[
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High'),
+            ('critical', 'Critical')
+        ],
+        blank=True,
+        null=True,
+        help_text='Exposure to acute climate hazards'
+    )
+    acute_hazard_types = models.JSONField(
+        blank=True,
+        null=True,
+        help_text='Types of acute hazards: floods, storms, wildfires, etc.'
+    )
+    acute_hazard_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High exposure, 5=Low exposure)'
+    )
+
+    # Factor 2: Chronic Exposure
+    chronic_exposure_assessment = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Assessment of chronic climate risks (sea level rise, temperature, water stress)'
+    )
+    chronic_exposure_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High exposure, 5=Low exposure)'
+    )
+
+    # Factor 3: Ecosystem Dependency
+    ecosystem_dependency_level = models.CharField(
+        max_length=50,
+        choices=[
+            ('none', 'None'),
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High')
+        ],
+        blank=True,
+        null=True,
+        help_text='Dependency on climate-sensitive ecosystems'
+    )
+    ecosystem_dependency_assessment = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Assessment of ecosystem dependencies and risks'
+    )
+    ecosystem_dependency_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=High dependency, 5=Low dependency)'
+    )
+
+    # Factor 4: Adaptation Capability
+    adaptation_capability_level = models.CharField(
+        max_length=50,
+        choices=[
+            ('none', 'None'),
+            ('limited', 'Limited'),
+            ('developing', 'Developing'),
+            ('mature', 'Mature')
+        ],
+        blank=True,
+        null=True,
+        help_text='Capability to adapt to physical climate impacts'
+    )
+    adaptation_investments = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Investments in climate adaptation measures'
+    )
+    adaptation_capability_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=No capability, 5=Strong capability)'
+    )
+
+    # Factor 5: Scenario Analysis
+    scenario_analysis_conducted = models.BooleanField(
+        default=False,
+        help_text='Has climate scenario analysis been conducted?'
+    )
+    scenario_analysis_scenarios = models.JSONField(
+        blank=True,
+        null=True,
+        help_text='Scenarios used (e.g., RCP 2.6, RCP 4.5, RCP 8.5)'
+    )
+    scenario_analysis_time_horizons = models.JSONField(
+        blank=True,
+        null=True,
+        help_text='Time horizons analyzed (e.g., 2030, 2050)'
+    )
+    scenario_analysis_integration = models.TextField(
+        blank=True,
+        null=True,
+        help_text='How scenario results are integrated into strategy'
+    )
+    scenario_analysis_score = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Score 1-5 (1=No analysis, 5=Comprehensive analysis)'
+    )
+
+    # Physical Risk Subtotal
+    physical_risk_total = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Average score across physical risk factors'
+    )
+
+    # =========================================================================
+    # SECTION 6: Risk Appetite Alignment
+    # =========================================================================
+    risk_appetite_category = models.CharField(
+        max_length=50,
+        choices=[
+            ('avoid', 'Avoid'),
+            ('manage', 'Manage'),
+            ('monitor', 'Monitor'),
+            ('acceptable', 'Acceptable')
+        ],
+        blank=True,
+        null=True,
+        help_text='Risk appetite category for this counterparty'
+    )
+    risk_appetite_justification = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Justification for risk appetite categorization'
+    )
+    risk_appetite_conditions = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Conditions or requirements for continued engagement'
+    )
+
+    # =========================================================================
+    # SECTION 7: Capital & ICAAP Considerations
+    # =========================================================================
+    pillar_2_treatment = models.CharField(
+        max_length=50,
+        choices=[
+            ('not_material', 'Not Material'),
+            ('low_add_on', 'Low Add-on'),
+            ('medium_add_on', 'Medium Add-on'),
+            ('high_add_on', 'High Add-on')
+        ],
+        blank=True,
+        null=True,
+        help_text='Pillar 2 treatment for climate risk'
+    )
+    icaap_materiality_assessment = models.TextField(
+        blank=True,
+        null=True,
+        help_text='ICAAP materiality assessment'
+    )
+    capital_add_on_recommendation = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Recommended capital add-on percentage'
+    )
+
+    # =========================================================================
+    # SECTION 8: Data Quality Declaration
+    # =========================================================================
+    data_sources = models.JSONField(
+        blank=True,
+        null=True,
+        help_text='List of data sources used for the assessment'
+    )
+    data_proxies_used = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Description of any proxies or estimates used'
+    )
+    data_gaps_identified = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Key data gaps identified during assessment'
+    )
+    data_quality_overall = models.CharField(
+        max_length=50,
+        choices=[
+            ('poor', 'Poor'),
+            ('fair', 'Fair'),
+            ('good', 'Good'),
+            ('excellent', 'Excellent')
+        ],
+        blank=True,
+        null=True,
+        help_text='Overall data quality assessment'
+    )
+
+    # =========================================================================
+    # SECTION 9: Summary & Recommendations
+    # =========================================================================
+
+    # Overall Scores
+    overall_transition_risk_score = models.CharField(
+        max_length=20,
+        choices=[
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High'),
+            ('critical', 'Critical')
+        ],
+        blank=True,
+        null=True,
+        help_text='Overall transition risk assessment'
+    )
+    overall_physical_risk_score = models.CharField(
+        max_length=20,
+        choices=[
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High'),
+            ('critical', 'Critical')
+        ],
+        blank=True,
+        null=True,
+        help_text='Overall physical risk assessment'
+    )
+    overall_climate_risk_rating = models.CharField(
+        max_length=20,
+        choices=[
+            ('A', 'A - Minimal Risk'),
+            ('B', 'B - Low Risk'),
+            ('C', 'C - Moderate Risk'),
+            ('D', 'D - High Risk'),
+            ('E', 'E - Critical Risk')
+        ],
+        blank=True,
+        null=True,
+        help_text='Overall climate risk rating (A-E scale)'
+    )
+
+    # Key Findings
+    key_risk_drivers = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Key climate risk drivers identified'
+    )
+    key_opportunities = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Key climate-related opportunities identified'
+    )
+    recommended_mitigations = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Recommended risk mitigations and actions'
+    )
+    monitoring_triggers = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Events or thresholds that should trigger review'
+    )
+    next_review_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Recommended date for next climate assessment'
+    )
+
+    # =========================================================================
+    # AI Generation Metadata
+    # =========================================================================
+    ai_generated = models.BooleanField(
+        default=False,
+        help_text='Was this scorecard initially generated by AI?'
+    )
+    ai_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp of AI generation'
+    )
+    ai_model_version = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='AI model version used for generation'
+    )
+    ai_confidence_scores = models.JSONField(
+        blank=True,
+        null=True,
+        help_text='Per-field confidence scores from AI generation (0.0-1.0)'
+    )
+    ai_generation_notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Notes from AI generation explaining reasoning'
+    )
+    analyst_review_status = models.CharField(
+        max_length=50,
+        choices=[
+            ('pending', 'Pending Review'),
+            ('reviewed', 'Reviewed'),
+            ('approved', 'Approved with Changes'),
+            ('rejected', 'Rejected - Manual Entry Required')
+        ],
+        default='pending',
+        help_text='Status of analyst review of AI-generated content'
+    )
+
+    # =========================================================================
+    # Standard Form Fields
+    # =========================================================================
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    form_started_at = models.DateTimeField(null=True, blank=True)
+    form_completed_at = models.DateTimeField(null=True, blank=True)
+    form_last_saved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Climate Scorecard'
+        verbose_name_plural = 'Climate Scorecards'
+
+    def __str__(self):
+        return f"Climate Scorecard for {self.credit_application.title}"

@@ -106,9 +106,9 @@ def get_dynamic_form_model_map():
         from credit_applications.models import (
             CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm,
             LegalReviewForm, CreditQuestionnaireForm, CreditAnalysisForm,
-            CreditCompilationForm, CreditApprovalForm
+            CreditCompilationForm, CreditApprovalForm, ClimateScorecard
         )
-        
+
         # Create mapping based on form_key in metadata (matching frontend prefix pattern)
         model_class_map = {
             'credit_request_form': CreditRequestForm,
@@ -119,6 +119,7 @@ def get_dynamic_form_model_map():
             'credit_analysis_form': CreditAnalysisForm,
             'credit_compilation_form': CreditCompilationForm,
             'credit_approval_form': CreditApprovalForm,
+            'climate_scorecard': ClimateScorecard,
         }
         
         # Only include forms that exist in the metadata

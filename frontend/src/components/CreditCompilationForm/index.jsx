@@ -129,10 +129,9 @@ const CreditCompilationForm = ({ creditApplication: initialCreditApplication, cu
   }, []);
 
   useEffect(() => {
-    if (initialCreditApplication) {
-      populateFormData(initialCreditApplication);
-      setLoading(false);
-    } else if (id) {
+    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
+    // This ensures workflow transitions are always up-to-date
+    if (id) {
       setLoading(true);
       fetchCreditRequest(id)
         .then(response => {
@@ -150,7 +149,7 @@ const CreditCompilationForm = ({ creditApplication: initialCreditApplication, cu
     }
 
     fetchAndSetAnalysts();
-  }, [id, initialCreditApplication, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
+  }, [id, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
 
   const buildPayload = useCallback(() => {
     // Use FLAT PREFIXED FIELDS to match backend expectation - Phase 3 pattern

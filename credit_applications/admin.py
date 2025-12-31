@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Counterparty, CreditApplication, LimitRequest, LimitType, DocumentType, Document,
     CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm, CreditAnalysisForm,
-    CreditCompilationForm, CreditApprovalForm
+    CreditCompilationForm, CreditApprovalForm, ClimateScorecard
 )
 
 admin.site.register(Counterparty)
@@ -19,5 +19,6 @@ admin.site.register(CreditQuestionnaireForm)
 admin.site.register(CreditAnalysisForm)
 admin.site.register(CreditCompilationForm)
 admin.site.register(CreditApprovalForm)
+admin.site.register(ClimateScorecard)
 
 # Register your models here.

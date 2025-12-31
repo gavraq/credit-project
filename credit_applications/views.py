@@ -16,11 +16,13 @@ from workflow_engine.models import Workflow, State, WorkflowInstance, Transition
 from .models import (
     CreditApplication, Counterparty, LimitRequest, LimitType, CreditRequestForm,
     CreditReviewForm, BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm,
-    CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm
+    CreditAnalysisForm, CreditCompilationForm, CreditApprovalForm, ClimateScorecard
 )
 from .serializers import (
     CreditApplicationSerializer, CounterpartySerializer, LimitRequestSerializer,
-    LimitTypeSerializer, CreditRequestFormSerializer, LegalReviewFormSerializer, CreditQuestionnaireFormSerializer, BusinessSponsorshipFormSerializer, CreditReviewFormSerializer # Added missing form serializers
+    LimitTypeSerializer, CreditRequestFormSerializer, LegalReviewFormSerializer,
+    CreditQuestionnaireFormSerializer, BusinessSponsorshipFormSerializer,
+    CreditReviewFormSerializer, ClimateScorecardSerializer
 )
 
 class LimitTypeViewSet(viewsets.ModelViewSet):
@@ -293,12 +295,130 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                         )
             
             return Response({'detail': f'Successfully updated ranks for {len(rank_updates)} applications'})
-            
+
         except Exception as e:
             logger.error(f"Error in bulk rank update: {e}")
             return Response(
-                {'detail': 'Internal server error'}, 
+                {'detail': 'Internal server error'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['get', 'patch'], url_path='climate-scorecard')
+    def climate_scorecard_handler(self, request, pk=None):
+        """
+        GET: Retrieve climate scorecard for a credit application.
+        PATCH: Update/save climate scorecard data.
+        """
+        credit_application = self.get_object()
+
+        try:
+            scorecard = credit_application.climate_scorecard
+        except ClimateScorecard.DoesNotExist:
+            if request.method == 'GET':
+                return Response({'detail': 'Climate scorecard not found.'}, status=status.HTTP_404_NOT_FOUND)
+            # For PATCH, create a new scorecard
+            scorecard = ClimateScorecard.objects.create(credit_application=credit_application)
+
+        if request.method == 'GET':
+            serializer = ClimateScorecardSerializer(scorecard, context={'request': request})
+            return Response(serializer.data)
+
+        elif request.method == 'PATCH':
+            # Handle climate_scorecard_ prefixed data from frontend
+            scorecard_data = {}
+            prefix = 'climate_scorecard_'
+            for key, value in request.data.items():
+                if key.startswith(prefix):
+                    field_name = key[len(prefix):]
+                    scorecard_data[field_name] = value
+                else:
+                    # Also accept non-prefixed data
+                    scorecard_data[key] = value
+
+            serializer = ClimateScorecardSerializer(
+                scorecard,
+                data=scorecard_data,
+                partial=True,
+                context={'request': request}
+            )
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='climate-scorecard/generate')
+    def generate_climate_scorecard(self, request, pk=None):
+        """
+        Trigger AI generation of climate scorecard fields.
+        Returns generated field values with confidence scores.
+        """
+        credit_application = self.get_object()
+
+        try:
+            scorecard = credit_application.climate_scorecard
+        except ClimateScorecard.DoesNotExist:
+            # Create scorecard if it doesn't exist
+            scorecard = ClimateScorecard.objects.create(credit_application=credit_application)
+
+        try:
+            # Import AI service (will be implemented in Phase 4)
+            from .services.climate_ai_service import ClimateAIService
+
+            ai_service = ClimateAIService()
+            result = ai_service.generate_scorecard(
+                counterparty=credit_application.counterparty,
+                credit_application=credit_application,
+                documents=None  # Future enhancement: include attached documents
+            )
+
+            # Update scorecard with generated fields
+            # Get list of date fields that need validation
+            from django.db.models import DateField
+            date_fields = {f.name for f in scorecard._meta.get_fields() if isinstance(f, DateField)}
+
+            for field_name, value in result.get('fields', {}).items():
+                if hasattr(scorecard, field_name):
+                    # Validate date fields
+                    if field_name in date_fields and value is not None:
+                        import re
+                        if isinstance(value, str):
+                            # Only accept YYYY-MM-DD format
+                            if not re.match(r'^\d{4}-\d{2}-\d{2}$', value):
+                                logger.warning(f"Skipping invalid date value for {field_name}: {value}")
+                                continue
+                    setattr(scorecard, field_name, value)
+
+            # Set AI metadata
+            from django.utils import timezone
+            scorecard.ai_generated = True
+            scorecard.ai_generated_at = timezone.now()
+            scorecard.ai_model_version = result.get('model_version', 'unknown')
+            scorecard.ai_confidence_scores = result.get('confidence_scores', {})
+            scorecard.ai_generation_notes = result.get('generation_notes', '')
+            scorecard.analyst_review_status = 'pending'
+            scorecard.save()
+
+            # Return the updated scorecard
+            serializer = ClimateScorecardSerializer(scorecard, context={'request': request})
+            return Response({
+                'success': True,
+                'scorecard': serializer.data,
+                'confidence_scores': result.get('confidence_scores', {}),
+                'generation_notes': result.get('generation_notes', ''),
+                'model_version': result.get('model_version', 'unknown')
+            })
+
+        except ImportError:
+            # AI service not yet implemented
+            return Response({
+                'success': False,
+                'detail': 'AI service not yet available. Please enter data manually.'
+            }, status=status.HTTP_501_NOT_IMPLEMENTED)
+        except Exception as e:
+            logger.error(f"Error generating climate scorecard: {e}", exc_info=True)
+            return Response({
+                'success': False,
+                'detail': f'Error generating climate scorecard: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

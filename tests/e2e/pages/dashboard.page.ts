@@ -70,6 +70,15 @@ export class DashboardPage extends BasePage {
   }
 
   /**
+   * Wait for dashboard to be fully loaded.
+   */
+  async waitForDashboard() {
+    await this.waitForLoadingToComplete();
+    // Wait for dashboard content - either the title or the create button
+    await this.page.waitForSelector('text=Request Tracking Dashboard, text=Create New', { timeout: 15000 });
+  }
+
+  /**
    * Get application titles from the list.
    */
   async getApplicationTitles(): Promise<string[]> {

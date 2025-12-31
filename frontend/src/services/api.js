@@ -290,6 +290,31 @@ export const saveCreditApprovalForm = async (id, formData) => {
   }
 };
 
+// Climate Scorecard API functions
+export const saveClimateScorecard = async (id, formData) => {
+  try {
+    console.log(`Saving climate scorecard for ID ${id} with data:`, formData);
+    const response = await patch(`/api/credit/credit-applications/${id}/climate-scorecard/`, formData);
+    return response.data;
+  } catch (error) {
+    console.error('Error saving climate scorecard:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
+export const generateClimateScorecard = async (id) => {
+  try {
+    console.log(`Generating AI climate scorecard for ID ${id}`);
+    const response = await post(`/api/credit/credit-applications/${id}/climate-scorecard/generate/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error generating climate scorecard:', error);
+    console.error('Error response:', error.response?.data);
+    throw error;
+  }
+};
+
 export const getApplicationsAwaitingMyApproval = async () => {
   try {
     const response = await get('/api/credit/credit-applications/awaiting-my-approval/');

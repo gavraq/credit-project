@@ -17,6 +17,7 @@ import CreditRequestForm from './components/CreditRequestForm/index';
 import CreditReviewForm from './components/CreditReviewForm/index';
 import BusinessSponsorshipForm from './components/BusinessSponsorshipForm/index';
 import CreditQuestionnaireForm from './components/CreditQuestionnaireForm/index';
+import ClimateScorecard from './components/ClimateScorecard/index';
 import ApplicationLoader from './components/ApplicationLoader';
 import ApplicationDetails from './components/ApplicationDetails';
 import MyTasks from './components/MyTasks';
@@ -52,6 +53,7 @@ function MainApp() {
           <Route path="/credit-requests/new" element={<ProtectedRoute><CreditRequestForm editMode={true} /></ProtectedRoute>} />
           <Route path="/credit-requests/:id/edit" element={<ProtectedRoute><ApplicationLoader /></ProtectedRoute>} />
           <Route path="/credit-requests/:id/details" element={<ProtectedRoute><ApplicationDetails /></ProtectedRoute>} />
+          <Route path="/credit-requests/:id/climate-scorecard" element={<ProtectedRoute><ClimateScorecard /></ProtectedRoute>} />
         </Routes>
       </Router>
     </ThemeProvider>

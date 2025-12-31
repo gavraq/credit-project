@@ -292,6 +292,53 @@ class APIClient:
         return self.update_credit_application(app_id, data)
 
     # ==========================================================================
+    # Climate Scorecard Endpoints
+    # ==========================================================================
+
+    def get_climate_scorecard(self, app_id: str) -> Dict[str, Any]:
+        """
+        Get climate scorecard for a credit application.
+
+        Args:
+            app_id: Credit application UUID
+
+        Returns:
+            Climate scorecard data
+        """
+        response = self.get(f'/api/credit/credit-applications/{app_id}/climate-scorecard/')
+        response.raise_for_status()
+        return response.json()
+
+    def update_climate_scorecard(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update climate scorecard fields.
+
+        Args:
+            app_id: Credit application UUID
+            data: Fields to update (with climate_scorecard_ prefix)
+
+        Returns:
+            Updated scorecard data
+        """
+        response = self.patch(f'/api/credit/credit-applications/{app_id}/climate-scorecard/', data)
+        response.raise_for_status()
+        return response.json()
+
+    def generate_climate_scorecard(self, app_id: str) -> Dict[str, Any]:
+        """
+        Trigger AI generation of climate scorecard.
+
+        Args:
+            app_id: Credit application UUID
+
+        Returns:
+            Generation result with scorecard, confidence_scores, and notes
+        """
+        response = self.post(f'/api/credit/credit-applications/{app_id}/climate-scorecard/generate/')
+        response.raise_for_status()
+        return response.json()
+
+    # ==========================================================================
     # Utility Methods
     # ==========================================================================
 

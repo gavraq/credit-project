@@ -142,10 +142,9 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
   };
 
   useEffect(() => {
-    if (initialCreditApplication) {
-      populateFormData(initialCreditApplication);
-      setLoading(false);
-    } else if (id) {
+    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
+    // This ensures workflow transitions are always up-to-date
+    if (id) {
       setLoading(true);
       fetchCreditRequest(id)
         .then(response => {
@@ -161,7 +160,7 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
     } else {
       setLoading(false);
     }
-  }, [id, initialCreditApplication, user, refetchTrigger]);
+  }, [id, user, refetchTrigger]);
 
   // Save function - returns true/false for success
   const handleSave = async () => {

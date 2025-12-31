@@ -10,10 +10,10 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from rest_framework import serializers
 from .models import (
-    CreditApplication, Counterparty, LimitRequest, LimitType, 
-    CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm, 
+    CreditApplication, Counterparty, LimitRequest, LimitType,
+    CreditRequestForm, CreditReviewForm, BusinessSponsorshipForm,
     LegalReviewForm, CreditQuestionnaireForm, CreditAnalysisForm,
-    CreditCompilationForm, CreditApprovalForm
+    CreditCompilationForm, CreditApprovalForm, ClimateScorecard
 )
 from workflow_engine.models import WorkflowInstance, Workflow, State # Added Workflow, State
 
@@ -419,6 +419,44 @@ class CreditApprovalFormSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id', 'credit_application']
 
+
+class ClimateScorecardSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the PRA SS5/25 Enhanced Climate Scorecard.
+    Includes workflow instance details, available transitions, and AI metadata.
+    """
+    workflow_instance = serializers.SerializerMethodField()
+    available_transitions = serializers.SerializerMethodField()
+
+    def get_workflow_instance(self, obj):
+        """Return workflow instance details for the ClimateScorecard"""
+        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
+            return {
+                'id': str(obj.workflow_instance.id),
+                'current_state': obj.workflow_instance.current_state.name if obj.workflow_instance.current_state else None,
+                'workflow_definition': obj.workflow_instance.workflow.name if obj.workflow_instance.workflow else None
+            }
+        return None
+
+    def get_available_transitions(self, obj):
+        """Return available transitions for the ClimateScorecard's workflow instance"""
+        request = self.context.get('request')
+        user = request.user if request else None
+        if not user or not hasattr(obj, 'workflow_instance') or not obj.workflow_instance:
+            return []
+        try:
+            transitions = obj.workflow_instance.get_allowed_transitions(user)
+            return [{'code': t.code, 'name': t.name, 'description': t.description, 'metadata': t.metadata} for t in transitions]
+        except Exception as e:
+            logger.error(f"Error getting available transitions for ClimateScorecard workflow instance {obj.workflow_instance.id}: {e}", exc_info=True)
+            return []
+
+    class Meta:
+        model = ClimateScorecard
+        fields = '__all__'
+        read_only_fields = ['id', 'credit_application', 'ai_generated', 'ai_generated_at', 'ai_model_version', 'ai_confidence_scores']
+
+
 class CreditApplicationSerializer(serializers.ModelSerializer):
 
     limit_requests = LimitRequestSerializer(many=True, required=False)
@@ -751,7 +789,8 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
     credit_analysis_form = serializers.SerializerMethodField()
     credit_compilation_form = serializers.SerializerMethodField()
     credit_approval_form = serializers.SerializerMethodField()
-    
+    climate_scorecard = serializers.SerializerMethodField()
+
     # Additional fields
     workflow_state = serializers.SerializerMethodField()
     workflow_state_name = serializers.SerializerMethodField()
@@ -774,7 +813,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             'workflow_state', 'workflow_state_name', 'available_transitions', 'created_by_name', 'assigned_to_name',
             'current_user_role', 'credit_request_form', 'credit_review_form', 'business_sponsorship_form',
             'legal_review_form', 'credit_questionnaire_form', 'credit_analysis_form',
-            'credit_compilation_form', 'credit_approval_form', 'limit_requests', 'sub_processes'
+            'credit_compilation_form', 'credit_approval_form', 'climate_scorecard', 'limit_requests', 'sub_processes'
         ]
         read_only_fields = ['id', 'reference_number', 'workflow_instance', 'created_at', 'updated_at', 'submitted_at', 'created_by', 'created_by_name', 'assigned_to_name']
 
@@ -910,6 +949,15 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             obj, 'credit_approval_form', CreditApprovalForm, CreditApprovalFormSerializer
         )
 
+    def get_climate_scorecard(self, obj):
+        """Get climate scorecard data if it exists."""
+        try:
+            scorecard = obj.climate_scorecard
+            serializer = ClimateScorecardSerializer(scorecard, context=self.context)
+            return serializer.data
+        except ClimateScorecard.DoesNotExist:
+            return None
+
     def get_sub_processes(self, obj):
         logger.info(f"--- get_sub_processes called for application: {obj.id} ---")
         
@@ -965,6 +1013,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
                         'credit_analysis_form': CreditAnalysisFormSerializer,
                         'credit_compilation_form': CreditCompilationFormSerializer,
                         'credit_approval_form': CreditApprovalFormSerializer,
+                        'climate_scorecard': ClimateScorecardSerializer,
                     }
                     
                     serializer_class = serializer_map.get(form_name)
