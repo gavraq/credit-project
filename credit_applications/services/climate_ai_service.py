@@ -118,76 +118,63 @@ class ClimateAIService:
         """
         Generate scorecard by calling the Risk Agent service.
 
-        Sends a natural language request to the agent which uses the
-        climate-scorecard-filler skill to research and generate the assessment.
+        Sends a structured JSON request via Telegram message that the Risk Agent
+        identifies as coming from the Credit Workflow System.
         """
-        # Build the message for the Risk Agent
+        # Build counterparty data
         counterparty_name = counterparty.name if counterparty else "Unknown"
         sector = getattr(counterparty, 'sector', 'Unknown') if counterparty else "Unknown"
         country = getattr(counterparty, 'country', 'Unknown') if counterparty else "Unknown"
+        counterparty_id = str(counterparty.id) if counterparty and hasattr(counterparty, 'id') else None
 
-        # Construct the query message
-        message = f"""Complete a climate scorecard for the following counterparty:
+        # Build credit application data
+        credit_app_data = {}
+        if credit_application:
+            credit_app_data = {
+                'id': str(credit_application.id) if hasattr(credit_application, 'id') else None,
+                'credit_request_amount': float(credit_application.credit_request_amount) if hasattr(credit_application, 'credit_request_amount') and credit_application.credit_request_amount else None,
+                'currency': getattr(credit_application, 'credit_request_currency', 'GBP'),
+                'description': getattr(credit_application, 'description', ''),
+            }
 
-Counterparty: {counterparty_name}
-Sector: {sector}
-Country: {country}
-"""
-
-        if credit_application and credit_application.description:
-            message += f"\nAdditional Context: {credit_application.description}"
-
+        # Build documents list
+        docs_list = []
         if documents:
-            message += f"\n\nAttached Documents:\n{documents}"
+            if isinstance(documents, list):
+                for doc in documents:
+                    if isinstance(doc, dict):
+                        docs_list.append({
+                            'name': doc.get('name', doc.get('filename', 'Unknown')),
+                            'url': doc.get('url', ''),
+                        })
+                    elif isinstance(doc, str):
+                        docs_list.append({'name': doc, 'url': ''})
+            elif isinstance(documents, str):
+                # If documents is a string, include as context
+                docs_list.append({'name': 'Provided context', 'content': documents})
 
-        # Add instruction for JSON output
-        message += """
+        # Build the structured request payload
+        request_payload = {
+            'source_system': 'credit_workflow',
+            'request_type': 'climate_scorecard_generation',
+            'version': '1.0',
+            'counterparty': {
+                'name': counterparty_name,
+                'sector': sector,
+                'country': country,
+                'id': counterparty_id,
+            },
+            'credit_application': credit_app_data,
+            'documents': docs_list,
+            'existing_data': {},
+        }
 
-Please generate a comprehensive PRA SS5/25-compliant climate scorecard assessment.
+        # Construct the message with embedded JSON
+        message = f"""Generate climate scorecard for this credit application:
 
-IMPORTANT: After generating the scorecard, output the results as a JSON object with this exact structure:
-```json
-{
-  "fields": {
-    "net_zero_target_exists": true/false,
-    "net_zero_target_year": 2050,
-    "net_zero_score": 1-5,
-    "tcfd_disclosure_level": "none|partial|full|verified",
-    "tcfd_disclosure_score": 1-5,
-    "climate_governance_score": 1-5,
-    "transition_plan_score": 1-5,
-    "carbon_intensity_score": 1-5,
-    "stranded_asset_exposure": "none|low|medium|high",
-    "stranded_asset_score": 1-5,
-    "policy_pressure_score": 1-5,
-    "tech_disruption_score": 1-5,
-    "market_sentiment_score": 1-5,
-    "litigation_score": 1-5,
-    "acute_hazard_exposure": "low|medium|high|critical",
-    "acute_hazard_score": 1-5,
-    "chronic_exposure_score": 1-5,
-    "ecosystem_dependency_score": 1-5,
-    "adaptation_capability_score": 1-5,
-    "scenario_analysis_score": 1-5,
-    "overall_transition_risk_score": "low|medium|high|critical",
-    "overall_physical_risk_score": "low|medium|high|critical",
-    "overall_climate_risk_rating": "A|B|C|D|E",
-    "risk_appetite_category": "avoid|manage|monitor|acceptable",
-    "data_quality_overall": "poor|fair|good|excellent",
-    "key_risk_drivers": "text summary",
-    "key_opportunities": "text summary",
-    "recommended_mitigations": "text summary",
-    "monitoring_triggers": "text summary",
-    ... (include all relevant fields from your assessment)
-  },
-  "confidence_scores": {
-    "field_name": 0.0-1.0,
-    ...
-  },
-  "generation_notes": "Summary of your reasoning and any caveats"
-}
-```
-"""
+{json.dumps(request_payload, indent=2)}
+
+Please analyse any available documents and return a comprehensive PRA SS5/25-compliant climate scorecard using the latest available information. Return the results as a JSON code block with the complete scorecard_data structure."""
 
         logger.info(f"Sending climate scorecard request to Risk Agent for: {counterparty_name}")
 
@@ -232,17 +219,20 @@ IMPORTANT: After generating the scorecard, output the results as a JSON object w
         Parse the Risk Agent response to extract structured scorecard data.
 
         The agent may return:
-        1. A JSON block with the exact structure we requested
-        2. Markdown with embedded JSON
-        3. A full scorecard report that needs field extraction
+        1. New format: JSON with 'scorecard_data' wrapper (from credit_workflow requests)
+        2. Legacy format: JSON with 'fields' at top level
+        3. Old skill format: JSON with 'transition_risks' / 'physical_risks'
+        4. Markdown with embedded JSON
+        5. A full scorecard report that needs field extraction
         """
         # Try to find a JSON block in the response
         json_match = re.search(r'```json\s*([\s\S]*?)\s*```', response_text)
         if json_match:
             try:
                 data = json.loads(json_match.group(1))
-                if 'fields' in data:
-                    return data
+                parsed = self._process_parsed_json(data)
+                if parsed:
+                    return parsed
             except json.JSONDecodeError:
                 logger.warning("Found JSON block but failed to parse")
 
@@ -253,17 +243,61 @@ IMPORTANT: After generating the scorecard, output the results as a JSON object w
             if json_start >= 0 and json_end > json_start:
                 potential_json = response_text[json_start:json_end]
                 data = json.loads(potential_json)
-                if 'fields' in data:
-                    return data
-                # If it's the old format from the skill
-                if 'transition_risks' in data or 'physical_risks' in data:
-                    return self._map_skill_output_to_model(data)
+                parsed = self._process_parsed_json(data)
+                if parsed:
+                    return parsed
         except json.JSONDecodeError:
             pass
 
         # Fall back to extracting from markdown/text
         logger.info("Parsing scorecard from text response")
         return self._extract_from_text(response_text)
+
+    def _process_parsed_json(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Process parsed JSON data from Risk Agent response.
+
+        Handles multiple response formats:
+        - New format with 'scorecard_data' wrapper
+        - Legacy format with 'fields' at top level
+        - Old skill format with 'transition_risks' / 'physical_risks'
+        """
+        # New format: scorecard_data wrapper (from credit_workflow requests)
+        if 'scorecard_data' in data:
+            scorecard_data = data['scorecard_data']
+            confidence_scores = data.get('confidence_scores', {})
+            generation_notes = data.get('generation_notes', '')
+
+            # The scorecard_data contains all fields directly
+            return {
+                'fields': scorecard_data,
+                'confidence_scores': confidence_scores,
+                'generation_notes': generation_notes,
+            }
+
+        # Legacy format: fields at top level
+        if 'fields' in data:
+            return data
+
+        # Old skill format: transition_risks / physical_risks structure
+        if 'transition_risks' in data or 'physical_risks' in data:
+            return self._map_skill_output_to_model(data)
+
+        # Check if it's a flat scorecard structure (all fields at top level)
+        scorecard_fields = [
+            'overall_climate_risk_rating', 'overall_transition_risk_score',
+            'overall_physical_risk_score', 'net_zero_target_exists',
+            'tcfd_disclosure_level', 'risk_appetite_category'
+        ]
+        if any(field in data for field in scorecard_fields):
+            # Treat the entire object as scorecard fields
+            return {
+                'fields': data,
+                'confidence_scores': {},
+                'generation_notes': 'Parsed from flat JSON structure',
+            }
+
+        return None
 
     def _map_skill_output_to_model(self, skill_output: Dict[str, Any]) -> Dict[str, Any]:
         """
