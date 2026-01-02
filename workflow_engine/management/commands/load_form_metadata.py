@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 # Form permission configuration - defines who can edit/view each form
-# This is the source of truth for form permissions
+# This is the source of truth for form permissions and field type mappings
 FORM_PERMISSIONS = {
     'credit_request_form': {
         'editable_by_roles': ['relationship_manager'],
@@ -18,6 +18,13 @@ FORM_PERMISSIONS = {
         'ownership_required': True,  # Only RM who owns the application can edit
         'workflow_code': 'CREDIT_REQUEST',
         'model_name': 'CreditRequestForm',
+        'field_mappings': {
+            'boolean_fields': [
+                'country_risk_limit_available', 'kyc_approval_status',
+                'positive_legal_opinion', 'financial_statements_received',
+                'interim_statements_available'
+            ],
+        },
     },
     'business_sponsorship_form': {
         'editable_by_roles': ['business_sponsor'],
@@ -48,6 +55,12 @@ FORM_PERMISSIONS = {
         'ownership_required': False,
         'workflow_code': 'LEGAL_REVIEW',
         'model_name': 'LegalReviewForm',
+        'field_mappings': {
+            'boolean_fields': [
+                'positive_netting_opinion', 'has_csa',
+                'iosco_compliant', 'positive_collateral_opinion'
+            ],
+        },
     },
     'credit_review_form': {
         'editable_by_roles': ['credit_analyst', 'credit_approver'],
@@ -58,6 +71,9 @@ FORM_PERMISSIONS = {
         'ownership_required': False,
         'workflow_code': 'CREDIT_REVIEW',
         'model_name': 'CreditReviewForm',
+        'field_mappings': {
+            'boolean_fields': ['questionnaire_required'],
+        },
     },
     'credit_analysis_form': {
         'editable_by_roles': ['credit_analyst', 'credit_approver'],
@@ -78,6 +94,9 @@ FORM_PERMISSIONS = {
         'ownership_required': False,
         'workflow_code': 'CREDIT_COMPILATION',
         'model_name': 'CreditCompilationForm',
+        'field_mappings': {
+            'boolean_fields': ['all_forms_reviewed', 'ready_for_approval'],
+        },
     },
     'credit_approval_form': {
         'editable_by_roles': ['credit_analyst'],
@@ -98,6 +117,15 @@ FORM_PERMISSIONS = {
         'ownership_required': False,
         'workflow_code': 'CLIMATE_SCORECARD',
         'model_name': 'ClimateScorecard',
+        'field_mappings': {
+            'boolean_fields': [
+                'net_zero_target_exists', 'net_zero_science_based',
+                'climate_governance_board', 'climate_governance_exec_accountability',
+                'climate_governance_incentives_linked', 'transition_plan_exists',
+                'transition_plan_published', 'policy_pressure_carbon_pricing_exposure',
+                'scenario_analysis_conducted', 'ai_generated'
+            ],
+        },
     },
 }
 
@@ -167,7 +195,7 @@ class Command(BaseCommand):
             logger.exception('Error loading form metadata')
 
     def build_form_metadata(self, existing_metadata, update_only):
-        """Build complete form metadata with permissions"""
+        """Build complete form metadata with permissions and field mappings"""
         form_metadata = {}
 
         # Start with existing metadata if update_only
@@ -183,6 +211,9 @@ class Command(BaseCommand):
                     'viewable_by_roles': config['viewable_by_roles'],
                     'ownership_required': config['ownership_required'],
                 })
+                # Also update field_mappings if present
+                if 'field_mappings' in config:
+                    form_metadata[form_name]['field_mappings'] = config['field_mappings']
             else:
                 # Create complete metadata entry
                 form_metadata[form_name] = {
@@ -194,6 +225,9 @@ class Command(BaseCommand):
                     'viewable_by_roles': config['viewable_by_roles'],
                     'ownership_required': config['ownership_required'],
                 }
+                # Add field_mappings if present
+                if 'field_mappings' in config:
+                    form_metadata[form_name]['field_mappings'] = config['field_mappings']
 
         return form_metadata
 

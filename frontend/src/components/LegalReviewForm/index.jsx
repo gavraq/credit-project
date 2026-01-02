@@ -130,22 +130,23 @@ const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
   useEffect(() => {
     // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
     // This ensures workflow transitions are always up-to-date
-    if (id) {
+    const fetchData = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
-      fetchCreditRequest(id)
-        .then(response => {
-          populateFormData(response.data);
-        })
-        .catch(error => {
-          console.error('Error fetching credit application:', error);
-          setTransitionError('Failed to load credit application data.');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
+      try {
+        const data = await fetchCreditRequest(id);
+        populateFormData(data);
+      } catch (error) {
+        console.error('Error fetching credit application:', error);
+        setTransitionError('Failed to load credit application data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, [id, user, refetchTrigger]);
 
   // Save function - returns true/false for success

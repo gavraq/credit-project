@@ -303,6 +303,39 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def _create_scorecard_with_workflow(self, credit_application):
+        """
+        Create a ClimateScorecard with its associated workflow instance.
+        """
+        # Create the scorecard
+        scorecard = ClimateScorecard.objects.create(credit_application=credit_application)
+
+        # Create workflow instance for the scorecard
+        try:
+            climate_workflow = Workflow.objects.get(code='CLIMATE_SCORECARD')
+            initial_state = State.objects.get(workflow=climate_workflow, is_initial=True)
+
+            workflow_instance = WorkflowInstance.objects.create(
+                workflow=climate_workflow,
+                current_state=initial_state,
+                content_type=ContentType.objects.get_for_model(scorecard),
+                object_id=scorecard.id
+            )
+
+            # Link workflow instance to scorecard
+            scorecard.workflow_instance = workflow_instance
+            scorecard.save(update_fields=['workflow_instance'])
+
+            logger.info(f"Created CLIMATE_SCORECARD workflow instance for scorecard {scorecard.id}")
+        except Workflow.DoesNotExist:
+            logger.warning("CLIMATE_SCORECARD workflow not found - scorecard created without workflow")
+        except State.DoesNotExist:
+            logger.warning("Initial state for CLIMATE_SCORECARD workflow not found")
+        except Exception as e:
+            logger.error(f"Error creating workflow instance for scorecard: {e}")
+
+        return scorecard
+
     @action(detail=True, methods=['get', 'patch'], url_path='climate-scorecard')
     def climate_scorecard_handler(self, request, pk=None):
         """
@@ -316,8 +349,8 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         except ClimateScorecard.DoesNotExist:
             if request.method == 'GET':
                 return Response({'detail': 'Climate scorecard not found.'}, status=status.HTTP_404_NOT_FOUND)
-            # For PATCH, create a new scorecard
-            scorecard = ClimateScorecard.objects.create(credit_application=credit_application)
+            # For PATCH, create a new scorecard with workflow instance
+            scorecard = self._create_scorecard_with_workflow(credit_application)
 
         if request.method == 'GET':
             serializer = ClimateScorecardSerializer(scorecard, context={'request': request})
@@ -357,8 +390,8 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
         try:
             scorecard = credit_application.climate_scorecard
         except ClimateScorecard.DoesNotExist:
-            # Create scorecard if it doesn't exist
-            scorecard = ClimateScorecard.objects.create(credit_application=credit_application)
+            # Create scorecard with workflow instance if it doesn't exist
+            scorecard = self._create_scorecard_with_workflow(credit_application)
 
         try:
             # Import AI service (will be implemented in Phase 4)

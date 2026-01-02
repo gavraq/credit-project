@@ -134,8 +134,8 @@ const CreditCompilationForm = ({ creditApplication: initialCreditApplication, cu
     if (id) {
       setLoading(true);
       fetchCreditRequest(id)
-        .then(response => {
-          populateFormData(response.data);
+        .then(data => {
+          populateFormData(data);
         })
         .catch(error => {
           console.error('Error fetching credit application:', error);

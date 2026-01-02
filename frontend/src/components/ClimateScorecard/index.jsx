@@ -477,7 +477,7 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
     };
   };
 
-  const handleSave = async (transitionCode, transitionName) => {
+  const handleSave = async (transition, comments) => {
     setTransitionLoading(true);
     setTransitionError(null);
 
@@ -485,13 +485,14 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
       const formData = buildFormData();
       await saveClimateScorecard(id, formData);
 
-      if (transitionCode && workflowInstanceId) {
-        await performWorkflowTransition(workflowInstanceId, transitionCode);
+      if (transition && transition.code && workflowInstanceId) {
+        const transitionPayload = { transition_code: transition.code, comments: comments || '' };
+        await performWorkflowTransition(workflowInstanceId, transitionPayload);
       }
 
       setRefetchTrigger(prev => prev + 1);
 
-      if (transitionName?.toLowerCase().includes('submit')) {
+      if (transition?.name?.toLowerCase().includes('submit') && !transition?.name?.toLowerCase().includes('in progress')) {
         navigate('/');
       }
     } catch (error) {
@@ -541,18 +542,28 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
     );
   }
 
+  // Workflow status props for FormPageWrapper
+  const workflowStatusProps = {
+    currentStep: currentStep,
+    workflowType: "CLIMATE_SCORECARD",
+    currentWorkflowState: { name: currentWorkflowState },
+  };
+
+  // Workflow actions props for FormPageWrapper
+  const workflowActionsProps = {
+    key: workflowInstanceId || 'new-climate-scorecard-actions',
+    transitionLoading: transitionLoading,
+    transitionError: transitionError,
+    workflowInstanceId: workflowInstanceId,
+    handleTransition: handleSave,
+    allowedTransitions: allowedTransitions || [],
+  };
+
   return (
     <FormPageWrapper
       title="Climate Scorecard"
-      subtitle="PRA SS5/25 Enhanced Climate Risk Assessment"
-      currentStep={currentStep}
-      creditApplication={creditApplication}
-      formType="climate_scorecard"
-      workflowState={currentWorkflowState}
-      allowedTransitions={allowedTransitions}
-      onTransition={handleSave}
-      transitionLoading={transitionLoading}
-      transitionError={transitionError}
+      workflowStatusProps={workflowStatusProps}
+      workflowActionsProps={workflowActionsProps}
     >
       {/* AI Generation Panel */}
       <Paper elevation={2} sx={{ p: 3, mb: 3, bgcolor: colors.blueLight, borderRadius: 2 }}>
