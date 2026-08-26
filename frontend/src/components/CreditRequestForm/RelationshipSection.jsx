@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Relationship information section component
@@ -17,7 +16,6 @@ const RelationshipSection = ({
   relationshipComments,
   setRelationshipComments
 }) => {
-  const theme = useTheme();
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>

@@ -64,7 +64,6 @@ const PrioritizationDashboard = () => {
       setApplications(sortedApplications);
       setHasChanges(false);
     } catch (error) {
-      console.error('Error fetching applications:', error);
       if (error.response?.status === 401) {
         setMessage({ type: 'error', text: 'Authentication required. Please log in.' });
       } else if (error.response?.status === 404) {
@@ -132,7 +131,6 @@ const PrioritizationDashboard = () => {
       }, 1000);
       
     } catch (error) {
-      console.error('Error saving ranks:', error);
       setMessage({ 
         type: 'error', 
         text: error.response?.data?.detail || 'Failed to save ranks' 

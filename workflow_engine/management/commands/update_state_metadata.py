@@ -3,12 +3,12 @@ from workflow_engine.models import Workflow, State
 from django.db import transaction
 
 class Command(BaseCommand):
-    help = 'Updates the metadata of State records with relevant sub-processes'
+    help = 'Updates the metadata of State records with relevant_artifacts'
 
     @transaction.atomic
     def handle(self, *args, **options):
-        # Define the mapping of state codes to relevant sub-processes
-        state_to_sub_processes = {
+        # Define the mapping of state codes to canonical relevant artifacts
+        state_to_artifacts = {
             'CREDIT_PAPER_CREDIT_REQUEST': ['credit_request_form'],
             'CREDIT_PAPER_CREDIT_REVIEW_PENDING': ['credit_request_form', 'business_sponsorship_form'],
             'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING': ['credit_request_form', 'business_sponsorship_form'],
@@ -24,7 +24,7 @@ class Command(BaseCommand):
             parent_workflow = Workflow.objects.get(code='CREDIT_PAPER')
             
             # Update each state's metadata
-            for state_code, sub_processes in state_to_sub_processes.items():
+            for state_code, artifacts in state_to_artifacts.items():
                 try:
                     state = State.objects.get(
                         workflow_definition=parent_workflow,
@@ -35,8 +35,8 @@ class Command(BaseCommand):
                     if not state.metadata:
                         state.metadata = {}
                     
-                    # Add relevant_sub_processes to metadata
-                    state.metadata['relevant_sub_processes'] = sub_processes
+                    # Add relevant_artifacts to metadata
+                    state.metadata['relevant_artifacts'] = artifacts
                     state.save()
                     
                     self.stdout.write(self.style.SUCCESS(f"Updated metadata for state '{state_code}'"))

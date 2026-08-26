@@ -3,22 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Tabs, Tab } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { fetchUsersByRole, fetchCreditRequest, performWorkflowTransition, saveCreditApprovalForm } from '../../services/api';
+import { fetchCreditArtifact, fetchCreditRequest, performWorkflowTransition, saveCreditApprovalForm } from '../../services/api';
 import FormPageWrapper from '../common/FormPageWrapper';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
 import CreditApplicationDetailsSection from '../common/CreditApplicationDetailsSection';
+import useCreditArtifactResource from '../../hooks/useCreditArtifactResource';
 
 const CreditApprovalForm = ({ creditApplication: initialCreditApplication, currentStep = 6 }) => {
-  console.log('🚀 CREDIT APPROVAL FORM LOADED - VERSION 2025-06-29-11:00');
-  
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
-  const [loading, setLoading] = useState(true);
+  const [applicationLoading, setApplicationLoading] = useState(true);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
-  const [creditApplication, setCreditApplication] = useState(null);
+  const [creditApplication, setCreditApplication] = useState(initialCreditApplication || null);
   const user = useSelector(state => state.auth.user);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
@@ -32,9 +31,16 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
 
   // Form metadata
   const [formStartDate, setFormStartDate] = useState('');
-  const [formCompletionDate, setFormCompletionDate] = useState('');
-  const [approvers, setApprovers] = useState([]);
-  const [loadingApprovers, setLoadingApprovers] = useState(false);
+  const {
+    detail: creditApprovalForm,
+    loading: artifactLoading,
+    error: artifactError,
+  } = useCreditArtifactResource(
+    id,
+    creditApplication,
+    'credit_approval_form',
+    { refreshKey: refetchTrigger }
+  );
 
   // Tab management
   const [activeTab, setActiveTab] = useState(0);
@@ -54,24 +60,11 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
   ];
 
 
-  const populateFormData = useCallback((data) => {
-    if (!data) return;
-    setCreditApplication(data); // Store the whole application object
-
+  const populateFormData = useCallback((approvalForm, reviewForm) => {
     // Check DA authorization before proceeding
-    const requiredDALevel = data.credit_review_form?.delegated_authority_level;
+    const requiredDALevel = reviewForm?.delegated_authority_level;
     const userDALevel = user?.da_level;
     const userRole = user?.role?.name;
-
-    console.log('=== DEBUG: DA Authorization Check ===');
-    console.log('User role:', userRole);
-    console.log('User DA level:', userDALevel);
-    console.log('Required DA level:', requiredDALevel);
-    console.log('🔍 Condition check:');
-    console.log('  userRole === "Credit Analyst":', userRole === 'Credit Analyst');
-    console.log('  requiredDALevel truthy:', !!requiredDALevel);
-    console.log('  userDALevel truthy:', !!userDALevel);
-    console.log('  All conditions met:', userRole === 'Credit Analyst' && requiredDALevel && userDALevel);
 
     let hasAuthorization = true; // Default to true, will be set to false if authorization fails
 
@@ -86,46 +79,22 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
       const userLevel = extractDANumber(userDALevel);
       const requiredLevel = extractDANumber(requiredDALevel);
 
-      console.log('User level (numeric):', userLevel);
-      console.log('Required level (numeric):', requiredLevel);
-      console.log('🔢 Numeric comparison details:');
-      console.log('  userLevel > requiredLevel:', userLevel > requiredLevel);
-      console.log('  Condition (userLevel && requiredLevel && userLevel > requiredLevel):', userLevel && requiredLevel && userLevel > requiredLevel);
-
       // Lower number = higher authority (DA1 > DA5 > DA8)
       // User should be denied access only if their level is HIGHER (worse) than required
       if (userLevel && requiredLevel && userLevel > requiredLevel) {
-        console.log('🚫 DA AUTHORIZATION FAILED - SETTING hasDAAuthorization to FALSE');
-        console.log('🚫 User level:', userLevel, 'Required level:', requiredLevel);
-        console.log('🚫 Explanation: User has DA' + userLevel + ' but application requires DA' + requiredLevel + ' or better');
         setTransitionError(`Insufficient authorization. This application requires ${requiredDALevel} approval level, but you have ${userDALevel}. Please contact a user with ${requiredDALevel} or higher authority.`);
         hasAuthorization = false;
-        console.log('🚫 hasDAAuthorization set to:', false);
-      } else {
-        console.log('✅ DA AUTHORIZATION PASSED - SETTING hasDAAuthorization to TRUE');
-        console.log('✅ User level:', userLevel, 'Required level:', requiredLevel);
-        console.log('✅ Explanation: User has DA' + userLevel + ' which is sufficient for DA' + requiredLevel + ' requirement');
-        hasAuthorization = true;
       }
     }
 
     // Set the authorization state
     setHasDAAuthorization(hasAuthorization);
 
-    // Debug logging for DA level pre-population
-    console.log('=== DEBUG: DA Level Pre-population ===');
-    console.log('Full data received:', data);
-    console.log('Credit Review Form data:', data.credit_review_form);
-    console.log('Credit Review DA Level:', data.credit_review_form?.delegated_authority_level);
-    console.log('Credit Approval Form data:', data.credit_approval_form);
-    console.log('Credit Approval DA Level:', data.credit_approval_form?.delegated_authority_level);
-
     const initialFormData = {};
 
     // Populate Credit Approval Form specific data - Phase 3 pattern
-    if (data.credit_approval_form) {
-      console.log('Found credit_approval_form, available_transitions:', data.credit_approval_form.available_transitions);
-      const caForm = data.credit_approval_form;
+    if (approvalForm) {
+      const caForm = approvalForm;
       
       // Use Credit Approval Form sub-process workflow - SAME PATTERN as other Phase 3 forms
       if (caForm.workflow_instance) {
@@ -134,27 +103,14 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
       }
       
       // Use available_transitions from Credit Approval Form serializer, but filter based on DA authorization
-      console.log('Available transitions from API:', caForm.available_transitions);
       const transitions = hasAuthorization ? (caForm.available_transitions || []) : [];
       setAllowedTransitions(transitions);
-      console.log('Setting allowedTransitions state to:', transitions);
-      console.log('DA Authorization status:', hasAuthorization);
 
       // Populate directly from model fields (Phase 3 pattern - explicit database fields)
       // With DA-level authorization, approver is always the current user
-      console.log('=== DEBUG: Setting approver field ===');
-      console.log('Current user:', user);
-      console.log('Current user ID:', user?.id);
-      console.log('Backend approver data:', caForm.approver);
-      
       // Handle approver field with proper UUID validation
       const approverFromBackend = caForm.approver;
       let validApprover = user?.id || ''; // Default fallback to current user
-
-      console.log('=== DEBUG: Approver Field Validation ===');
-      console.log('Backend approver data:', approverFromBackend);
-      console.log('Backend approver type:', typeof approverFromBackend);
-      console.log('Current user ID:', user?.id);
 
       // If backend has data, validate it's a UUID
       if (approverFromBackend) {
@@ -162,25 +118,20 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (typeof approverFromBackend === 'string' && uuidRegex.test(approverFromBackend)) {
           validApprover = approverFromBackend;
-          console.log('✅ Valid UUID from backend, using:', validApprover);
         } else {
-          console.warn(`⚠️ Invalid approver data from backend: "${approverFromBackend}" (type: ${typeof approverFromBackend}), using current user instead`);
           validApprover = user?.id || '';
         }
-      } else {
-        console.log('📝 No approver in backend data, using current user:', validApprover);
       }
 
       initialFormData.approver = validApprover;
-      console.log('Final approver value in formData:', validApprover);
       
       initialFormData.approval_decision = caForm.approval_decision || '';
       initialFormData.approval_date = caForm.approval_date ? caForm.approval_date.split('T')[0] : '';
       
       // Pre-populate delegated authority level from Credit Review Form if not already set
       let delegatedAuthorityLevel = caForm.delegated_authority_level;
-      if (!delegatedAuthorityLevel && data.credit_review_form?.delegated_authority_level) {
-        let reviewDA = data.credit_review_form.delegated_authority_level;
+      if (!delegatedAuthorityLevel && reviewForm?.delegated_authority_level) {
+        let reviewDA = reviewForm.delegated_authority_level;
         
         // Handle both formats: '5' and 'DA5' 
         if (reviewDA && !reviewDA.startsWith('DA') && !isNaN(reviewDA)) {
@@ -188,7 +139,6 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
         }
         
         delegatedAuthorityLevel = reviewDA;
-        console.log(`Pre-populating DA level from Credit Review Form: '${data.credit_review_form.delegated_authority_level}' -> '${delegatedAuthorityLevel}'`);
       }
       initialFormData.delegated_authority_level = delegatedAuthorityLevel || '';
       
@@ -203,124 +153,92 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
       setFormStartDate(new Date().toISOString().split('T')[0]);
       // For new forms, set approver to current user
       initialFormData.approver = user?.id || '';
-      console.log('New form: setting approver to current user:', user?.id);
     }
     setFormData(initialFormData);
   }, [user]);
 
-  const fetchAndSetApprovers = useCallback(async () => {
-    setLoadingApprovers(true);
-    try {
-      // With DA-level authorization, the approver is the current logged-in Credit Analyst
-      // No need to fetch other users since DA authorization determines who can approve
-      if (user) {
-        setApprovers([user]); // Just use the current user
-      } else {
-        setApprovers([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!id) {
+        setApplicationLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Failed to set approver:', error);
-    } finally {
-      setLoadingApprovers(false);
-    }
-  }, [user]);
 
-  useEffect(() => {
-    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
-    // This ensures workflow transitions are always up-to-date
-    if (id) {
-      setLoading(true);
-      fetchCreditRequest(id)
-        .then(data => {
-          populateFormData(data);
-        })
-        .catch(error => {
-          console.error('Error fetching credit application:', error);
-          setTransitionError('Failed to load credit application data.');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
-
-    fetchAndSetApprovers();
-  }, [id, refetchTrigger, populateFormData, fetchAndSetApprovers]);
-
-  // Debug effect to track DA authorization changes
-  useEffect(() => {
-    console.log('🔄 DA Authorization state changed:', hasDAAuthorization);
-    console.log('🔄 Current allowedTransitions:', allowedTransitions);
-    console.log('🔄 Final transitions after DA filter:', hasDAAuthorization ? allowedTransitions : []);
-  }, [hasDAAuthorization, allowedTransitions]);
-
-  const buildPayload = useCallback(() => {
-    // Use FLAT PREFIXED FIELDS to match backend expectation - Phase 3 pattern
-    const payload = {
-      credit_approval_form_start_date: formStartDate || new Date().toISOString().split('T')[0],
-      // form_completion_date is set on final submission via workflow
+      setApplicationLoading(true);
+      try {
+        const application = await fetchCreditRequest(id);
+        setCreditApplication(application);
+        setTransitionError(null);
+      } catch (error) {
+        setTransitionError('Failed to load credit application data.');
+        setCreditApplication(null);
+      } finally {
+        setApplicationLoading(false);
+      }
     };
 
-    // Add all form data fields with prefix - MUST match backend metadata
-    Object.keys(formData).forEach(key => {
-      payload[`credit_approval_form_${key}`] = formData[key];
-    });
+    fetchData();
+  }, [id, refetchTrigger]);
 
-    // DOUBLE-CHECK: Force approver to always be current user UUID to prevent any "holmes" issues
-    payload.credit_approval_form_approver = user?.id;
-    
-    // Validate the UUID format one more time
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!payload.credit_approval_form_approver || !uuidRegex.test(payload.credit_approval_form_approver)) {
-      console.error('❌ CRITICAL: Invalid approver UUID detected!', payload.credit_approval_form_approver);
-      console.error('❌ User object:', user);
-      payload.credit_approval_form_approver = user?.id || '';
-    }
+  useEffect(() => {
+    let isActive = true;
 
-    // Debug logging to check approver field
-    console.log('=== DEBUG: Credit Approval Form Payload (FINAL) ===');
-    console.log('formData.approver:', formData.approver);
-    console.log('user.id:', user?.id);
-    console.log('payload credit_approval_form_approver (FINAL):', payload.credit_approval_form_approver);
-    console.log('UUID validation passed:', uuidRegex.test(payload.credit_approval_form_approver));
-    console.log('Full payload:', payload);
+    const loadSupportingArtifacts = async () => {
+      if (artifactError) {
+        setTransitionError('Failed to load credit approval form data.');
+        return;
+      }
 
-    return payload;
+      if (!creditApprovalForm) {
+        populateFormData(null, null);
+        return;
+      }
+
+      try {
+        const creditReviewForm = await fetchCreditArtifact(id, 'credit_review_form');
+        if (isActive) {
+          populateFormData(creditApprovalForm, creditReviewForm);
+        }
+      } catch (error) {
+        if (isActive) {
+          setTransitionError('Failed to load supporting credit review form data.');
+        }
+      }
+    };
+
+    loadSupportingArtifacts();
+
+    return () => {
+      isActive = false;
+    };
+  }, [artifactError, creditApprovalForm, id, populateFormData]);
+
+  const buildPayload = useCallback(() => {
+    const toIsoDateTime = (dateValue) => {
+      if (!dateValue) {
+        return null;
+      }
+
+      const normalizedValue = dateValue.includes('T') ? dateValue : `${dateValue}T00:00:00`;
+      return new Date(normalizedValue).toISOString();
+    };
+
+    return {
+      ...formData,
+      approver: user?.id || null,
+      approval_date: toIsoDateTime(formData.approval_date),
+      delegated_authority_level: formData.delegated_authority_level || null,
+      approved_amount: formData.approved_amount ? parseFloat(formData.approved_amount) : null,
+      tenor_approved: formData.tenor_approved ? parseInt(formData.tenor_approved, 10) : null,
+      committee_meeting_date: formData.committee_meeting_date || null,
+      review_date: formData.review_date || null,
+      expiry_date: formData.expiry_date || null,
+      form_started_at: toIsoDateTime(formStartDate || new Date().toISOString().split('T')[0]),
+    };
   }, [formData, formStartDate, user]);
-
-  // Save function - returns true/false for success
-  const handleSave = async () => {
-    setLoading(true);
-    setTransitionError(null);
-
-    const payload = buildPayload();
-
-    if (!workflowInstanceId) {
-      payload.credit_approval_create_workflow_instance = true;
-    }
-
-    try {
-      const response = await saveCreditApprovalForm(id, payload);
-      populateFormData(response.data); // Update state with response
-      setLoading(false);
-      return true; // Indicate success
-    } catch (error) {
-      console.error('Error saving Credit Approval form:', error);
-      setTransitionError(error.response?.data?.detail || 'Failed to save form.');
-      setLoading(false);
-      return false; // Indicate failure
-    }
-  };
 
   // Phase 3 handleTransition pattern - matches other forms exactly
   const handleTransition = async (transition, comments = '') => {
-    console.log('🎯 HANDLE TRANSITION CALLED - VERSION 2025-06-29-11:15');
-    console.log('Credit Approval Form - handleTransition called with:', { transition, comments });
-    console.log('Current formData before transition:', formData);
-    console.log('Current user in transition:', user);
-    console.log('formData.approver specifically:', formData.approver);
-    
     if (!workflowInstanceId) {
       setTransitionError('Cannot perform transitions - workflow instance not found.');
       return;
@@ -330,33 +248,16 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
     setTransitionError(null);
     
     // Build payload like other Phase 3 forms
-    console.log('About to build payload...');
     const payload = buildPayload();
-    console.log('Payload built:', payload);
 
-    if (!workflowInstanceId) {
-      payload.credit_approval_create_workflow_instance = true;
-    }
-    
     try {
-      console.log('🚨 CRITICAL DEBUG - PAYLOAD BEING SENT:');
-      console.log('credit_approval_form_approver in payload:', payload.credit_approval_form_approver);
-      console.log('Current user.id:', user?.id);
-      console.log('Full payload being sent to API:', JSON.stringify(payload, null, 2));
-      
       // First save form data using proper API service
       await saveCreditApprovalForm(id, payload);
-      console.log('Credit Approval Form - Form data saved successfully');
       
       // Then perform transition with proper Phase 3 payload structure - SAME AS OTHER FORMS
       const transitionPayload = { transition_code: transition.code, comments: comments };
-      
-      console.log('Credit Approval Form - Performing transition...');
-      console.log('Transition payload:', JSON.stringify(transitionPayload, null, 2));
-      console.log('Workflow instance ID:', workflowInstanceId);
-      
+
       await performWorkflowTransition(workflowInstanceId, transitionPayload);
-      console.log('Credit Approval Form - Transition performed successfully');
       
       // Navigate on success if metadata specifies a path
       const navigatePath = transition.metadata?.ui_behavior?.navigate_on_success;
@@ -374,8 +275,6 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
       // Use same error handling pattern as other forms
       let detailedError = 'An unexpected error occurred during transition.';
       if (error.response) {
-        console.error('Backend error response data:', error.response.data);
-        console.error('Backend error response status:', error.response.status);
         if (error.response.data) {
           const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
           detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
@@ -387,7 +286,6 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
       }
       
       setTransitionError(detailedError);
-      console.error('Credit Approval Form - Transition failed:', detailedError);
     } finally {
       setTransitionLoading(false);
     }
@@ -399,13 +297,8 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
     currentWorkflowState: { name: currentWorkflowState },
   };
 
-  console.log('🔧 Setting up workflowActionsProps with handleTransition:', typeof handleTransition);
-  console.log('🔐 DA Authorization Status:', hasDAAuthorization);
-  console.log('🔄 Original allowedTransitions:', allowedTransitions);
-  
   // Apply DA authorization check to transitions
   const finalAllowedTransitions = hasDAAuthorization ? (allowedTransitions || []) : [];
-  console.log('🔄 Final allowedTransitions after DA check:', finalAllowedTransitions);
   
   const workflowActionsProps = {
     key: `${workflowInstanceId || 'new-approval-actions'}-${hasDAAuthorization}`, // Include DA state in key to force re-render
@@ -415,6 +308,7 @@ const CreditApprovalForm = ({ creditApplication: initialCreditApplication, curre
     handleTransition: handleTransition,
     allowedTransitions: finalAllowedTransitions,
   };
+  const loading = applicationLoading || artifactLoading;
 
   if (loading) {
     return <div>Loading...</div>;

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from workflow_engine.models import Workflow, State, Transition
+from workflow_engine.utils import get_state_relevant_artifacts
 import json
 
 class Command(BaseCommand):
@@ -63,20 +64,17 @@ class Command(BaseCommand):
                     self.stdout.write(f"      Initial: {state.is_initial}")
                 
                 if state.metadata:
-                    # Check for relevant_sub_processes
-                    if 'relevant_sub_processes' in state.metadata:
-                        sub_processes = state.metadata['relevant_sub_processes']
-                        if sub_processes:
-                            self.stdout.write(f"      ✅ relevant_sub_processes: {sub_processes}")
-                        else:
-                            self.stdout.write(f"      ⚠️  relevant_sub_processes is empty list")
-                            issues_found.append(f"State {state.code}: Empty relevant_sub_processes")
+                    relevant = get_state_relevant_artifacts(state)
+                    if relevant:
+                        source = 'relevant_artifacts' if 'relevant_artifacts' in state.metadata else 'legacy metadata'
+                        self.stdout.write(f"      ✅ {source}: {relevant}")
+                        if 'relevant_artifacts' not in state.metadata:
+                            issues_found.append(f"State {state.code}: Falling back to legacy metadata")
                     else:
-                        self.stdout.write(f"      ❌ Missing relevant_sub_processes")
-                        issues_found.append(f"State {state.code}: Missing relevant_sub_processes")
-                    
-                    # Show other metadata
-                    other_keys = [k for k in state.metadata.keys() if k != 'relevant_sub_processes']
+                        self.stdout.write(f"      ⚠️  No relevant_artifacts configured")
+                        issues_found.append(f"State {state.code}: No relevant_artifacts defined")
+
+                    other_keys = [k for k in state.metadata.keys() if k != 'relevant_artifacts']
                     if other_keys:
                         self.stdout.write(f"      📝 Other metadata: {other_keys}")
                 else:
@@ -101,11 +99,11 @@ class Command(BaseCommand):
                     self.stdout.write("📄 Complete metadata:")
                     self.stdout.write(json.dumps(credit_review_state.metadata, indent=4))
                     
-                    sub_processes = credit_review_state.metadata.get('relevant_sub_processes', [])
-                    if 'credit_review_form' in sub_processes:
-                        self.stdout.write("✅ credit_review_form is in relevant_sub_processes")
+                    relevant = get_state_relevant_artifacts(credit_review_state)
+                    if 'credit_review_form' in relevant:
+                        self.stdout.write("✅ credit_review_form is in relevant_artifacts")
                     else:
-                        self.stdout.write("❌ credit_review_form NOT in relevant_sub_processes")
+                        self.stdout.write("❌ credit_review_form NOT in relevant_artifacts")
                         issues_found.append("CRITICAL: credit_review_form missing from CREDIT_REVIEW_PENDING state")
                 else:
                     self.stdout.write("❌ No metadata on critical state")
@@ -186,7 +184,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write("✅ NO ISSUES FOUND - Metadata appears complete!")
             self.stdout.write("\n🔍 RECOMMENDED NEXT STEPS:")
-            self.stdout.write("   - Check if auto-initialization is working")
+            self.stdout.write("   - Check if artifact provisioning is working")
             self.stdout.write("   - Test with a real workflow transition")
         
         self.stdout.write("\n" + "="*80)

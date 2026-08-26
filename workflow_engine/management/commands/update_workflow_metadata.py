@@ -3,7 +3,7 @@ from workflow_engine.models import State, Workflow
 import json
 
 class Command(BaseCommand):
-    help = 'Updates workflow state metadata with relevant sub-processes'
+    help = "Updates workflow state metadata with relevant artifacts"
 
     def handle(self, *args, **options):
         try:
@@ -13,49 +13,49 @@ class Command(BaseCommand):
             # Define state metadata mapping based on PRD workflow phases
             state_metadata = {
                 'CREDIT_PAPER_CREDIT_REQUEST': {
-                    'relevant_sub_processes': ['credit_request_form'],
+                    'relevant_artifacts': ['credit_request_form'],
                     'parent_state': 'CREDIT_PAPER_CREDIT_REQUEST',
                     'step_number': 1,
                     'description': 'Phase 1: Credit Request - Relationship Manager creates initial request'
                 },
                 'CREDIT_PAPER_CREDIT_REVIEW_PENDING': {
-                    'relevant_sub_processes': ['credit_request_form', 'credit_review_form'],
+                    'relevant_artifacts': ['credit_request_form', 'credit_review_form'],
                     'parent_state': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING',
                     'step_number': 2,
                     'description': 'Phase 2: Credit Review - Credit Analyst reviews the request'
                 },
                 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING': {
-                    'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form'],
+                    'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form'],
                     'parent_state': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING',
                     'step_number': 3,
                     'description': 'Phase 3: Business Sponsorship - Business Sponsor provides approval'
                 },
                 'CREDIT_PAPER_ANALYSIS_PENDING': {
-                    'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form'],
+                    'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard'],
                     'parent_state': 'CREDIT_PAPER_ANALYSIS_PENDING',
                     'step_number': 4,
                     'description': 'Phase 4: Analysis - Multiple forms for comprehensive analysis'
                 },
                 'CREDIT_PAPER_COMPILATION': {
-                    'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form'],
+                    'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form'],
                     'parent_state': 'CREDIT_PAPER_COMPILATION',
                     'step_number': 5,
                     'description': 'Phase 5: Compilation - Credit paper compilation'
                 },
                 'CREDIT_PAPER_APPROVAL_PENDING': {
-                    'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
+                    'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form', 'credit_approval_form'],
                     'parent_state': 'CREDIT_PAPER_APPROVAL_PENDING',
                     'step_number': 6,
                     'description': 'Phase 6: Approval - Final approval decision'
                 },
                 'CREDIT_PAPER_APPROVED': {
-                    'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
+                    'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form', 'credit_approval_form'],
                     'parent_state': 'CREDIT_PAPER_APPROVED',
                     'step_number': 7,
                     'description': 'Approved - All forms available for viewing'
                 },
                 'CREDIT_PAPER_REJECTED': {
-                    'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
+                    'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'climate_scorecard', 'credit_compilation_form', 'credit_approval_form'],
                     'parent_state': 'CREDIT_PAPER_REJECTED',
                     'step_number': 8,
                     'description': 'Rejected - All completed forms available for viewing'
@@ -163,8 +163,8 @@ class Command(BaseCommand):
             self.stdout.write('='*60)
             
             for state in workflow.states.all().order_by('id'):
-                if state.metadata and 'relevant_sub_processes' in state.metadata:
-                    forms = state.metadata['relevant_sub_processes']
+                if state.metadata and 'relevant_artifacts' in state.metadata:
+                    forms = state.metadata['relevant_artifacts']
                     step = state.metadata.get('step_number', '')
                     desc = state.metadata.get('description', '')
                     

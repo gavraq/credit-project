@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from workflow_engine.models import Workflow, State, Transition
+from workflow_engine.utils import get_state_relevant_artifacts
 import json
 
 class Command(BaseCommand):
@@ -52,16 +53,12 @@ class Command(BaseCommand):
                 if state.metadata:
                     self.stdout.write("  Metadata:")
                     for key, value in state.metadata.items():
-                        if key == 'relevant_sub_processes':
-                            self.stdout.write(f"    {key}: {value}")
-                            # This is critical for auto-initialization
-                            if not value:
-                                self.stdout.write(f"      ⚠️  WARNING: Empty relevant_sub_processes list!")
-                        else:
-                            self.stdout.write(f"    {key}: {value}")
+                        self.stdout.write(f"    {key}: {value}")
+                        if key == 'relevant_artifacts' and not value:
+                            self.stdout.write(f"      ⚠️  WARNING: Empty relevant_artifacts list")
                 else:
                     self.stdout.write("  Metadata: None")
-                    self.stdout.write("    ⚠️  WARNING: No metadata - auto-initialization may not work!")
+                    self.stdout.write("    ⚠️  WARNING: No metadata - artifact provisioning may not work!")
         
         # 3. Analyze transitions and their metadata
         self.stdout.write("\n\n3. TRANSITIONS ANALYSIS")
@@ -82,16 +79,16 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write("  Metadata: None")
         
-        # 4. Check form auto-initialization compatibility
-        self.stdout.write("\n\n4. AUTO-INITIALIZATION COMPATIBILITY CHECK")
+        # 4. Check artifact provisioning compatibility
+        self.stdout.write("\n\n4. ARTIFACT PROVISIONING COMPATIBILITY CHECK")
         self.stdout.write("-" * 60)
         
-        # Get the parent workflow that drives auto-initialization
+        # Get the parent workflow that drives artifact provisioning
         try:
             parent_workflow = Workflow.objects.get(code='CREDIT_PAPER')
-            self.stdout.write(f"Parent workflow for auto-initialization: {parent_workflow.name}")
+            self.stdout.write(f"Parent workflow for artifact provisioning: {parent_workflow.name}")
             
-            # Check each state's relevant_sub_processes
+            # Check each state's relevant_artifacts
             states_with_issues = []
             states = State.objects.filter(workflow=parent_workflow)
             
@@ -100,52 +97,52 @@ class Command(BaseCommand):
                 
                 if not state.metadata:
                     states_with_issues.append((state, "No metadata"))
-                    self.stdout.write("  ❌ No metadata - auto-initialization will fail")
+                    self.stdout.write("  ❌ No metadata - artifact provisioning will fail")
                     continue
                 
-                if 'relevant_sub_processes' not in state.metadata:
-                    states_with_issues.append((state, "Missing relevant_sub_processes"))
-                    self.stdout.write("  ❌ Missing 'relevant_sub_processes' - will use default ['credit_request_form']")
-                    continue
-                
-                sub_processes = state.metadata['relevant_sub_processes']
-                if not sub_processes:
-                    states_with_issues.append((state, "Empty relevant_sub_processes"))
-                    self.stdout.write("  ⚠️  Empty relevant_sub_processes list")
+                relevant = get_state_relevant_artifacts(state)
+                if not relevant:
+                    states_with_issues.append((state, "Missing relevant_artifacts"))
+                    self.stdout.write("  ❌ Missing 'relevant_artifacts' - artifact provisioning will fallback to default ['credit_request_form']")
+                elif not relevant:
+                    states_with_issues.append((state, "Empty relevant_artifacts"))
+                    self.stdout.write("  ⚠️  Empty relevant_artifacts list")
                 else:
-                    self.stdout.write(f"  ✅ relevant_sub_processes: {sub_processes}")
+                    self.stdout.write(f"  ✅ relevant_artifacts: {relevant}")
             
             if states_with_issues:
-                self.stdout.write(f"\n⚠️  FOUND {len(states_with_issues)} STATES WITH AUTO-INITIALIZATION ISSUES:")
+                self.stdout.write(f"\n⚠️  FOUND {len(states_with_issues)} STATES WITH ARTIFACT PROVISIONING ISSUES:")
                 for state, issue in states_with_issues:
                     self.stdout.write(f"  - {state.name} ({state.code}): {issue}")
             else:
-                self.stdout.write("\n✅ All states have proper auto-initialization metadata!")
+                self.stdout.write("\n✅ All states have proper artifact provisioning metadata!")
                 
         except Workflow.DoesNotExist:
-            self.stdout.write("❌ Parent workflow 'CREDIT_PAPER' not found - auto-initialization system broken!")
+            self.stdout.write("❌ Parent workflow 'CREDIT_PAPER' not found - artifact provisioning system broken!")
         
-        # 5. Check dynamic form mapping compatibility
-        self.stdout.write("\n\n5. DYNAMIC FORM MAPPING CHECK")
+        # 5. Check dynamic artifact mapping compatibility
+        self.stdout.write("\n\n5. DYNAMIC ARTIFACT MAPPING CHECK")
         self.stdout.write("-" * 50)
         
         try:
-            from workflow_engine.utils import get_dynamic_form_model_map, get_dynamic_form_prefixes
+            from workflow_engine.utils import (
+                get_dynamic_artifact_model_map,
+                get_dynamic_artifact_prefixes,
+            )
             
-            form_model_map = get_dynamic_form_model_map()
-            form_prefixes = get_dynamic_form_prefixes()
+            artifact_model_map = get_dynamic_artifact_model_map()
+            artifact_prefixes = get_dynamic_artifact_prefixes()
             
-            self.stdout.write(f"Dynamic form model mappings: {len(form_model_map)}")
-            for form_name, model_class in form_model_map.items():
-                self.stdout.write(f"  {form_name} → {model_class.__name__}")
+            self.stdout.write(f"Dynamic artifact model mappings: {len(artifact_model_map)}")
+            for artifact_key, model_class in artifact_model_map.items():
+                self.stdout.write(f"  {artifact_key} → {model_class.__name__}")
             
-            self.stdout.write(f"\nDynamic form prefixes: {len(form_prefixes)}")
-            for prefix, form_name in form_prefixes.items():
-                self.stdout.write(f"  {prefix} → {form_name}")
+            self.stdout.write(f"\nDynamic artifact prefixes: {len(artifact_prefixes)}")
+            for prefix, artifact_key in artifact_prefixes.items():
+                self.stdout.write(f"  {prefix} → {artifact_key}")
                 
-            # Check for consistency
-            if len(form_model_map) != len(form_prefixes):
-                self.stdout.write("\n⚠️  WARNING: Mismatch between form model map and prefixes!")
+            if len(artifact_model_map) != len(artifact_prefixes):
+                self.stdout.write("\n⚠️  WARNING: Mismatch between artifact model map and prefixes!")
                 
         except Exception as e:
             self.stdout.write(f"❌ Error checking dynamic mappings: {e}")
@@ -155,7 +152,7 @@ class Command(BaseCommand):
         self.stdout.write("-" * 50)
         
         self.stdout.write("Based on the analysis above:")
-        self.stdout.write("1. Check for states missing 'relevant_sub_processes' metadata")
+        self.stdout.write("1. Check for states missing 'relevant_artifacts' metadata")
         self.stdout.write("2. Ensure Credit Review forms are included in CREDIT_PAPER_CREDIT_REVIEW_PENDING state")
         self.stdout.write("3. Verify all sub-workflows (CREDIT_REQUEST, CREDIT_REVIEW, etc.) exist")
         self.stdout.write("4. Check that form_metadata in parent workflow matches actual form models")

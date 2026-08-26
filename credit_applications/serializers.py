@@ -21,6 +21,12 @@ User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
+
+def _get_credit_workflow_artifacts(obj, request=None):
+    from credit_workflow.artifacts import get_workflow_artifact_descriptors
+
+    return get_workflow_artifact_descriptors(obj, request=request)
+
 class LimitTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = LimitType
@@ -597,93 +603,83 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
                     data_copy[field] = None
         return data_copy
     
-    def _extract_form_data(self, data):
-        """Extracts and groups form data from the main payload based on dynamic prefixes from workflow metadata."""
-        from workflow_engine.utils import get_dynamic_form_prefixes
+    def _extract_artifact_data(self, data):
+        """Extract and group artifact data from the main payload using configured prefixes."""
+        from workflow_engine.utils import get_dynamic_artifact_prefixes
         
-        # Get dynamic prefix mapping from workflow metadata
-        prefix_map = get_dynamic_form_prefixes()
+        prefix_map = get_dynamic_artifact_prefixes()
         if not prefix_map:
-            logger.warning("No dynamic form prefixes available, skipping form data extraction")
+            logger.warning("No dynamic artifact prefixes available, skipping artifact data extraction")
             return {}
         
-        # Initialize form groups dynamically based on available prefixes
-        form_groups = {form_name: {} for form_name in prefix_map.values()}
+        artifact_groups = {artifact_key: {} for artifact_key in prefix_map.values()}
 
         for key, value in data.items():
-            for prefix, form_type in prefix_map.items():
+            for prefix, artifact_key in prefix_map.items():
                 if key.startswith(prefix):
-                    # Remove prefix to get the actual field name
                     field_name = key[len(prefix):]
-                    form_groups[form_type][field_name] = value
+                    artifact_groups[artifact_key][field_name] = value
         
-        return form_groups
+        return artifact_groups
     
-    def _update_sub_form(self, instance, form_type, form_data):
+    def _update_artifact_instance(self, instance, artifact_key, artifact_data):
         """
-        Updates or creates a sub-form instance using update_or_create and
+        Updates or creates an artifact-backed instance using update_or_create and
         manages its associated workflow instance.
         """
-        from workflow_engine.utils import get_dynamic_form_model_map
+        from workflow_engine.utils import get_dynamic_artifact_model_map
         
-        # Get dynamic model mapping from workflow metadata
-        model_map = get_dynamic_form_model_map()
+        model_map = get_dynamic_artifact_model_map()
         if not model_map:
-            logger.warning("No dynamic form model mapping available, skipping sub-form update")
+            logger.warning("No dynamic artifact model mapping available, skipping artifact update")
             return
         
-        model_class = model_map.get(form_type)
-        if not model_class or not form_data:
+        model_class = model_map.get(artifact_key)
+        if not model_class or not artifact_data:
             return
 
-        # --- Dynamic Special Field Handling (Booleans, User IDs, etc.) ---
-        from workflow_engine.utils import get_dynamic_field_mappings
+        from workflow_engine.utils import get_dynamic_artifact_field_mappings
         
-        field_mappings = get_dynamic_field_mappings()
+        field_mappings = get_dynamic_artifact_field_mappings()
         boolean_fields_map = field_mappings['boolean_fields']
         user_fields_map = field_mappings['user_fields']
         datetime_fields_map = field_mappings['datetime_fields']
 
-        if form_type in boolean_fields_map:
-            form_data = self._convert_booleans(form_data, boolean_fields_map[form_type], nullable_fields=[])
+        if artifact_key in boolean_fields_map:
+            artifact_data = self._convert_booleans(
+                artifact_data,
+                boolean_fields_map[artifact_key],
+                nullable_fields=[],
+            )
         
-        # Handle user fields - both from metadata and hardcoded known ForeignKey fields
-        user_fields_to_process = user_fields_map.get(form_type, [])
+        user_fields_to_process = user_fields_map.get(artifact_key, [])
         
-        # Add known ForeignKey fields for credit_request_form
-        if form_type == 'credit_request_form':
+        if artifact_key == 'credit_request_form':
             user_fields_to_process.extend(['senior_business_sponsor_id', 'second_business_sponsor_id'])
         
-        # Add known ForeignKey fields for credit_compilation_form
-        if form_type == 'credit_compilation_form':
+        if artifact_key == 'credit_compilation_form':
             user_fields_to_process.extend(['compiler'])
         
-        # Add known ForeignKey fields for credit_approval_form
-        if form_type == 'credit_approval_form':
+        if artifact_key == 'credit_approval_form':
             user_fields_to_process.extend(['approver'])
 
-        # Add known ForeignKey fields for credit_review_form
-        if form_type == 'credit_review_form':
+        if artifact_key == 'credit_review_form':
             user_fields_to_process.extend(['credit_reviewer', 'assigned_credit_analyst'])
 
-        # Add known ForeignKey fields for business_sponsorship_form
-        if form_type == 'business_sponsorship_form':
+        if artifact_key == 'business_sponsorship_form':
             user_fields_to_process.extend(['senior_business_sponsor', 'second_business_sponsor'])
 
-        # Add known ForeignKey fields for legal_review_form
-        if form_type == 'legal_review_form':
+        if artifact_key == 'legal_review_form':
             user_fields_to_process.extend(['legal_reviewer'])
 
-        # Add known ForeignKey fields for credit_questionnaire_form
-        if form_type == 'credit_questionnaire_form':
+        if artifact_key == 'credit_questionnaire_form':
             user_fields_to_process.extend(['questionnaire_completor'])
 
-        # Add known ForeignKey fields for credit_analysis_form
-        if form_type == 'credit_analysis_form':
+        if artifact_key == 'credit_analysis_form':
             user_fields_to_process.extend(['credit_analyst'])
 
         if user_fields_to_process:
-            form_data = self._resolve_user_fields(form_data, user_fields_to_process)
+            artifact_data = self._resolve_user_fields(artifact_data, user_fields_to_process)
         
         # Handle date fields dynamically (following the same pattern as boolean/user fields)
         # Note: If date_fields_map is added to workflow metadata in the future, use this pattern:
@@ -693,59 +689,60 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         
         # Handle common date field issues (empty strings, placeholder values, etc.)
         # This applies to all forms and handles DateField validation issues
-        for field_name, field_value in form_data.items():
+        for field_name, field_value in artifact_data.items():
             if field_value in ['', '**', '*', 'None', None]:
-                form_data[field_name] = None
+                artifact_data[field_name] = None
             elif isinstance(field_value, str) and field_name.endswith('_date') and field_value.strip() == '':
-                form_data[field_name] = None
+                artifact_data[field_name] = None
         
-        # Handle datetime fields dynamically
-        if form_type in datetime_fields_map:
-            for field in datetime_fields_map[form_type]:
-                if field in form_data and form_data[field] and isinstance(form_data[field], str):
+        if artifact_key in datetime_fields_map:
+            for field in datetime_fields_map[artifact_key]:
+                if field in artifact_data and artifact_data[field] and isinstance(artifact_data[field], str):
                     try:
-                        # Handle various datetime string formats
-                        dt_str = form_data[field]
+                        dt_str = artifact_data[field]
                         
                         # If it's just a date-time without timezone info (like '2025-06-20T20:50')
                         if 'T' in dt_str and not any(x in dt_str for x in ['Z', '+', '-']):
                             # Append seconds if needed
                             if len(dt_str.split('T')[1].split(':')) < 3:
                                 dt_str = f"{dt_str}:00"
-                            # Create datetime and make it timezone aware
                             naive_dt = timezone.datetime.fromisoformat(dt_str)
-                            form_data[field] = timezone.make_aware(naive_dt)
+                            artifact_data[field] = timezone.make_aware(naive_dt)
                         else:
-                            # Handle ISO format with Z or timezone offset
                             dt_str = dt_str.replace('Z', '+00:00')
                             dt = timezone.datetime.fromisoformat(dt_str)
-                            # Ensure it's timezone aware
                             if timezone.is_naive(dt):
-                                form_data[field] = timezone.make_aware(dt)
+                                artifact_data[field] = timezone.make_aware(dt)
                             else:
-                                form_data[field] = dt
+                                artifact_data[field] = dt
                     except (ValueError, TypeError) as e:
                         logger.warning(f"Error parsing datetime for {field}: {e}")
-                        # If parsing fails, let the field validation handle it
                         pass
-        # --- End Special Field Handling ---
 
-        form_data['form_last_saved_at'] = timezone.now()
+        artifact_data['form_last_saved_at'] = timezone.now()
         
-        # Log the guarantor fields specifically
-        if form_type == 'credit_request_form':
-            logger.info(f"Saving credit_request_form with guarantor_name: '{form_data.get('guarantor_name', 'NOT SET')}'")
-            logger.info(f"Saving credit_request_form with guarantor_cif: '{form_data.get('guarantor_cif', 'NOT SET')}'")
+        if artifact_key == 'credit_request_form':
+            logger.info(
+                "Saving credit_request_form with guarantor_name: '%s'",
+                artifact_data.get('guarantor_name', 'NOT SET'),
+            )
+            logger.info(
+                "Saving credit_request_form with guarantor_cif: '%s'",
+                artifact_data.get('guarantor_cif', 'NOT SET'),
+            )
         
-        # Correctly save the form data using update_or_create
-        sub_form_instance, created = model_class.objects.update_or_create(
+        artifact_instance, created = model_class.objects.update_or_create(
             credit_application=instance,
-            defaults=form_data
+            defaults=artifact_data
         )
-        logger.info(f"{'Created' if created else 'Updated'} {form_type} form for CA {instance.id}")
+        logger.info(
+            "%s artifact %s for CA %s",
+            'Created' if created else 'Updated',
+            artifact_key,
+            instance.id,
+        )
 
-        # --- Sub-Workflow Creation Logic (from your original code) ---
-        if not hasattr(sub_form_instance, 'workflow_instance') or not sub_form_instance.workflow_instance:
+        if not hasattr(artifact_instance, 'workflow_instance') or not artifact_instance.workflow_instance:
             try:
                 import re
                 model_name = model_class.__name__
@@ -761,12 +758,17 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
                 sub_wf_instance = WorkflowInstance.objects.create(
                     workflow=sub_wf_def,
                     current_state=sub_initial_state,
-                    content_type=ContentType.objects.get_for_model(sub_form_instance),
-                    object_id=sub_form_instance.id
+                    content_type=ContentType.objects.get_for_model(artifact_instance),
+                    object_id=artifact_instance.id
                 )
-                sub_form_instance.workflow_instance = sub_wf_instance
-                sub_form_instance.save(update_fields=['workflow_instance'])
-                logger.info(f"Created sub-workflow instance ID: {sub_wf_instance.id} for {model_name} ID: {sub_form_instance.id}")
+                artifact_instance.workflow_instance = sub_wf_instance
+                artifact_instance.save(update_fields=['workflow_instance'])
+                logger.info(
+                    "Created sub-workflow instance ID: %s for %s ID: %s",
+                    sub_wf_instance.id,
+                    model_name,
+                    artifact_instance.id,
+                )
             
             except Workflow.DoesNotExist:
                 logger.warning(f"Workflow with code '{workflow_code}' not found for {model_name}. No sub-workflow created.")
@@ -775,20 +777,11 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             except Exception as e:
                 logger.error(f"Error creating workflow instance for {model_name}: {e}", exc_info=True)
         
-        return sub_form_instance
+        return artifact_instance
     
     # ... (rest of the code remains the same)
     workflow_instance = serializers.SerializerMethodField()
     
-    # Method fields for forms
-    credit_request_form = serializers.SerializerMethodField()
-    business_sponsorship_form = serializers.SerializerMethodField()
-    credit_questionnaire_form = serializers.SerializerMethodField()
-    legal_review_form = serializers.SerializerMethodField()
-    credit_review_form = serializers.SerializerMethodField()
-    credit_analysis_form = serializers.SerializerMethodField()
-    credit_compilation_form = serializers.SerializerMethodField()
-    credit_approval_form = serializers.SerializerMethodField()
     climate_scorecard = serializers.SerializerMethodField()
 
     # Additional fields
@@ -798,7 +791,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
     assigned_to_name = serializers.SerializerMethodField()
     current_user_role = serializers.SerializerMethodField()
-    sub_processes = serializers.SerializerMethodField()
+    artifacts = serializers.SerializerMethodField()
     counterparty = CounterpartySerializer(read_only=True)
     counterparty_id = serializers.PrimaryKeyRelatedField(
         queryset=Counterparty.objects.all(), source='counterparty', write_only=True
@@ -811,9 +804,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             'required_by_date', 'amount', 'rank', 'created_by', 'assigned_to', 'relationship_manager',
             'created_at', 'updated_at', 'submitted_at', 'workflow_instance',
             'workflow_state', 'workflow_state_name', 'available_transitions', 'created_by_name', 'assigned_to_name',
-            'current_user_role', 'credit_request_form', 'credit_review_form', 'business_sponsorship_form',
-            'legal_review_form', 'credit_questionnaire_form', 'credit_analysis_form',
-            'credit_compilation_form', 'credit_approval_form', 'climate_scorecard', 'limit_requests', 'sub_processes'
+            'current_user_role', 'climate_scorecard', 'limit_requests', 'artifacts'
         ]
         read_only_fields = ['id', 'reference_number', 'workflow_instance', 'created_at', 'updated_at', 'submitted_at', 'created_by', 'created_by_name', 'assigned_to_name']
 
@@ -875,80 +866,6 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
             }
         return None
     
-    def _get_or_auto_initialize_form(self, obj, form_name, model_class, serializer_class):
-        """
-        Helper method to get a form instance, auto-initializing it if it doesn't exist.
-        
-        Args:
-            obj: CreditApplication instance
-            form_name: Name of the form (e.g., 'credit_request_form')
-            model_class: Model class for the form
-            serializer_class: Serializer class for the form
-            
-        Returns:
-            Serialized form data or None
-        """
-        try:
-            # Try to get the form using the related name
-            form = getattr(obj, form_name)
-            serializer = serializer_class(form, context=self.context)
-            return serializer.data
-        except model_class.DoesNotExist:
-            # Auto-initialize the form if it doesn't exist
-            try:
-                from workflow_engine.utils import auto_initialize_forms_for_state
-                initialized_forms = auto_initialize_forms_for_state(obj)
-                if form_name in initialized_forms:
-                    form = initialized_forms[form_name]
-                    serializer = serializer_class(form, context=self.context)
-                    return serializer.data
-            except Exception as e:
-                logger.error(f"Error auto-initializing {form_name} for application {obj.id}: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Error getting {form_name} for application {obj.id}: {e}")
-            return None
-        
-    def get_credit_request_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'credit_request_form', CreditRequestForm, CreditRequestFormSerializer
-        )
-            
-    def get_credit_review_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'credit_review_form', CreditReviewForm, CreditReviewFormSerializer
-        )
-            
-    def get_business_sponsorship_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'business_sponsorship_form', BusinessSponsorshipForm, BusinessSponsorshipFormSerializer
-        )
-            
-    def get_legal_review_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'legal_review_form', LegalReviewForm, LegalReviewFormSerializer
-        )
-            
-    def get_credit_questionnaire_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'credit_questionnaire_form', CreditQuestionnaireForm, CreditQuestionnaireFormSerializer
-        )
-
-    def get_credit_analysis_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'credit_analysis_form', CreditAnalysisForm, CreditAnalysisFormSerializer
-        )
-            
-    def get_credit_compilation_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'credit_compilation_form', CreditCompilationForm, CreditCompilationFormSerializer
-        )
-            
-    def get_credit_approval_form(self, obj):
-        return self._get_or_auto_initialize_form(
-            obj, 'credit_approval_form', CreditApprovalForm, CreditApprovalFormSerializer
-        )
-
     def get_climate_scorecard(self, obj):
         """Get climate scorecard data if it exists."""
         try:
@@ -958,113 +875,9 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         except ClimateScorecard.DoesNotExist:
             return None
 
-    def get_sub_processes(self, obj):
-        logger.info(f"--- get_sub_processes called for application: {obj.id} ---")
-        
-        # Get current workflow state
-        current_state_code = None
-        if hasattr(obj, 'workflow_instance') and obj.workflow_instance:
-            current_state_code = obj.workflow_instance.current_state.code
-        
-        logger.info(f"Application {obj.id} current state: {current_state_code}")
-        
-        # Get relevant forms for the current state (metadata-driven)
-        from workflow_engine.utils import get_relevant_sub_processes_for_state
-        if current_state_code:
-            form_list = get_relevant_sub_processes_for_state(current_state_code)
-        else:
-            # Default to credit_request_form if no state
-            form_list = ['credit_request_form']
-            
-        logger.info(f"Relevant forms for state {current_state_code}: {form_list}")
-
-        # Import the utility function to get form metadata dynamically
-        from workflow_engine.utils import get_form_metadata, FormMetadataError
-
-        sub_processes_data = []
-        for form_name in form_list:
-            try:
-                # Get form metadata dynamically
-                form_metadata = get_form_metadata(form_name)
-            except FormMetadataError as e:
-                # Log the error and skip this form
-                logger.error(f"Error getting metadata for form {form_name}: {e}")
-                # Skip this form and continue with the next one
-                continue
-            
-            # Check if form instance exists
-            form_instance = getattr(obj, form_name, None)
-            
-            # Always include the form in the list (even if instance doesn't exist)
-            # This ensures forms are visible on the hub page when they should be
-            if form_instance:
-                try:
-                    # Get the proper serializer for this form type and pass request context
-                    request = self.context.get('request')
-                    serializer_context = {'request': request} if request else {}
-                    
-                    # Dynamic serializer selection based on form name
-                    serializer_map = {
-                        'credit_request_form': CreditRequestFormSerializer,
-                        'business_sponsorship_form': BusinessSponsorshipFormSerializer,
-                        'credit_review_form': CreditReviewFormSerializer,
-                        'legal_review_form': LegalReviewFormSerializer,
-                        'credit_questionnaire_form': CreditQuestionnaireFormSerializer,
-                        'credit_analysis_form': CreditAnalysisFormSerializer,
-                        'credit_compilation_form': CreditCompilationFormSerializer,
-                        'credit_approval_form': CreditApprovalFormSerializer,
-                        'climate_scorecard': ClimateScorecardSerializer,
-                    }
-                    
-                    serializer_class = serializer_map.get(form_name)
-                    if serializer_class:
-                        serializer = serializer_class(form_instance, context=serializer_context)
-                    else:
-                        logger.warning(f"No serializer found for form {form_name}")
-                        serializer = None
-                        
-                    # Determine if current user can edit this form
-                    can_edit = self._can_user_edit_form(obj, form_name, form_instance)
-                    
-                    # Add form data to sub_processes
-                    sub_processes_data.append({
-                        'form_name': form_metadata['title'],
-                        'form_key': form_metadata['form_key'],  # Add form_key for frontend
-                        'form_title': getattr(form_instance, 'get_form_title', lambda: form_metadata['title'])(),
-                        'data': serializer.data if serializer else {},
-                        'can_edit': can_edit
-                    })
-                    logger.info(f"Added sub-process '{form_name}' for CA ID {obj.id}")
-                except Exception as e:
-                    logger.error(f"Error serializing sub-process '{form_name}' for CA ID {obj.id}: {e}", exc_info=True)
-            else:
-                # Include form in list even if instance doesn't exist yet
-                # Determine if current user can create/edit this form
-                can_edit = self._can_user_edit_form(obj, form_name, None)
-                
-                sub_processes_data.append({
-                    'form_name': form_metadata['title'],
-                    'form_key': form_metadata['form_key'],
-                    'form_title': form_metadata['title'],
-                    'data': None,
-                    'can_edit': can_edit
-                })
-                logger.info(f"Added placeholder for sub-process '{form_name}' for CA ID {obj.id}")
-                
-        return sub_processes_data
-
-    def _can_user_edit_form(self, credit_app, form_name, form_instance):
-        """
-        Metadata-driven function to determine if the current user can edit a specific form.
-        Uses workflow metadata instead of hardcoded role mappings.
-        """
+    def get_artifacts(self, obj):
         request = self.context.get('request')
-        if not request or not request.user:
-            return False
-            
-        # Use the metadata-driven utility function
-        from workflow_engine.utils import can_user_edit_form
-        return can_user_edit_form(request.user, credit_app, form_name, form_instance)
+        return _get_credit_workflow_artifacts(obj, request=request)
 
     @transaction.atomic
     def create(self, validated_data):
@@ -1091,7 +904,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
 
         # 2. Extract ALL prefixed form data using the new helper method.
         # This replaces the manual extraction logic.
-        form_updates = self._extract_form_data(self.initial_data)
+        artifact_updates = self._extract_artifact_data(self.initial_data)
 
         # 3. IMPORTANT: The frontend should send fields for the main model (like counterparty_id
         # and relationship_manager_id) WITHOUT a prefix. They will be in validated_data.
@@ -1104,9 +917,9 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
 
         # 5. Loop through and save data for each sub-form found.
         # This is the scalable part that will handle all future forms.
-        for form_type, form_data in form_updates.items():
-            if form_data:
-                self._update_sub_form(credit_application, form_type, form_data)
+        for artifact_key, artifact_data in artifact_updates.items():
+            if artifact_data:
+                self._update_artifact_instance(credit_application, artifact_key, artifact_data)
 
         # 6. Handle limit requests creation (incorporating your robust loop)
         if limit_requests_payload:
@@ -1172,7 +985,7 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         validated_data.pop('limit_requests', None)
 
         # 2. Extract all prefixed form data
-        form_updates = self._extract_form_data(self.initial_data)
+        artifact_updates = self._extract_artifact_data(self.initial_data)
 
         # 3. Update the main CreditApplication instance
         logger.info(f"Updating CreditApplication with validated_data keys: {list(validated_data.keys())}")
@@ -1182,9 +995,9 @@ class CreditApplicationSerializer(serializers.ModelSerializer):
         logger.info(f"Updated CreditApplication with ID: {instance.id}")
 
         # 4. Loop through and save data for each sub-form
-        for form_type, form_data in form_updates.items():
-            if form_data:
-                self._update_sub_form(instance, form_type, form_data)
+        for artifact_key, artifact_data in artifact_updates.items():
+            if artifact_data:
+                self._update_artifact_instance(instance, artifact_key, artifact_data)
 
         # 5. Handle limit requests with your robust "wholesale replacement" strategy
         if limit_requests_payload is not None:

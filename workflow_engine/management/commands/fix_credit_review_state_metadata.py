@@ -3,7 +3,7 @@ from workflow_engine.models import Workflow, State
 import json
 
 class Command(BaseCommand):
-    help = 'Fix Credit Review state metadata to include credit_review_form in relevant_sub_processes'
+    help = 'Fix Credit Review state metadata to include credit_review_form in relevant_artifacts'
 
     def handle(self, *args, **options):
         try:
@@ -32,18 +32,18 @@ class Command(BaseCommand):
                 if not credit_review_state.metadata:
                     credit_review_state.metadata = {}
                 
-                # Add credit_review_form to relevant_sub_processes
-                if 'relevant_sub_processes' not in credit_review_state.metadata:
-                    credit_review_state.metadata['relevant_sub_processes'] = []
+                # Add credit_review_form to relevant_artifacts
+                if 'relevant_artifacts' not in credit_review_state.metadata:
+                    credit_review_state.metadata['relevant_artifacts'] = []
                 
-                if 'credit_review_form' not in credit_review_state.metadata['relevant_sub_processes']:
-                    credit_review_state.metadata['relevant_sub_processes'].append('credit_review_form')
+                if 'credit_review_form' not in credit_review_state.metadata['relevant_artifacts']:
+                    credit_review_state.metadata['relevant_artifacts'].append('credit_review_form')
                     
                     # Save the updated state
                     credit_review_state.save(update_fields=['metadata'])
                     
                     self.stdout.write(self.style.SUCCESS(
-                        f'✓ Added credit_review_form to relevant_sub_processes for state {credit_review_state.code}'
+                        f'✓ Added credit_review_form to relevant_artifacts for state {credit_review_state.code}'
                     ))
                     
                     # Display updated metadata
@@ -51,7 +51,7 @@ class Command(BaseCommand):
                     self.stdout.write(json.dumps(credit_review_state.metadata, indent=2))
                 else:
                     self.stdout.write(self.style.SUCCESS(
-                        f'✓ credit_review_form already exists in relevant_sub_processes for state {credit_review_state.code}'
+                        f'✓ credit_review_form already exists in relevant_artifacts for state {credit_review_state.code}'
                     ))
                 
             except State.DoesNotExist:
@@ -60,8 +60,8 @@ class Command(BaseCommand):
                 self.stdout.write('Available states in CREDIT_PAPER workflow:')
                 for state in State.objects.filter(workflow=parent_workflow):
                     self.stdout.write(f'  - {state.name} ({state.code})')
-                    if state.metadata and 'relevant_sub_processes' in state.metadata:
-                        self.stdout.write(f'    Relevant sub-processes: {state.metadata["relevant_sub_processes"]}')
+                    if state.metadata and 'relevant_artifacts' in state.metadata:
+                        self.stdout.write(f'    Relevant artifacts: {state.metadata["relevant_artifacts"]}')
                 return
                 
         except Workflow.DoesNotExist:

@@ -9,7 +9,6 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import { Notifications, Add } from '@mui/icons-material';
-import AccountCircle from '@mui/icons-material/AccountCircle'; // Keep if needed elsewhere, or remove if only for old logout
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';

@@ -239,9 +239,9 @@ class TestCreditApplicationFormData:
         result = rm_client.save_credit_request_form(app_id, credit_request_form_data)
 
         assert 'id' in result
-        # Check that credit_request_form was created/updated
-        if 'credit_request_form' in result:
-            assert result['credit_request_form'] is not None
+        artifact = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+        assert artifact is not None
+        assert artifact['id'] is not None
 
     def test_form_data_persists_after_save(
         self,
@@ -259,6 +259,6 @@ class TestCreditApplicationFormData:
         # Fetch the application again
         result = rm_client.get_credit_application(app_id)
 
-        # Verify form data is present
-        if 'credit_request_form' in result and result['credit_request_form']:
-            assert result['credit_request_form'] is not None
+        artifact = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+        assert artifact is not None
+        assert artifact['id'] is not None

@@ -29,15 +29,20 @@ import json
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 
-# Now import the function to test
-from workflow_engine.utils import get_relevant_sub_processes_for_state, get_form_metadata, FormMetadataError
+# Now import the functions to test
+from workflow_engine.utils import (
+    FormMetadataError,
+    get_artifact_metadata,
+    get_form_metadata,
+    get_relevant_artifacts_for_state,
+)
 
 class WorkflowUtilsTests(TestCase):
     """Tests for workflow utility functions using unittest with minimal Django settings."""
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    def test_get_form_metadata_success(self, mock_get):
-        """Test get_form_metadata when metadata is found in workflow definition."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    def test_get_artifact_metadata_success(self, mock_get):
+        """Test get_artifact_metadata when metadata is found in workflow definition."""
         # Setup mock workflow definition with metadata
         mock_workflow = MagicMock()
         mock_workflow.metadata = {
@@ -51,7 +56,7 @@ class WorkflowUtilsTests(TestCase):
         mock_get.return_value = mock_workflow
         
         # Call the function
-        result = get_form_metadata('credit_request_form')
+        result = get_artifact_metadata('credit_request_form')
         
         # Assert results
         self.assertEqual(result, {
@@ -60,9 +65,9 @@ class WorkflowUtilsTests(TestCase):
         })
         mock_get.assert_called_once_with(code='CREDIT_PAPER')
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    def test_get_form_metadata_missing_form(self, mock_get):
-        """Test get_form_metadata when form is not found in metadata."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    def test_get_artifact_metadata_missing_form(self, mock_get):
+        """Test get_artifact_metadata when artifact is not found in metadata."""
         # Setup mock workflow definition with metadata but missing the requested form
         mock_workflow = MagicMock()
         mock_workflow.metadata = {
@@ -77,14 +82,14 @@ class WorkflowUtilsTests(TestCase):
         
         # Call the function and expect an exception
         with self.assertRaises(FormMetadataError) as context:
-            get_form_metadata('credit_request_form')
+            get_artifact_metadata('credit_request_form')
         
         # Assert error message
         self.assertIn("Form metadata for 'credit_request_form' not found", str(context.exception))
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    def test_get_form_metadata_missing_metadata(self, mock_get):
-        """Test get_form_metadata when metadata is missing in workflow definition."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    def test_get_artifact_metadata_missing_metadata(self, mock_get):
+        """Test get_artifact_metadata when metadata is missing in workflow definition."""
         # Setup mock workflow definition without metadata
         mock_workflow = MagicMock()
         mock_workflow.metadata = {}
@@ -92,49 +97,49 @@ class WorkflowUtilsTests(TestCase):
         
         # Call the function and expect an exception
         with self.assertRaises(FormMetadataError) as context:
-            get_form_metadata('credit_request_form')
+            get_artifact_metadata('credit_request_form')
         
         # Assert error message
         self.assertIn("No form_metadata found in workflow definition", str(context.exception))
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    def test_get_form_metadata_workflow_not_found(self, mock_get):
-        """Test get_form_metadata when workflow definition is not found."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    def test_get_artifact_metadata_workflow_not_found(self, mock_get):
+        """Test get_artifact_metadata when workflow definition is not found."""
         # Setup mock to raise DoesNotExist
         from django.core.exceptions import ObjectDoesNotExist
         mock_get.side_effect = ObjectDoesNotExist()
         
         # Call the function and expect an exception
         with self.assertRaises(FormMetadataError) as context:
-            get_form_metadata('credit_request_form')
+            get_artifact_metadata('credit_request_form')
         
         # Assert error message
         self.assertIn("Parent workflow 'CREDIT_PAPER' not found", str(context.exception))
 
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    @patch('workflow_engine.utils.State.objects.get')
-    def test_get_relevant_sub_processes_for_state_with_metadata(self, mock_state_get, mock_wf_get):
-        """Test retrieving sub-processes for a state with metadata."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    @patch('credit_workflow.metadata.State.objects.get')
+    def test_get_relevant_artifacts_for_state_with_metadata(self, mock_state_get, mock_wf_get):
+        """Test retrieving artifacts for a state with metadata."""
         # Setup mock state with metadata
         mock_state = MagicMock()
-        mock_state.metadata = {'relevant_sub_processes': ['credit_request_form']}
+        mock_state.metadata = {'relevant_artifacts': ['credit_request_form']}
         mock_state_get.return_value = mock_state
         
         # Test function
-        sub_processes = get_relevant_sub_processes_for_state('CREDIT_PAPER_CREDIT_REQUEST')
-        self.assertEqual(sub_processes, ['credit_request_form'])
+        artifacts = get_relevant_artifacts_for_state('CREDIT_PAPER_CREDIT_REQUEST')
+        self.assertEqual(artifacts, ['credit_request_form'])
         
         # Verify correct parameters were used
         mock_wf_get.assert_called_once_with(code='CREDIT_PAPER')
         mock_state_get.assert_called_once()
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    @patch('workflow_engine.utils.State.objects.get')
-    def test_get_relevant_sub_processes_for_state_with_multiple_forms(self, mock_state_get, mock_wf_get):
-        """Test retrieving multiple sub-processes for a state."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    @patch('credit_workflow.metadata.State.objects.get')
+    def test_get_relevant_artifacts_for_state_with_multiple_forms(self, mock_state_get, mock_wf_get):
+        """Test retrieving multiple artifacts for a state."""
         # Setup mock state with metadata containing multiple forms
         mock_state = MagicMock()
-        mock_state.metadata = {'relevant_sub_processes': [
+        mock_state.metadata = {'relevant_artifacts': [
             'credit_request_form', 
             'business_sponsorship_form', 
             'credit_review_form', 
@@ -143,43 +148,54 @@ class WorkflowUtilsTests(TestCase):
         mock_state_get.return_value = mock_state
         
         # Test function
-        sub_processes = get_relevant_sub_processes_for_state('CREDIT_PAPER_ANALYSIS_PENDING')
-        self.assertEqual(sub_processes, [
+        artifacts = get_relevant_artifacts_for_state('CREDIT_PAPER_ANALYSIS_PENDING')
+        self.assertEqual(artifacts, [
             'credit_request_form', 
             'business_sponsorship_form', 
             'credit_review_form', 
             'legal_review_form'
         ])
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    @patch('workflow_engine.utils.State.objects.get')
-    def test_get_relevant_sub_processes_for_state_without_metadata(self, mock_state_get, mock_wf_get):
-        """Test retrieving sub-processes for a state without metadata."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    @patch('credit_workflow.metadata.State.objects.get')
+    def test_get_relevant_artifacts_for_state_without_metadata(self, mock_state_get, mock_wf_get):
+        """Test retrieving artifacts for a state without metadata."""
         # Setup mock state without metadata
         mock_state = MagicMock()
         mock_state.metadata = None
         mock_state_get.return_value = mock_state
         
         # Test function
-        sub_processes = get_relevant_sub_processes_for_state('CREDIT_PAPER_DRAFT')
-        self.assertEqual(sub_processes, ['credit_request_form'])
+        artifacts = get_relevant_artifacts_for_state('CREDIT_PAPER_DRAFT')
+        self.assertEqual(artifacts, ['credit_request_form'])
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    @patch('workflow_engine.utils.State.objects.get')
-    def test_get_relevant_sub_processes_for_state_with_empty_metadata(self, mock_state_get, mock_wf_get):
-        """Test retrieving sub-processes for a state with empty metadata."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    @patch('credit_workflow.metadata.State.objects.get')
+    def test_get_relevant_artifacts_for_state_with_empty_metadata(self, mock_state_get, mock_wf_get):
+        """Test retrieving artifacts for a state with empty metadata."""
         # Setup mock state with empty metadata
         mock_state = MagicMock()
         mock_state.metadata = {}
         mock_state_get.return_value = mock_state
         
         # Test function
-        sub_processes = get_relevant_sub_processes_for_state('CREDIT_PAPER_DRAFT')
-        self.assertEqual(sub_processes, ['credit_request_form'])
+        artifacts = get_relevant_artifacts_for_state('CREDIT_PAPER_DRAFT')
+        self.assertEqual(artifacts, ['credit_request_form'])
+
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    @patch('credit_workflow.metadata.State.objects.get')
+    def test_get_relevant_artifacts_for_state_with_legacy_metadata_key(self, mock_state_get, mock_wf_get):
+        """Test retrieving artifacts from legacy relevant_sub_processes metadata."""
+        mock_state = MagicMock()
+        mock_state.metadata = {'relevant_sub_processes': ['credit_request_form']}
+        mock_state_get.return_value = mock_state
+
+        artifacts = get_relevant_artifacts_for_state('CREDIT_PAPER_CREDIT_REQUEST')
+        self.assertEqual(artifacts, ['credit_request_form'])
     
-    @patch('workflow_engine.utils.Workflow.objects.get')
-    def test_get_relevant_sub_processes_for_nonexistent_state(self, mock_wf_get):
-        """Test retrieving sub-processes for a state that doesn't exist."""
+    @patch('credit_workflow.metadata.Workflow.objects.get')
+    def test_get_relevant_artifacts_for_nonexistent_state(self, mock_wf_get):
+        """Test retrieving artifacts for a state that doesn't exist."""
         # Setup mock to raise Workflow.DoesNotExist exception
         from django.core.exceptions import ObjectDoesNotExist
         # Import the models module to access the exception class
@@ -187,5 +203,5 @@ class WorkflowUtilsTests(TestCase):
         mock_wf_get.side_effect = Workflow.DoesNotExist()
         
         # Test function
-        sub_processes = get_relevant_sub_processes_for_state('NONEXISTENT_STATE')
-        self.assertEqual(sub_processes, ['credit_request_form'])
+        artifacts = get_relevant_artifacts_for_state('NONEXISTENT_STATE')
+        self.assertEqual(artifacts, ['credit_request_form'])

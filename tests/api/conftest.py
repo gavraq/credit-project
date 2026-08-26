@@ -398,16 +398,17 @@ def workflow_helper():
     """
     class WorkflowHelper:
         @staticmethod
+        def get_artifact(app_data: Dict, artifact_key: str) -> Dict:
+            """Extract an artifact descriptor from the application artifact list."""
+            artifacts = app_data.get('artifacts', []) or []
+            for artifact in artifacts:
+                if artifact.get('key') == artifact_key:
+                    return artifact
+            return {}
+
+        @staticmethod
         def get_form_workflow_id(app_data: Dict, form_key: str) -> str:
-            """Extract workflow instance ID from a form within an application."""
-            form = app_data.get(form_key, {})
-            if form and 'workflow_instance' in form:
-                wf = form['workflow_instance']
-                # Handle both string (UUID) and dict formats
-                if isinstance(wf, str):
-                    return wf
-                elif isinstance(wf, dict):
-                    return wf.get('id')
+            """Deprecated for reference-only artifact lists; use the artifact detail endpoint instead."""
             return None
 
         @staticmethod
@@ -450,21 +451,21 @@ def workflow_helper():
 
         @staticmethod
         def get_form_state(app_data: Dict, form_key: str) -> str:
-            """Get current workflow state code from a form.
+            """Deprecated for reference-only artifact lists; use artifact detail payloads instead."""
+            return None
 
-            Returns the state name since sub-forms only have names, not codes.
-            """
-            form = app_data.get(form_key, {})
-            if form and 'workflow_instance' in form:
-                wf = form['workflow_instance']
-                if isinstance(wf, str):
-                    return None
-                elif isinstance(wf, dict):
-                    state = wf.get('current_state')
-                    if isinstance(state, str):
-                        return state  # Return name directly
-                    elif isinstance(state, dict):
-                        return state.get('code') or state.get('name')
+        @staticmethod
+        def get_artifact_state(artifact_data: Dict) -> str:
+            """Get current workflow state from an artifact detail payload."""
+            wf = artifact_data.get('workflow_instance')
+            if isinstance(wf, str):
+                return None
+            if isinstance(wf, dict):
+                state = wf.get('current_state')
+                if isinstance(state, str):
+                    return state
+                if isinstance(state, dict):
+                    return state.get('code') or state.get('name')
             return None
 
     return WorkflowHelper()

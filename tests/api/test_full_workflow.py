@@ -61,7 +61,7 @@ class TestFullWorkflowJourney:
         app = rm_client.get_credit_application(app_id)
 
         # Get credit request workflow
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if not cr_form or not cr_form.get('workflow_instance'):
             pytest.skip("Credit request form workflow not initialized")
 
@@ -76,8 +76,8 @@ class TestFullWorkflowJourney:
         print("  ✓ Credit Request → Submitted")
 
         # Verify state
-        app = rm_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'credit_request_form') == 'Submitted'
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+        assert workflow_helper.get_artifact_state(cr_form) == 'Submitted'
         assert workflow_helper.get_current_state(app) == 'CREDIT_PAPER_CREDIT_REVIEW_PENDING'
         print("  ✓ Parent workflow → Credit Review Pending")
 
@@ -90,7 +90,7 @@ class TestFullWorkflowJourney:
         ca_client.save_credit_review_form(app_id, credit_review_form_data)
         app = ca_client.get_credit_application(app_id)
 
-        crv_form = app.get('credit_review_form')
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
         if not crv_form or not crv_form.get('workflow_instance'):
             pytest.skip("Credit review form workflow not initialized")
 
@@ -105,8 +105,8 @@ class TestFullWorkflowJourney:
         print("  ✓ Credit Review → Submitted")
 
         # Verify state
-        app = ca_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'credit_review_form') == 'Submitted'
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
+        assert workflow_helper.get_artifact_state(crv_form) == 'Submitted'
         assert workflow_helper.get_current_state(app) == 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING'
         print("  ✓ Parent workflow → Business Sponsor Pending")
 
@@ -119,7 +119,7 @@ class TestFullWorkflowJourney:
         bs_client.save_business_sponsorship_form(app_id, business_sponsorship_form_data)
         app = bs_client.get_credit_application(app_id)
 
-        bs_form = app.get('business_sponsorship_form')
+        bs_form = bs_client.get_credit_artifact(app_id, 'business_sponsorship_form')
         if not bs_form or not bs_form.get('workflow_instance'):
             pytest.skip("Business sponsorship form workflow not initialized")
 
@@ -134,8 +134,8 @@ class TestFullWorkflowJourney:
         print("  ✓ Business Sponsorship → Submitted")
 
         # Verify state
-        app = bs_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'business_sponsorship_form') == 'Submitted'
+        bs_form = bs_client.get_credit_artifact(app_id, 'business_sponsorship_form')
+        assert workflow_helper.get_artifact_state(bs_form) == 'Submitted'
         assert workflow_helper.get_current_state(app) == 'CREDIT_PAPER_ANALYSIS_PENDING'
         print("  ✓ Parent workflow → Analysis Pending")
 
@@ -149,7 +149,7 @@ class TestFullWorkflowJourney:
         lr_client.save_legal_review_form(app_id, legal_review_form_data)
         app = lr_client.get_credit_application(app_id)
 
-        lr_form = app.get('legal_review_form')
+        lr_form = lr_client.get_credit_artifact(app_id, 'legal_review_form')
         if lr_form and lr_form.get('workflow_instance'):
             lr_wf_id = lr_form['workflow_instance']['id']
             lr_client.perform_transition(lr_wf_id, 'LR_TR_2', 'Starting legal review')
@@ -162,7 +162,7 @@ class TestFullWorkflowJourney:
         rm_client.save_credit_questionnaire_form(app_id, credit_questionnaire_form_data)
         app = rm_client.get_credit_application(app_id)
 
-        cq_form = app.get('credit_questionnaire_form')
+        cq_form = rm_client.get_credit_artifact(app_id, 'credit_questionnaire_form')
         if cq_form and cq_form.get('workflow_instance'):
             cq_wf_id = cq_form['workflow_instance']['id']
             rm_client.perform_transition(cq_wf_id, 'CQ_TR_2', 'Starting questionnaire')
@@ -175,7 +175,7 @@ class TestFullWorkflowJourney:
         ca_client.save_credit_analysis_form(app_id, credit_analysis_form_data)
         app = ca_client.get_credit_application(app_id)
 
-        ca_form = app.get('credit_analysis_form')
+        ca_form = ca_client.get_credit_artifact(app_id, 'credit_analysis_form')
         if ca_form and ca_form.get('workflow_instance'):
             ca_wf_id = ca_form['workflow_instance']['id']
             ca_client.perform_transition(ca_wf_id, 'CA_TR_2', 'Starting analysis')
@@ -200,7 +200,7 @@ class TestFullWorkflowJourney:
             ca_client.save_credit_compilation_form(app_id, credit_compilation_form_data)
             app = ca_client.get_credit_application(app_id)
 
-            cc_form = app.get('credit_compilation_form')
+            cc_form = ca_client.get_credit_artifact(app_id, 'credit_compilation_form')
             if cc_form and cc_form.get('workflow_instance'):
                 cc_wf_id = cc_form['workflow_instance']['id']
                 ca_client.perform_transition(cc_wf_id, 'CC_TR_2', 'Starting compilation')
@@ -227,7 +227,7 @@ class TestFullWorkflowJourney:
             ca_client.save_credit_approval_form(app_id, credit_approval_form_data)
             app = ca_client.get_credit_application(app_id)
 
-            cap_form = app.get('credit_approval_form')
+            cap_form = ca_client.get_credit_artifact(app_id, 'credit_approval_form')
             if cap_form and cap_form.get('workflow_instance'):
                 cap_wf_id = cap_form['workflow_instance']['id']
                 ca_client.perform_transition(cap_wf_id, 'CAP_TR_2', 'Starting approval')
@@ -286,7 +286,7 @@ class TestWorkflowRejectionPaths:
         # Phase 1
         rm_client.save_credit_request_form(app_id, credit_request_form_data)
         app = rm_client.get_credit_application(app_id)
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if cr_form and cr_form.get('workflow_instance'):
             cr_wf_id = cr_form['workflow_instance']['id']
             rm_client.perform_transition(cr_wf_id, 'CR_TR_2', 'To in progress')
@@ -329,7 +329,7 @@ class TestWorkflowStateConsistency:
         rm_client.save_credit_request_form(app_id, credit_request_form_data)
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if cr_form and cr_form.get('workflow_instance'):
             cr_wf_id = cr_form['workflow_instance']['id']
 
@@ -338,7 +338,8 @@ class TestWorkflowStateConsistency:
             app = rm_client.get_credit_application(app_id)
 
             # Form state should be in progress
-            form_state = workflow_helper.get_form_state(app, 'credit_request_form')
+            cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+            form_state = workflow_helper.get_artifact_state(cr_form)
             assert form_state == 'In Progress'
 
             # Submit
@@ -346,7 +347,8 @@ class TestWorkflowStateConsistency:
             app = rm_client.get_credit_application(app_id)
 
             # Form state should be submitted
-            form_state = workflow_helper.get_form_state(app, 'credit_request_form')
+            cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+            form_state = workflow_helper.get_artifact_state(cr_form)
             assert form_state == 'Submitted'
 
             # Parent should have advanced

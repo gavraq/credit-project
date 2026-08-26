@@ -14,12 +14,20 @@ const MyTasks = () => {
     const fetchAwaitingApproval = async () => {
       setApprovalLoading(true);
       try {
-        const { getApplicationsAwaitingMyApproval } = await import('../services/api');
+        const { fetchCreditArtifact, getApplicationsAwaitingMyApproval } = await import('../services/api');
         const approvalApps = await getApplicationsAwaitingMyApproval();
-        console.log('Fetched applications awaiting my approval:', approvalApps);
-        setAwaitingApproval(approvalApps);
+        const enrichedApps = await Promise.all(
+          approvalApps.map(async (app) => {
+            try {
+              const creditReviewForm = await fetchCreditArtifact(app.id, 'credit_review_form');
+              return { ...app, credit_review_form: creditReviewForm };
+            } catch (error) {
+              return { ...app, credit_review_form: null };
+            }
+          })
+        );
+        setAwaitingApproval(enrichedApps);
       } catch (err) {
-        console.error('Failed to fetch applications awaiting approval:', err);
         setAwaitingApproval([]);
       } finally {
         setApprovalLoading(false);
@@ -31,7 +39,6 @@ const MyTasks = () => {
     // Add event listener to refetch when the tab becomes visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab is visible, refetching approval data...');
         fetchAwaitingApproval();
       }
     };

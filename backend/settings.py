@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'backend.users',
     'workflow_engine',
+    'credit_workflow',
     'credit_applications',
     'documents',
     'rest_framework',
@@ -264,4 +265,3 @@ LOGGING = {
         'level': 'WARNING', # Default for other modules
     }
 }
-

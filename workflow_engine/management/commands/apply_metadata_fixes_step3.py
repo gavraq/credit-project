@@ -4,7 +4,7 @@ from django.db import transaction
 import json
 
 class Command(BaseCommand):
-    help = 'Step 3: Apply comprehensive metadata fixes to resolve auto-initialization issues'
+    help = 'Step 3: Apply comprehensive metadata fixes to resolve artifact provisioning issues'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -142,7 +142,7 @@ class Command(BaseCommand):
         return fixes
     
     def fix_state_metadata(self, dry_run):
-        """Update state metadata with proper relevant_sub_processes"""
+        """Update state metadata with proper relevant_artifacts"""
         fixes = 0
         
         try:
@@ -153,49 +153,49 @@ class Command(BaseCommand):
         
         expected_state_metadata = {
             'CREDIT_PAPER_CREDIT_REQUEST': {
-                'relevant_sub_processes': ['credit_request_form'],
+                'relevant_artifacts': ['credit_request_form'],
                 'parent_state': 'CREDIT_PAPER_CREDIT_REQUEST',
                 'step_number': 1,
                 'description': 'Phase 1: Credit Request - Relationship Manager creates initial request'
             },
             'CREDIT_PAPER_CREDIT_REVIEW_PENDING': {
-                'relevant_sub_processes': ['credit_request_form', 'credit_review_form'],
+                'relevant_artifacts': ['credit_request_form', 'credit_review_form'],
                 'parent_state': 'CREDIT_PAPER_CREDIT_REVIEW_PENDING',
                 'step_number': 2,
                 'description': 'Phase 2: Credit Review - Credit Analyst reviews the request'
             },
             'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING': {
-                'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form'],
+                'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form'],
                 'parent_state': 'CREDIT_PAPER_BUSINESS_SPONSOR_PENDING',
                 'step_number': 3,
                 'description': 'Phase 3: Business Sponsorship - Business Sponsor provides approval'
             },
             'CREDIT_PAPER_ANALYSIS_PENDING': {
-                'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form'],
+                'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form'],
                 'parent_state': 'CREDIT_PAPER_ANALYSIS_PENDING',
                 'step_number': 4,
                 'description': 'Phase 4: Analysis - Multiple forms for comprehensive analysis'
             },
             'CREDIT_PAPER_COMPILATION': {
-                'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form'],
+                'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form'],
                 'parent_state': 'CREDIT_PAPER_COMPILATION',
                 'step_number': 5,
                 'description': 'Phase 5: Compilation - Credit paper compilation'
             },
             'CREDIT_PAPER_APPROVAL_PENDING': {
-                'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
+                'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
                 'parent_state': 'CREDIT_PAPER_APPROVAL_PENDING',
                 'step_number': 6,
                 'description': 'Phase 6: Approval - Final approval decision'
             },
             'CREDIT_PAPER_APPROVED': {
-                'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
+                'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
                 'parent_state': 'CREDIT_PAPER_APPROVED',
                 'step_number': 7,
                 'description': 'Approved - All forms available for viewing'
             },
             'CREDIT_PAPER_REJECTED': {
-                'relevant_sub_processes': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
+                'relevant_artifacts': ['credit_request_form', 'credit_review_form', 'business_sponsorship_form', 'credit_questionnaire_form', 'legal_review_form', 'credit_analysis_form', 'credit_compilation_form', 'credit_approval_form'],
                 'parent_state': 'CREDIT_PAPER_REJECTED',
                 'step_number': 8,
                 'description': 'Rejected - All completed forms available for viewing'
@@ -207,16 +207,16 @@ class Command(BaseCommand):
                 state = State.objects.get(workflow=workflow, code=state_code)
                 
                 current_metadata = state.metadata or {}
-                current_sub_processes = current_metadata.get('relevant_sub_processes', [])
-                expected_sub_processes = metadata['relevant_sub_processes']
+                current_relevant = current_metadata.get('relevant_artifacts', [])
+                expected_relevant = metadata['relevant_artifacts']
                 
-                if current_sub_processes != expected_sub_processes:
+                if current_relevant != expected_relevant:
                     if not dry_run:
                         state.metadata = metadata
                         state.save(update_fields=['metadata'])
                     self.stdout.write(f"   🔧 Updated metadata for {state_code}")
-                    self.stdout.write(f"      Old: {current_sub_processes}")
-                    self.stdout.write(f"      New: {expected_sub_processes}")
+                    self.stdout.write(f"      Old: {current_relevant}")
+                    self.stdout.write(f"      New: {expected_relevant}")
                     fixes += 1
                 else:
                     self.stdout.write(f"   ✅ {state_code} metadata already correct")

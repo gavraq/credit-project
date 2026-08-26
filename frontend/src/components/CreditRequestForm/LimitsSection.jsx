@@ -50,18 +50,10 @@ const LimitsSection = ({
                       value={limit.type?.id || ''} // Use the ID from the object for the value
                       onChange={e => {
                         const selectedId = e.target.value;
-                        // Log the selected ID to check for truncation
-                        console.log(`Selected limit type ID: ${selectedId}, length: ${selectedId.length}`);
-                        
+
                         // Find the full limit type object
                         const fullLimitType = limitTypes.find(lt => lt.id === selectedId);
-                        
-                        if (fullLimitType) {
-                          console.log(`Found full limit type: ${fullLimitType.name}, ID: ${fullLimitType.id}, ID length: ${fullLimitType.id.length}`);
-                        } else {
-                          console.error(`Could not find limit type with ID: ${selectedId}`);
-                        }
-                        
+
                         const updated = [...limits];
                         updated[idx].type = fullLimitType || null; // Store the full object for display
                         setLimits(updated);

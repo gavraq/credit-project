@@ -3,20 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Tabs, Tab } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { fetchUsersByRole, fetchCreditRequest, performWorkflowTransition, saveCreditAnalysisForm } from '../../services/api';
+import { fetchCreditRequest, fetchUsersByRole, performWorkflowTransition, saveCreditAnalysisForm } from '../../services/api';
 import FormPageWrapper from '../common/FormPageWrapper';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
 import CreditApplicationDetailsSection from '../common/CreditApplicationDetailsSection';
+import useCreditArtifactResource from '../../hooks/useCreditArtifactResource';
 
 const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, currentStep = 4 }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
-  const [loading, setLoading] = useState(true);
+  const [applicationLoading, setApplicationLoading] = useState(true);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
-  const [creditApplication, setCreditApplication] = useState(null);
+  const [creditApplication, setCreditApplication] = useState(initialCreditApplication || null);
   const user = useSelector(state => state.auth.user);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
@@ -58,9 +59,18 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
 
   // Form metadata
   const [formStartDate, setFormStartDate] = useState('');
-  const [formCompletionDate, setFormCompletionDate] = useState('');
   const [creditAnalysts, setCreditAnalysts] = useState([]);
   const [loadingAnalysts, setLoadingAnalysts] = useState(false);
+  const {
+    detail: creditAnalysisForm,
+    loading: artifactLoading,
+    error: artifactError,
+  } = useCreditArtifactResource(
+    id,
+    creditApplication,
+    'credit_analysis_form',
+    { refreshKey: refetchTrigger }
+  );
 
   // Tab management
   const [activeTab, setActiveTab] = useState(0);
@@ -93,12 +103,7 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
     neutral900: '#1F2933'
   };
 
-  const populateFormData = useCallback((data) => {
-    if (!data) return;
-
-    setCreditApplication(data);
-    
-    const analysisForm = data.credit_analysis_form;
+  const populateFormData = useCallback((analysisForm) => {
     if (!analysisForm) return;
 
     // Set workflow information
@@ -134,7 +139,6 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
     setRecommendedConditions(analysisForm.recommended_conditions || '');
     
     setFormStartDate(analysisForm.form_started_at?.split('T')[0] || new Date().toISOString().split('T')[0]);
-    setFormCompletionDate(analysisForm.form_completed_at?.split('T')[0] || '');
   }, [user]);
 
   const fetchAndSetAnalysts = useCallback(async () => {
@@ -143,7 +147,7 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
       const analysts = await fetchUsersByRole('Credit Analyst');
       setCreditAnalysts(analysts || []);
     } catch (error) {
-      console.error('Failed to fetch credit analysts:', error);
+      setCreditAnalysts([]);
     } finally {
       setLoadingAnalysts(false);
     }
@@ -152,52 +156,72 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
   useEffect(() => {
     const fetchData = async () => {
       if (!id) {
-        setLoading(false);
+        setApplicationLoading(false);
         return;
       }
-      setLoading(true);
+      setApplicationLoading(true);
       try {
-        const data = await fetchCreditRequest(id);
-        populateFormData(data);
+        const application = await fetchCreditRequest(id);
+        setCreditApplication(application);
+        setTransitionError(null);
       } catch (error) {
-        console.error('Failed to fetch credit application:', error);
         setTransitionError('Failed to load application data.');
+        setCreditApplication(null);
       } finally {
-        setLoading(false);
+        setApplicationLoading(false);
       }
     };
 
-    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
-    // This ensures workflow transitions are always up-to-date
     fetchData();
     fetchAndSetAnalysts();
-  }, [id, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
+  }, [id, refetchTrigger, fetchAndSetAnalysts]);
+
+  useEffect(() => {
+    if (artifactError) {
+      setTransitionError('Failed to load credit analysis form data.');
+      return;
+    }
+
+    if (!creditAnalysisForm) {
+      return;
+    }
+
+    populateFormData(creditAnalysisForm);
+  }, [artifactError, creditAnalysisForm, populateFormData]);
 
   const buildPayload = useCallback(() => {
-    // Use FLAT PREFIXED FIELDS to match backend expectation (credit_analysis_form_ prefix)
+    const toIsoDateTime = (dateValue) => {
+      if (!dateValue) {
+        return null;
+      }
+
+      const normalizedValue = dateValue.includes('T') ? dateValue : `${dateValue}T00:00:00`;
+      return new Date(normalizedValue).toISOString();
+    };
+
     return {
-      credit_analysis_form_credit_analyst: creditAnalyst,
-      credit_analysis_form_industry_analysis: industryAnalysis,
-      credit_analysis_form_business_model_assessment: businessModelAssessment,
-      credit_analysis_form_management_quality: managementQuality,
-      credit_analysis_form_executive_summary: executiveSummary,
-      credit_analysis_form_key_risks: keyRisks,
-      credit_analysis_form_mitigating_factors: mitigatingFactors,
-      credit_analysis_form_revenue_analysis: revenueAnalysis,
-      credit_analysis_form_profitability_analysis: profitabilityAnalysis,
-      credit_analysis_form_cash_flow_analysis: cashFlowAnalysis,
-      credit_analysis_form_debt_capacity_analysis: debtCapacityAnalysis,
-      credit_analysis_form_credit_rating_recommendation: creditRatingRecommendation,
-      credit_analysis_form_probability_of_default: probabilityOfDefault ? parseFloat(probabilityOfDefault) : null,
-      credit_analysis_form_loss_given_default: lossGivenDefault ? parseFloat(lossGivenDefault) : null,
-      credit_analysis_form_climate_risk_score: climateRiskScore,
-      credit_analysis_form_esg_score: esgScore,
-      credit_analysis_form_transition_risk_assessment: transitionRiskAssessment,
-      credit_analysis_form_physical_risk_assessment: physicalRiskAssessment,
-      credit_analysis_form_recommendation: recommendation,
-      credit_analysis_form_recommended_conditions: recommendedConditions,
-      credit_analysis_form_form_started_at: formStartDate ? new Date(formStartDate).toISOString() : null,
-      credit_analysis_form_form_completed_at: new Date().toISOString(),
+      credit_analyst: creditAnalyst || null,
+      industry_analysis: industryAnalysis,
+      business_model_assessment: businessModelAssessment,
+      management_quality: managementQuality || null,
+      executive_summary: executiveSummary,
+      key_risks: keyRisks,
+      mitigating_factors: mitigatingFactors,
+      revenue_analysis: revenueAnalysis,
+      profitability_analysis: profitabilityAnalysis,
+      cash_flow_analysis: cashFlowAnalysis,
+      debt_capacity_analysis: debtCapacityAnalysis,
+      credit_rating_recommendation: creditRatingRecommendation || null,
+      probability_of_default: probabilityOfDefault ? parseFloat(probabilityOfDefault) : null,
+      loss_given_default: lossGivenDefault ? parseFloat(lossGivenDefault) : null,
+      climate_risk_score: climateRiskScore || null,
+      esg_score: esgScore || null,
+      transition_risk_assessment: transitionRiskAssessment,
+      physical_risk_assessment: physicalRiskAssessment,
+      recommendation: recommendation || null,
+      recommended_conditions: recommendedConditions,
+      form_started_at: toIsoDateTime(formStartDate),
+      form_completed_at: new Date().toISOString(),
     };
   }, [
     creditAnalyst, industryAnalysis, businessModelAssessment, managementQuality,
@@ -217,7 +241,6 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
       await saveCreditAnalysisForm(id, payload);
       navigate('/');
     } catch (error) {
-      console.error('Error saving credit analysis:', error);
       setTransitionError(error.message || 'Failed to save data.');
     } finally {
       setTransitionLoading(false);
@@ -230,22 +253,13 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
     const payload = buildPayload();
 
     try {
-      console.log('Credit Analysis Form - Saving form data first...');
-      console.log('Payload:', JSON.stringify(payload, null, 2));
-      
       // First save form data using proper API service
       await saveCreditAnalysisForm(id, payload);
-      console.log('Credit Analysis Form - Form data saved successfully');
       
       // Then perform transition with proper Phase 3 payload structure
       const transitionPayload = { transition_code: transition.code, comments: comments };
-      
-      console.log('Credit Analysis Form - Performing transition...');
-      console.log('Transition payload:', JSON.stringify(transitionPayload, null, 2));
-      console.log('Workflow instance ID:', workflowInstanceId);
-      
+
       await performWorkflowTransition(workflowInstanceId, transitionPayload);
-      console.log('Credit Analysis Form - Transition performed successfully');
       
       // Navigate on success if metadata specifies a path
       const navigatePath = transition.metadata?.ui_behavior?.navigate_on_success;
@@ -262,8 +276,6 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
       // Use same error handling pattern as other Phase 3 forms
       let detailedError = 'An unexpected error occurred during transition.';
       if (error.response) {
-        console.error('Backend error response data:', error.response.data);
-        console.error('Backend error response status:', error.response.status);
         if (error.response.data) {
           const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
           detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
@@ -271,10 +283,8 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
           detailedError = `Backend Error: (Status: ${error.response.status}) - No additional data.`;
         }
       } else if (error.request) {
-        console.error('Transition error: No response received:', error.request);
         detailedError = 'Transition error: No response received from server.';
       } else {
-        console.error('Transition setup error:', error.message);
         detailedError = `Error: ${error.message}`;
       }
       setTransitionError(detailedError);
@@ -299,6 +309,7 @@ const CreditAnalysisForm = ({ creditApplication: initialCreditApplication, curre
     allowedTransitions: allowedTransitions || [],
     colors: colors,
   };
+  const loading = applicationLoading || artifactLoading;
 
   if (loading) {
     return <div>Loading...</div>;

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Counterparty information section component
@@ -22,7 +21,6 @@ const CounterpartySection = ({
   guarantorName, // Add prop for denormalized field
   disabled
 }) => {
-  const theme = useTheme();
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
       {loadingCounterparties ? (

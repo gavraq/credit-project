@@ -3,20 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { fetchUsersByRole, fetchCreditRequest, submitCreditReview, performWorkflowTransition } from '../../services/api';
+import { fetchCreditRequest, fetchUsersByRole, submitCreditReview, performWorkflowTransition } from '../../services/api';
 import FormPageWrapper from '../common/FormPageWrapper';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
 import CreditApplicationDetailsSection from '../common/CreditApplicationDetailsSection';
+import useCreditArtifactResource from '../../hooks/useCreditArtifactResource';
 
 const CreditReviewForm = ({ creditApplication: initialCreditApplication, currentStep = 2 }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
-  const [loading, setLoading] = useState(true);
+  const [applicationLoading, setApplicationLoading] = useState(true);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
-  const [creditApplication, setCreditApplication] = useState(null);
+  const [creditApplication, setCreditApplication] = useState(initialCreditApplication || null);
   const user = useSelector(state => state.auth.user);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
@@ -35,16 +36,20 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
   const [formCompletionDate, setFormCompletionDate] = useState('');
   const [creditAnalysts, setCreditAnalysts] = useState([]);
   const [loadingAnalysts, setLoadingAnalysts] = useState(false);
+  const {
+    detail: creditReviewForm,
+    loading: artifactLoading,
+    error: artifactError,
+  } = useCreditArtifactResource(
+    id,
+    creditApplication,
+    'credit_review_form',
+    { refreshKey: refetchTrigger }
+  );
 
 
-  const populateFormData = useCallback((data) => {
-    if (!data) return;
-
-    setCreditApplication(data);
-
-    const reviewForm = data.credit_review_form;
+  const populateFormData = useCallback((reviewForm) => {
     if (!reviewForm) {
-      console.error('No credit_review_form found in data');
       return;
     }
 
@@ -55,9 +60,7 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
     }
     
     // Use available_transitions from Credit Review Form serializer
-    console.log('Available transitions from API:', reviewForm.available_transitions);
     setAllowedTransitions(reviewForm.available_transitions || []);
-    console.log('Setting allowedTransitions state to:', reviewForm.available_transitions || []);
 
     // Map backend field names to frontend state
     const defaultReviewer = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '';
@@ -74,7 +77,10 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
       setAssignedAnalyst('');
     }
     setDelegatedAuthority(reviewForm.delegated_authority_level || '');
-    setNeedQuestionnaire(reviewForm.questionnaire_required ? 'yes' : 'no');
+    setNeedQuestionnaire(
+      reviewForm.questionnaire_required === true ? 'true' :
+      reviewForm.questionnaire_required === false ? 'false' : ''
+    );
     setAdditionalInfo(reviewForm.additional_information_request || '');
     setRejectionReason(reviewForm.rejection_reason || '');
     setFormStartDate(reviewForm.form_started_at ? reviewForm.form_started_at.split('T')[0] : new Date().toISOString().split('T')[0]);
@@ -87,7 +93,7 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
       const analysts = await fetchUsersByRole('Credit Analyst');
       setCreditAnalysts(analysts || []);
     } catch (error) {
-      console.error('Failed to fetch credit analysts:', error);
+      setCreditAnalysts([]);
     } finally {
       setLoadingAnalysts(false);
     }
@@ -96,40 +102,62 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
   useEffect(() => {
     const fetchData = async () => {
       if (!id) {
-        setLoading(false);
+        setApplicationLoading(false);
         return;
       }
-      setLoading(true);
+      setApplicationLoading(true);
       try {
-        const data = await fetchCreditRequest(id);
-        populateFormData(data);
+        const application = await fetchCreditRequest(id);
+        setCreditApplication(application);
+        setTransitionError(null);
       } catch (error) {
-        console.error('Failed to fetch credit application:', error);
         setTransitionError('Failed to load application data.');
+        setCreditApplication(null);
       } finally {
-        setLoading(false);
+        setApplicationLoading(false);
       }
     };
 
-    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
-    // This ensures workflow transitions are always up-to-date
     fetchData();
     fetchAndSetAnalysts();
-  }, [id, refetchTrigger, populateFormData, fetchAndSetAnalysts]);
+  }, [id, refetchTrigger, fetchAndSetAnalysts]);
+
+  useEffect(() => {
+    if (artifactError) {
+      setTransitionError('Failed to load credit review form data.');
+      return;
+    }
+
+    if (!creditReviewForm) {
+      return;
+    }
+
+    populateFormData(creditReviewForm);
+  }, [artifactError, creditReviewForm, populateFormData]);
 
   const buildPayload = useCallback(() => {
-    // Use FLAT PREFIXED FIELDS - SAME PATTERN as working CreditRequestForm 
-    return {
-      credit_review_form_credit_reviewer: user?.id || null, // Use current user's ID, not name
-      credit_review_form_assigned_credit_analyst: assignedAnalyst,
-      credit_review_form_delegated_authority_level: delegatedAuthority,
-      credit_review_form_questionnaire_required: needQuestionnaire === 'yes',
-      credit_review_form_additional_information_request: additionalInfo,
-      credit_review_form_rejection_reason: rejectionReason,
-      credit_review_form_form_started_at: formStartDate,
-      credit_review_form_form_completed_at: formCompletionDate || new Date().toISOString().split('T')[0],
+    const toIsoDateTime = (dateValue) => {
+      if (!dateValue) {
+        return null;
+      }
+
+      const hasTime = dateValue.includes('T');
+      const normalizedValue = hasTime ? dateValue : `${dateValue}T00:00:00`;
+      return new Date(normalizedValue).toISOString();
     };
-  }, [user?.id, assignedAnalyst, delegatedAuthority, needQuestionnaire, additionalInfo, rejectionReason, formStartDate, formCompletionDate]);
+
+    return {
+      assigned_credit_analyst: assignedAnalyst || null,
+      delegated_authority_level: delegatedAuthority || null,
+      questionnaire_required: needQuestionnaire === 'true',
+      additional_information_request: additionalInfo,
+      rejection_reason: rejectionReason,
+      form_started_at: toIsoDateTime(formStartDate),
+      form_completed_at: toIsoDateTime(
+        formCompletionDate || new Date().toISOString().split('T')[0]
+      ),
+    };
+  }, [assignedAnalyst, delegatedAuthority, needQuestionnaire, additionalInfo, rejectionReason, formStartDate, formCompletionDate]);
 
   const handleSave = async () => {
     setTransitionLoading(true);
@@ -139,7 +167,6 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
       await submitCreditReview(id, payload);
       navigate('/dashboard');
     } catch (error) {
-      console.error('Error saving credit review:', error);
       setTransitionError(error.message || 'Failed to save data.');
     } finally {
       setTransitionLoading(false);
@@ -157,23 +184,14 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
     const payload = buildPayload();
 
     try {
-      console.log('Credit Review Form - Saving form data first...');
-      console.log('Payload:', JSON.stringify(payload, null, 2));
-      
       // First save form data
       await submitCreditReview(id, payload);
-      console.log('Credit Review Form - Form data saved successfully');
       
       // Then perform transition with proper Phase 3 payload structure
       const transitionComments = transition.name.toLowerCase().includes('reject') ? rejectionReason : comments;
       const transitionPayload = { transition_code: transition.code, comments: transitionComments };
-      
-      console.log('Credit Review Form - Performing transition...');
-      console.log('Transition payload:', JSON.stringify(transitionPayload, null, 2));
-      console.log('Workflow instance ID:', workflowInstanceId);
-      
+
       await performWorkflowTransition(workflowInstanceId, transitionPayload);
-      console.log('Credit Review Form - Transition performed successfully');
       
       // Navigate on success if metadata specifies a path
       const navigatePath = transition.metadata?.ui_behavior?.navigate_on_success;
@@ -190,8 +208,6 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
       // Use same error handling pattern as Credit Request Form
       let detailedError = 'An unexpected error occurred during transition.';
       if (error.response) {
-        console.error('Backend error response data:', error.response.data);
-        console.error('Backend error response status:', error.response.status);
         if (error.response.data) {
           const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
           detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
@@ -199,10 +215,8 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
           detailedError = `Backend Error: (Status: ${error.response.status}) - No additional data.`;
         }
       } else if (error.request) {
-        console.error('Transition error: No response received:', error.request);
         detailedError = 'Transition error: No response received from server.';
       } else {
-        console.error('Transition setup error:', error.message);
         detailedError = `Error: ${error.message}`;
       }
       setTransitionError(detailedError);
@@ -225,6 +239,7 @@ const CreditReviewForm = ({ creditApplication: initialCreditApplication, current
     handleTransition: handleTransition,
     allowedTransitions: allowedTransitions || [],
   };
+  const loading = applicationLoading || artifactLoading;
 
   if (loading) {
     return <div>Loading...</div>;

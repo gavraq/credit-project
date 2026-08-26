@@ -18,13 +18,9 @@ const ApplicationDetails = () => {
       try {
         setLoading(true);
         const response = await get(`/api/credit/credit-applications/${id}/`);
-        console.log('ApplicationDetails - Fetched application:', response.data);
-        console.log('ApplicationDetails - Sub-processes:', response.data.sub_processes);
-        console.log('ApplicationDetails - Workflow state:', response.data.workflow_state);
         setApplication(response.data);
       } catch (err) {
         setError('Failed to fetch application details.');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -60,17 +56,12 @@ const ApplicationDetails = () => {
   let mainWorkflowStep = 1; // Default
   
   if (application && application.workflow_state) {
-    console.log('ApplicationDetails - Workflow state:', application.workflow_state);
-    console.log('ApplicationDetails - State metadata:', application.workflow_state.metadata);
-    
     if (application.workflow_state.metadata?.step_number) {
       // Use metadata-driven step number (preferred approach)
       mainWorkflowStep = application.workflow_state.metadata.step_number;
-      console.log('ApplicationDetails - Using metadata step_number:', mainWorkflowStep);
     } else if (application.workflow_state.code) {
       // Fallback: derive step from state name if metadata not available
       const workflowStateCode = application.workflow_state.code;
-      console.log('ApplicationDetails - No step_number in metadata, falling back to string matching for:', workflowStateCode);
       
       if (workflowStateCode.includes('CREDIT_REQUEST')) {
         mainWorkflowStep = 1;
@@ -85,10 +76,10 @@ const ApplicationDetails = () => {
       } else if (workflowStateCode.includes('APPROVAL_PENDING') || workflowStateCode.includes('APPROVED') || workflowStateCode.includes('REJECTED')) {
         mainWorkflowStep = 6;
       }
-      
-      console.log('ApplicationDetails - Fallback determined step:', mainWorkflowStep, 'for state:', workflowStateCode);
     }
   }
+
+  const processEntries = application?.artifacts || [];
 
   if (!application) {
     return (
@@ -126,34 +117,34 @@ const ApplicationDetails = () => {
 
         <Paper sx={{ p: 2 }}>
           <Typography variant="h6" gutterBottom>
-            Sub-Processes
+            Workflow Artifacts
           </Typography>
           <List>
-            {application.sub_processes && application.sub_processes.length > 0 ? (
-              application.sub_processes.map((process, index) => (
+            {processEntries.length > 0 ? (
+              processEntries.map((process, index) => (
                 <React.Fragment key={index}>
                   <ListItem>
                     <ListItemText 
-                      primary={process.form_name} 
-                      secondary={`Status: ${process.data?.workflow_instance?.current_state || 'Not Started'}`}
+                      primary={process.title || process.key}
+                      secondary={`Status: ${process.workflow_code || 'Not Started'}`}
                     />
                     <Button 
                       variant="contained" 
                       onClick={() => {
                         // Use backend-determined permission for edit/view mode
-                        const mode = process.can_edit ? 'edit' : 'view';
-                        handleNavigate(process.form_key, mode);
+                        const mode = process.editable ? 'edit' : 'view';
+                        handleNavigate(process.key, mode);
                       }}
-                      disabled={!process.form_key}
+                      disabled={!process.key}
                     >
-                      {process.can_edit ? 'Edit' : 'View'}
+                      {process.editable ? 'Edit' : 'View'}
                     </Button>
                   </ListItem>
-                  {index < application.sub_processes.length - 1 && <Divider />}
+                  {index < processEntries.length - 1 && <Divider />}
                 </React.Fragment>
               ))
             ) : (
-              <Typography>No sub-processes found for this application.</Typography>
+              <Typography>No workflow artifacts found for this application.</Typography>
             )}
           </List>
         </Paper>

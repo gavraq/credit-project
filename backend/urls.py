@@ -25,7 +25,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from backend.views import ProtectedHelloView, HealthCheckView
-from backend.users.views import WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView, WorkflowInstanceDetailView, WorkflowInstanceListView # MyTokenObtainPairView is now imported above
+from backend.users.views import WorkflowInstanceArtifactListView, WorkflowInstanceTransitionView, WorkflowInstanceLogListView, UserListView, WorkflowInstanceDetailView, WorkflowInstanceListView # MyTokenObtainPairView is now imported above
 
 urlpatterns = [
     path('', lambda request: redirect('/admin/')),  # Redirect root to admin
@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/hello/', ProtectedHelloView.as_view(), name='protected_hello'),
     path('api/workflow-instances/', WorkflowInstanceListView.as_view(), name='workflow_instance_list'),
     path('api/workflow-instances/<uuid:pk>/', WorkflowInstanceDetailView.as_view(), name='workflow_instance_detail'),
+    path('api/workflow-instances/<uuid:pk>/artifacts/', WorkflowInstanceArtifactListView.as_view(), name='workflow_instance_artifacts'),
     path('api/workflow-instances/<uuid:pk>/transition/', WorkflowInstanceTransitionView.as_view(), name='workflow_instance_transition'),
     path('api/workflow-instances/<uuid:pk>/logs/', WorkflowInstanceLogListView.as_view(), name='workflow_instance_logs'),
     path('api/credit/', include('credit_applications.urls')),

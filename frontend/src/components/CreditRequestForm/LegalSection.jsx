@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTheme } from '@mui/material/styles';
 import FormField from '../common/FormField';
 
 // Legal & Financial Documentation section component
@@ -13,7 +12,6 @@ const LegalSection = ({
   interimStatementsAvailable,
   setInterimStatementsAvailable
 }) => {
-  const theme = useTheme();
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
       <FormField 

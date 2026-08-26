@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { fetchCreditRequest, performWorkflowTransition, saveCreditQuestionnaireForm } from '../../services/api'; 
+import { fetchCreditRequest, performWorkflowTransition, saveCreditQuestionnaireForm } from '../../services/api';
 import FormPageWrapper from '../common/FormPageWrapper';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
@@ -11,14 +11,15 @@ import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Button from '@mui/material/Button';
+import useCreditArtifactResource from '../../hooks/useCreditArtifactResource';
 
 const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }) => {
   const { id } = useParams(); // This is credit_application_id
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [applicationLoading, setApplicationLoading] = useState(true);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
-  const [creditApplication, setCreditApplication] = useState(null);
+  const [creditApplication, setCreditApplication] = useState(initialCreditApplication || null);
   const user = useSelector(state => state.auth.user);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
@@ -31,6 +32,16 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
   const [formStartDate, setFormStartDate] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [formData, setFormData] = useState({});
+  const {
+    detail: creditQuestionnaireForm,
+    loading: artifactLoading,
+    error: artifactError,
+  } = useCreditArtifactResource(
+    id,
+    creditApplication,
+    'credit_questionnaire_form',
+    { refreshKey: refetchTrigger }
+  );
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -63,142 +74,111 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
     neutral900: '#1F2933'
   };
 
-  const populateFormData = (data) => {
-    if (!data) return;
-    setCreditApplication(data); // Store the whole application object
-
+  const populateFormData = (formDetail) => {
     const initialFormData = {};
 
     // Populate Credit Questionnaire Form specific data - Phase 3 pattern
-    if (data.credit_questionnaire_form) {
-      console.log('Found credit_questionnaire_form, available_transitions:', data.credit_questionnaire_form.available_transitions);
-      const cqForm = data.credit_questionnaire_form;
-      
-      // Use Credit Questionnaire Form sub-process workflow - SAME PATTERN as other Phase 3 forms
-      if (cqForm.workflow_instance) {
-        setWorkflowInstanceId(cqForm.workflow_instance.id);
-        setCurrentWorkflowState(cqForm.workflow_instance.current_state || 'Draft');
-      }
-      
-      // Use available_transitions from Credit Questionnaire Form serializer
-      console.log('Available transitions from API:', cqForm.available_transitions);
-      setAllowedTransitions(cqForm.available_transitions || []);
-      console.log('Setting allowedTransitions state to:', cqForm.available_transitions || []);
-
-      // Populate directly from model fields (Phase 3 pattern - explicit database fields)
-      // Tab 1: Business Model
-      initialFormData.business_model_description = cqForm.business_model_description || '';
-      initialFormData.key_suppliers_customers = cqForm.key_suppliers_customers || '';
-      
-      // Tab 2: Trading Activities - Core Trading
-      initialFormData.primary_products = cqForm.primary_products || '';
-      initialFormData.trading_flow_drivers = cqForm.trading_flow_drivers || '';
-      initialFormData.position_size_drivers = cqForm.position_size_drivers || '';
-      initialFormData.typical_max_tenor = cqForm.typical_max_tenor || '';
-      initialFormData.strategic_vs_proprietary = cqForm.strategic_vs_proprietary || '';
-      
-      // Tab 2: Trading Activities - Physical Positions
-      initialFormData.icbcs_financing = cqForm.icbcs_financing || '';
-      initialFormData.total_counterparty_financing_lines = cqForm.total_counterparty_financing_lines || '';
-      initialFormData.repo_hedging_management = cqForm.repo_hedging_management || '';
-      initialFormData.location_grade_details = cqForm.location_grade_details || '';
-      initialFormData.exit_risk_limits = cqForm.exit_risk_limits || '';
-      initialFormData.other_secured_trade_finance = cqForm.other_secured_trade_finance || '';
-      initialFormData.repo_balance_sheet_treatment = cqForm.repo_balance_sheet_treatment || '';
-      
-      // Tab 2: Trading Activities - Notional Positions
-      initialFormData.notional_value_requested = cqForm.notional_value_requested || '';
-      initialFormData.icbcs_proportion_total_book = cqForm.icbcs_proportion_total_book || '';
-      initialFormData.total_position_capacity = cqForm.total_position_capacity || '';
-      initialFormData.position_business_context = cqForm.position_business_context || '';
-      
-      // Tab 3: Risk Management - Hedge Effectiveness
-      initialFormData.material_basis_risk = cqForm.material_basis_risk || '';
-      initialFormData.hedge_accounting = cqForm.hedge_accounting || '';
-      
-      // Tab 3: Risk Management - Stress Testing
-      initialFormData.market_stress_tests = cqForm.market_stress_tests || '';
-      initialFormData.stress_management = cqForm.stress_management || '';
-      initialFormData.stress_governance = cqForm.stress_governance || '';
-      initialFormData.stress_assumptions = cqForm.stress_assumptions || '';
-      
-      // Tab 3: Risk Management - Policies & Governance
-      initialFormData.trading_policy_governance = cqForm.trading_policy_governance || '';
-      
-      // Tab 4: Funding & Liquidity
-      initialFormData.other_counterparties_count = cqForm.other_counterparties_count || '';
-      initialFormData.available_derivative_lines = cqForm.available_derivative_lines || '';
-      initialFormData.cash_banking_lines = cqForm.cash_banking_lines || '';
-      initialFormData.treasury_management_structure = cqForm.treasury_management_structure || '';
-      initialFormData.usd_cash_location = cqForm.usd_cash_location || '';
-      initialFormData.china_parent_restrictions = cqForm.china_parent_restrictions || '';
-      initialFormData.margining_vs_unmargined = cqForm.margining_vs_unmargined || '';
-
-    } else {
-      // If no form data exists, set defaults
+    if (!formDetail) {
+      setWorkflowInstanceId(null);
+      setCurrentWorkflowState('');
+      setAllowedTransitions([]);
       setFormStartDate(new Date().toISOString().split('T')[0]);
+      setFormData({});
+      return;
     }
+
+    if (formDetail.workflow_instance) {
+      setWorkflowInstanceId(formDetail.workflow_instance.id);
+      setCurrentWorkflowState(formDetail.workflow_instance.current_state || 'Draft');
+    }
+
+    setAllowedTransitions(formDetail.available_transitions || []);
+
+    initialFormData.business_model_description = formDetail.business_model_description || '';
+    initialFormData.key_suppliers_customers = formDetail.key_suppliers_customers || '';
+    initialFormData.primary_products = formDetail.primary_products || '';
+    initialFormData.trading_flow_drivers = formDetail.trading_flow_drivers || '';
+    initialFormData.position_size_drivers = formDetail.position_size_drivers || '';
+    initialFormData.typical_max_tenor = formDetail.typical_max_tenor || '';
+    initialFormData.strategic_vs_proprietary = formDetail.strategic_vs_proprietary || '';
+    initialFormData.icbcs_financing = formDetail.icbcs_financing || '';
+    initialFormData.total_counterparty_financing_lines = formDetail.total_counterparty_financing_lines || '';
+    initialFormData.repo_hedging_management = formDetail.repo_hedging_management || '';
+    initialFormData.location_grade_details = formDetail.location_grade_details || '';
+    initialFormData.exit_risk_limits = formDetail.exit_risk_limits || '';
+    initialFormData.other_secured_trade_finance = formDetail.other_secured_trade_finance || '';
+    initialFormData.repo_balance_sheet_treatment = formDetail.repo_balance_sheet_treatment || '';
+    initialFormData.notional_value_requested = formDetail.notional_value_requested || '';
+    initialFormData.icbcs_proportion_total_book = formDetail.icbcs_proportion_total_book || '';
+    initialFormData.total_position_capacity = formDetail.total_position_capacity || '';
+    initialFormData.position_business_context = formDetail.position_business_context || '';
+    initialFormData.material_basis_risk = formDetail.material_basis_risk || '';
+    initialFormData.hedge_accounting = formDetail.hedge_accounting || '';
+    initialFormData.market_stress_tests = formDetail.market_stress_tests || '';
+    initialFormData.stress_management = formDetail.stress_management || '';
+    initialFormData.stress_governance = formDetail.stress_governance || '';
+    initialFormData.stress_assumptions = formDetail.stress_assumptions || '';
+    initialFormData.trading_policy_governance = formDetail.trading_policy_governance || '';
+    initialFormData.other_counterparties_count = formDetail.other_counterparties_count || '';
+    initialFormData.available_derivative_lines = formDetail.available_derivative_lines || '';
+    initialFormData.cash_banking_lines = formDetail.cash_banking_lines || '';
+    initialFormData.treasury_management_structure = formDetail.treasury_management_structure || '';
+    initialFormData.usd_cash_location = formDetail.usd_cash_location || '';
+    initialFormData.china_parent_restrictions = formDetail.china_parent_restrictions || '';
+    initialFormData.margining_vs_unmargined = formDetail.margining_vs_unmargined || '';
     setFormData(initialFormData);
   };
 
   useEffect(() => {
-    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
-    // This ensures workflow transitions are always up-to-date
-    if (id) {
-      setLoading(true);
-      fetchCreditRequest(id)
-        .then(data => {
-          populateFormData(data);
-        })
-        .catch(error => {
-          console.error('Error fetching credit application:', error);
-          setTransitionError('Failed to load credit application data.');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
-  }, [id, user, refetchTrigger]);
+    const fetchData = async () => {
+      if (!id) {
+        setApplicationLoading(false);
+        return;
+      }
 
-  // Save function - returns true/false for success
-  const handleSave = async () => {
-    setLoading(true);
-    setTransitionError(null);
-
-    // Use FLAT PREFIXED FIELDS to match backend expectation
-    const payload = {
-      credit_questionnaire_form_start_date: formStartDate || new Date().toISOString().split('T')[0],
-      // form_completion_date is set on final submission via workflow
+      setApplicationLoading(true);
+      try {
+        const application = await fetchCreditRequest(id);
+        setCreditApplication(application);
+        setTransitionError(null);
+      } catch (error) {
+        setTransitionError('Failed to load credit application data.');
+        setCreditApplication(null);
+      } finally {
+        setApplicationLoading(false);
+      }
     };
 
-    // Add all form data fields with prefix - MUST match backend metadata
-    Object.keys(formData).forEach(key => {
-      payload[`credit_questionnaire_form_${key}`] = formData[key];
-    });
+    fetchData();
+  }, [id, user, refetchTrigger]);
 
-    if (!workflowInstanceId) {
-      payload.credit_questionnaire_create_workflow_instance = true;
+  useEffect(() => {
+    if (artifactError) {
+      setTransitionError('Failed to load credit questionnaire form data.');
+      return;
     }
 
-    try {
-      const response = await saveCreditQuestionnaireForm(id, payload);
-      populateFormData(response.data); // Update state with response
-      setLoading(false);
-      return true; // Indicate success
-    } catch (error) {
-      console.error('Error saving Credit Questionnaire form:', error);
-      setTransitionError(error.response?.data?.detail || 'Failed to save form.');
-      setLoading(false);
-      return false; // Indicate failure
-    }
+    populateFormData(creditQuestionnaireForm);
+  }, [artifactError, creditQuestionnaireForm]);
+
+  const buildPayload = () => {
+    const toIsoDateTime = (dateValue) => {
+      if (!dateValue) {
+        return null;
+      }
+
+      const normalizedValue = dateValue.includes('T') ? dateValue : `${dateValue}T00:00:00`;
+      return new Date(normalizedValue).toISOString();
+    };
+
+    return {
+      ...formData,
+      form_started_at: toIsoDateTime(formStartDate || new Date().toISOString().split('T')[0]),
+    };
   };
 
   // Phase 3 handleTransition pattern - matches other forms exactly
   const handleTransition = async (transition, comments = '') => {
-    console.log('Credit Questionnaire Form - handleTransition called with:', { transition, comments });
-    
     if (!workflowInstanceId) {
       setTransitionError('Cannot perform transitions - workflow instance not found.');
       return;
@@ -207,37 +187,16 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
     setTransitionLoading(true);
     setTransitionError(null);
     
-    // Build payload like other Phase 3 forms
-    const payload = {
-      credit_questionnaire_form_start_date: formStartDate || new Date().toISOString().split('T')[0],
-    };
-
-    // Add all form data fields with prefix - MUST match backend metadata
-    Object.keys(formData).forEach(key => {
-      payload[`credit_questionnaire_form_${key}`] = formData[key];
-    });
-
-    if (!workflowInstanceId) {
-      payload.credit_questionnaire_create_workflow_instance = true;
-    }
+    const payload = buildPayload();
     
     try {
-      console.log('Credit Questionnaire Form - Saving form data first...');
-      console.log('Payload:', JSON.stringify(payload, null, 2));
-      
       // First save form data using proper API service
       await saveCreditQuestionnaireForm(id, payload);
-      console.log('Credit Questionnaire Form - Form data saved successfully');
       
       // Then perform transition with proper Phase 3 payload structure - SAME AS OTHER FORMS
       const transitionPayload = { transition_code: transition.code, comments: comments };
-      
-      console.log('Credit Questionnaire Form - Performing transition...');
-      console.log('Transition payload:', JSON.stringify(transitionPayload, null, 2));
-      console.log('Workflow instance ID:', workflowInstanceId);
-      
+
       await performWorkflowTransition(workflowInstanceId, transitionPayload);
-      console.log('Credit Questionnaire Form - Transition performed successfully');
       
       // Navigate on success if metadata specifies a path
       const navigatePath = transition.metadata?.ui_behavior?.navigate_on_success;
@@ -255,8 +214,6 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
       // Use same error handling pattern as BusinessSponsorshipForm
       let detailedError = 'An unexpected error occurred during transition.';
       if (error.response) {
-        console.error('Backend error response data:', error.response.data);
-        console.error('Backend error response status:', error.response.status);
         if (error.response.data) {
           const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
           detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
@@ -268,7 +225,6 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
       }
       
       setTransitionError(detailedError);
-      console.error('Credit Questionnaire Form - Transition failed:', detailedError);
     } finally {
       setTransitionLoading(false);
     }
@@ -292,6 +248,7 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
     allowedTransitions: allowedTransitions || [],
     colors: colors,
   };
+  const loading = applicationLoading || artifactLoading;
   
   if (loading) return <div style={{ textAlign: 'center', padding: '2rem' }}>Loading Credit Questionnaire Form...</div>;
 
@@ -686,7 +643,6 @@ const CreditQuestionnaireForm = ({ creditApplication: initialCreditApplication }
                 variant="outlined" 
                 startIcon={<span role="img" aria-label="attach">📎</span>} 
                 sx={{ textTransform: 'none', marginBottom: 2 }}
-                onClick={() => console.log('Attach Document clicked - placeholder')}
               >
                 Attach Document
               </Button>

@@ -221,6 +221,18 @@ class APIClient:
         data = response.json()
         return data.get('allowed_transitions', [])
 
+    def get_workflow_instance(self, workflow_instance_id: str) -> Dict[str, Any]:
+        """Get a workflow instance, including generic artifact records."""
+        response = self.get(f'/api/workflow-instances/{workflow_instance_id}/')
+        response.raise_for_status()
+        return response.json()
+
+    def list_workflow_artifacts(self, workflow_instance_id: str) -> List[Dict[str, Any]]:
+        """List generic artifact records for a workflow instance."""
+        response = self.get(f'/api/workflow-instances/{workflow_instance_id}/artifacts/')
+        response.raise_for_status()
+        return response.json()
+
     # ==========================================================================
     # Reference Data Endpoints
     # ==========================================================================
@@ -256,40 +268,64 @@ class APIClient:
         return data
 
     # ==========================================================================
+    # Generic Artifact Endpoints
+    # ==========================================================================
+
+    def get_credit_artifact(self, app_id: str, artifact_key: str) -> Dict[str, Any]:
+        """Get a credit workflow artifact via the generic artifact detail endpoint."""
+        response = self.get(f'/api/credit/credit-applications/{app_id}/artifacts/{artifact_key}/')
+        response.raise_for_status()
+        return response.json()
+
+    def save_credit_artifact(
+        self,
+        app_id: str,
+        artifact_key: str,
+        data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Save a credit workflow artifact via the generic artifact detail endpoint."""
+        response = self.patch(
+            f'/api/credit/credit-applications/{app_id}/artifacts/{artifact_key}/',
+            data,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    # ==========================================================================
     # Form-specific Save Methods
     # ==========================================================================
 
     def save_credit_request_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save credit request form data (Phase 1)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'credit_request_form', data)
 
     def save_credit_review_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save credit review form data (Phase 2)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'credit_review_form', data)
 
     def save_business_sponsorship_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save business sponsorship form data (Phase 3)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'business_sponsorship_form', data)
 
     def save_legal_review_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save legal review form data (Phase 4)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'legal_review_form', data)
 
     def save_credit_questionnaire_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save credit questionnaire form data (Phase 4)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'credit_questionnaire_form', data)
 
     def save_credit_analysis_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save credit analysis form data (Phase 4)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'credit_analysis_form', data)
 
     def save_credit_compilation_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save credit compilation form data (Phase 5)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'credit_compilation_form', data)
 
     def save_credit_approval_form(self, app_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save credit approval form data (Phase 6)."""
-        return self.update_credit_application(app_id, data)
+        return self.save_credit_artifact(app_id, 'credit_approval_form', data)
 
     # ==========================================================================
     # Climate Scorecard Endpoints

@@ -32,7 +32,6 @@ const ApplicationLoader = () => {
         setCreditApplication(data);
         setError(null);
       } catch (err) {
-        console.error('Error fetching credit application:', err);
         setError(err.message || 'Failed to load application data.');
         setCreditApplication(null);
       } finally {
@@ -87,10 +86,10 @@ const ApplicationLoader = () => {
   let formKeyToUse = null;
   if (formTypeFromQuery) {
     formKeyToUse = formTypeFromQuery.toLowerCase().replace(/_/g, '');
-  } else if (creditApplication && creditApplication.sub_processes && creditApplication.sub_processes.length > 0) {
-    const firstSubProcess = creditApplication.sub_processes[0];
-    if (firstSubProcess && firstSubProcess.form_key) {
-      formKeyToUse = firstSubProcess.form_key.toLowerCase().replace(/_/g, '');
+  } else if (creditApplication?.artifacts?.length > 0) {
+    const firstArtifact = creditApplication.artifacts[0];
+    if (firstArtifact?.key) {
+      formKeyToUse = firstArtifact.key.toLowerCase().replace(/_/g, '');
     }
   }
 

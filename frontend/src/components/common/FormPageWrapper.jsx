@@ -11,7 +11,6 @@ const FormPageWrapper = ({
 }) => {
   // Destructure key from props to apply it directly, avoiding React's spread warning.
   const { key, ...restActionsProps } = workflowActionsProps || {};
-  console.log('FormPageWrapper - workflowActionsProps:', workflowActionsProps);
   return (
     <div className="flex flex-col min-h-screen bg-gray-100"> {/* Ensure full page background */}
       <TopNavBar />

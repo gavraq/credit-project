@@ -44,21 +44,21 @@ class TestCreditRequestTransitions:
         app = rm_client.get_credit_application(app_id)
 
         # Get the credit request form workflow instance
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if not cr_form or not cr_form.get('workflow_instance'):
             pytest.skip("Credit request form workflow not initialized")
 
         wf_id = cr_form['workflow_instance']['id']
 
         # Verify starting state
-        assert workflow_helper.get_form_state(app, 'credit_request_form') == 'Draft'
+        assert workflow_helper.get_artifact_state(cr_form) == 'Draft'
 
         # Perform transition
         rm_client.perform_transition(wf_id, 'CR_TR_2', 'Moving to in progress')
 
         # Verify new state
-        app = rm_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'credit_request_form') == 'In Progress'
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+        assert workflow_helper.get_artifact_state(cr_form) == 'In Progress'
 
     def test_cr_tr_3_in_progress_to_draft(
         self,
@@ -79,7 +79,7 @@ class TestCreditRequestTransitions:
         # Re-fetch to get full nested structure
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if not cr_form or not cr_form.get('workflow_instance'):
             pytest.skip("Credit request form workflow not initialized")
 
@@ -92,8 +92,8 @@ class TestCreditRequestTransitions:
         rm_client.perform_transition(wf_id, 'CR_TR_3', 'Moving back to draft')
 
         # Verify state
-        app = rm_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'credit_request_form') == 'Draft'
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+        assert workflow_helper.get_artifact_state(cr_form) == 'Draft'
 
     def test_cr_tr_4_submit_credit_request(
         self,
@@ -115,7 +115,7 @@ class TestCreditRequestTransitions:
         # Re-fetch to get full nested structure
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if not cr_form or not cr_form.get('workflow_instance'):
             pytest.skip("Credit request form workflow not initialized")
 
@@ -128,8 +128,8 @@ class TestCreditRequestTransitions:
         rm_client.perform_transition(wf_id, 'CR_TR_4', 'Submitting credit request')
 
         # Verify state
-        app = rm_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'credit_request_form') == 'Submitted'
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
+        assert workflow_helper.get_artifact_state(cr_form) == 'Submitted'
 
         # Verify parent workflow moved to Credit Review Pending
         parent_state = workflow_helper.get_current_state(app)
@@ -157,7 +157,7 @@ class TestCreditReviewTransitions:
         rm_client.save_credit_request_form(app_id, credit_request_form_data)
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if cr_form and cr_form.get('workflow_instance'):
             wf_id = cr_form['workflow_instance']['id']
             rm_client.perform_transition(wf_id, 'CR_TR_2', 'Moving to in progress')
@@ -184,7 +184,7 @@ class TestCreditReviewTransitions:
         # Re-fetch to get full nested structure
         app = ca_client.get_credit_application(app_id)
 
-        crv_form = app.get('credit_review_form')
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
         if not crv_form or not crv_form.get('workflow_instance'):
             pytest.skip("Credit review form workflow not initialized")
 
@@ -194,8 +194,8 @@ class TestCreditReviewTransitions:
         ca_client.perform_transition(wf_id, 'CRV_TR_2', 'Starting credit review')
 
         # Verify state
-        app = ca_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'credit_review_form') == 'In Progress'
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
+        assert workflow_helper.get_artifact_state(crv_form) == 'In Progress'
 
     def test_crv_tr_4_submit_credit_review(
         self,
@@ -216,7 +216,7 @@ class TestCreditReviewTransitions:
         # Re-fetch to get full nested structure
         app = ca_client.get_credit_application(app_id)
 
-        crv_form = app.get('credit_review_form')
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
         if not crv_form or not crv_form.get('workflow_instance'):
             pytest.skip("Credit review form workflow not initialized")
 
@@ -229,8 +229,8 @@ class TestCreditReviewTransitions:
         ca_client.perform_transition(wf_id, 'CRV_TR_4', 'Submitting review')
 
         # Verify state
-        app = ca_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'credit_review_form') == 'Submitted'
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
+        assert workflow_helper.get_artifact_state(crv_form) == 'Submitted'
 
 
 # =============================================================================
@@ -257,7 +257,7 @@ class TestBusinessSponsorshipTransitions:
         rm_client.save_credit_request_form(app_id, credit_request_form_data)
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if cr_form and cr_form.get('workflow_instance'):
             wf_id = cr_form['workflow_instance']['id']
             rm_client.perform_transition(wf_id, 'CR_TR_2', 'To in progress')
@@ -267,7 +267,7 @@ class TestBusinessSponsorshipTransitions:
         ca_client.save_credit_review_form(app_id, credit_review_form_data)
         app = ca_client.get_credit_application(app_id)
 
-        crv_form = app.get('credit_review_form')
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
         if crv_form and crv_form.get('workflow_instance'):
             wf_id = crv_form['workflow_instance']['id']
             ca_client.perform_transition(wf_id, 'CRV_TR_2', 'Starting review')
@@ -294,7 +294,7 @@ class TestBusinessSponsorshipTransitions:
         # Re-fetch to get full nested structure
         app = bs_client.get_credit_application(app_id)
 
-        bs_form = app.get('business_sponsorship_form')
+        bs_form = bs_client.get_credit_artifact(app_id, 'business_sponsorship_form')
         if not bs_form or not bs_form.get('workflow_instance'):
             pytest.skip("Business sponsorship form workflow not initialized")
 
@@ -304,8 +304,8 @@ class TestBusinessSponsorshipTransitions:
         bs_client.perform_transition(wf_id, 'BS_TR_2', 'Starting sponsorship')
 
         # Verify state
-        app = bs_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'business_sponsorship_form') == 'In Progress'
+        bs_form = bs_client.get_credit_artifact(app_id, 'business_sponsorship_form')
+        assert workflow_helper.get_artifact_state(bs_form) == 'In Progress'
 
     def test_bs_tr_4_submit_sponsorship(
         self,
@@ -327,7 +327,7 @@ class TestBusinessSponsorshipTransitions:
         # Re-fetch to get full nested structure
         app = bs_client.get_credit_application(app_id)
 
-        bs_form = app.get('business_sponsorship_form')
+        bs_form = bs_client.get_credit_artifact(app_id, 'business_sponsorship_form')
         if not bs_form or not bs_form.get('workflow_instance'):
             pytest.skip("Business sponsorship form workflow not initialized")
 
@@ -338,8 +338,8 @@ class TestBusinessSponsorshipTransitions:
         bs_client.perform_transition(wf_id, 'BS_TR_4', 'Submitting sponsorship')
 
         # Verify state
-        app = bs_client.get_credit_application(app_id)
-        assert workflow_helper.get_form_state(app, 'business_sponsorship_form') == 'Submitted'
+        bs_form = bs_client.get_credit_artifact(app_id, 'business_sponsorship_form')
+        assert workflow_helper.get_artifact_state(bs_form) == 'Submitted'
 
 
 # =============================================================================
@@ -366,7 +366,7 @@ class TestRoleBasedTransitionAccess:
         # Re-fetch to get full nested structure
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if not cr_form or not cr_form.get('workflow_instance'):
             pytest.skip("Credit request form workflow not initialized")
 
@@ -396,7 +396,7 @@ class TestRoleBasedTransitionAccess:
         rm_client.save_credit_request_form(app_id, credit_request_form_data)
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if cr_form and cr_form.get('workflow_instance'):
             wf_id = cr_form['workflow_instance']['id']
             rm_client.perform_transition(wf_id, 'CR_TR_2', 'To in progress')
@@ -406,7 +406,7 @@ class TestRoleBasedTransitionAccess:
         ca_client.save_credit_review_form(app_id, credit_review_form_data)
         app = ca_client.get_credit_application(app_id)
 
-        crv_form = app.get('credit_review_form')
+        crv_form = ca_client.get_credit_artifact(app_id, 'credit_review_form')
         if not crv_form or not crv_form.get('workflow_instance'):
             pytest.skip("Credit review form workflow not initialized")
 
@@ -443,7 +443,7 @@ class TestInvalidTransitions:
         # Re-fetch to get full nested structure
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if not cr_form or not cr_form.get('workflow_instance'):
             pytest.skip("Credit request form workflow not initialized")
 
@@ -472,7 +472,7 @@ class TestInvalidTransitions:
         # Re-fetch to get full nested structure
         app = rm_client.get_credit_application(app_id)
 
-        cr_form = app.get('credit_request_form')
+        cr_form = rm_client.get_credit_artifact(app_id, 'credit_request_form')
         if not cr_form or not cr_form.get('workflow_instance'):
             pytest.skip("Credit request form workflow not initialized")
 

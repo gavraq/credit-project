@@ -1,11 +1,15 @@
 from django.core.management.base import BaseCommand
 from workflow_engine.models import Workflow, State, WorkflowInstance
 from credit_applications.models import CreditApplication, CreditReviewForm
-from workflow_engine.utils import auto_initialize_forms_for_state, get_relevant_sub_processes_for_state, get_dynamic_form_model_map
+from workflow_engine.utils import (
+    get_dynamic_artifact_model_map,
+    get_state_relevant_artifacts,
+    provision_artifacts_for_state,
+)
 from django.contrib.contenttypes.models import ContentType
 
 class Command(BaseCommand):
-    help = 'Debug specific credit review auto-initialization issue'
+    help = 'Debug specific credit review artifact provisioning issue'
 
     def handle(self, *args, **options):
         self.stdout.write("="*60)
@@ -17,9 +21,8 @@ class Command(BaseCommand):
         self.stdout.write("-" * 40)
         
         try:
-            # Test get_relevant_sub_processes_for_state
-            relevant_forms = get_relevant_sub_processes_for_state('CREDIT_PAPER_CREDIT_REVIEW_PENDING')
-            self.stdout.write(f"✅ get_relevant_sub_processes_for_state:")
+            relevant_forms = get_state_relevant_artifacts(review_state)
+            self.stdout.write("✅ relevant_artifacts resolution:")
             self.stdout.write(f"   Input: 'CREDIT_PAPER_CREDIT_REVIEW_PENDING'")
             self.stdout.write(f"   Output: {relevant_forms}")
             
@@ -29,24 +32,23 @@ class Command(BaseCommand):
                 self.stdout.write("   ❌ credit_review_form is NOT included")
                 return
         except Exception as e:
-            self.stdout.write(f"❌ Error in get_relevant_sub_processes_for_state: {e}")
+            self.stdout.write(f"❌ Error resolving relevant_artifacts: {e}")
             return
         
         try:
-            # Test get_dynamic_form_model_map
-            form_model_map = get_dynamic_form_model_map()
-            self.stdout.write(f"\\n✅ get_dynamic_form_model_map:")
-            self.stdout.write(f"   Found {len(form_model_map)} forms")
+            artifact_model_map = get_dynamic_artifact_model_map()
+            self.stdout.write(f"\\n✅ get_dynamic_artifact_model_map:")
+            self.stdout.write(f"   Found {len(artifact_model_map)} artifacts")
             
-            if 'credit_review_form' in form_model_map:
-                model_class = form_model_map['credit_review_form']
+            if 'credit_review_form' in artifact_model_map:
+                model_class = artifact_model_map['credit_review_form']
                 self.stdout.write(f"   ✅ credit_review_form → {model_class.__name__}")
             else:
                 self.stdout.write(f"   ❌ credit_review_form not found")
-                self.stdout.write(f"   Available: {list(form_model_map.keys())}")
+                self.stdout.write(f"   Available: {list(artifact_model_map.keys())}")
                 return
         except Exception as e:
-            self.stdout.write(f"❌ Error in get_dynamic_form_model_map: {e}")
+            self.stdout.write(f"❌ Error in get_dynamic_artifact_model_map: {e}")
             return
         
         # 2. Find a test application
@@ -94,23 +96,22 @@ class Command(BaseCommand):
         else:
             self.stdout.write("ℹ️  No Credit Review Form exists")
         
-        # 4. Test auto-initialization step by step
-        self.stdout.write("\n🧪 TESTING AUTO-INITIALIZATION STEP BY STEP")
+        # 4. Test artifact provisioning step by step
+        self.stdout.write("\n🧪 TESTING ARTIFACT PROVISIONING STEP BY STEP")
         self.stdout.write("-" * 40)
         
         try:
-            self.stdout.write("Step 1: Calling auto_initialize_forms_for_state...")
+            self.stdout.write("Step 1: Calling provision_artifacts_for_state...")
             
-            # Call the function with debugging
-            initialized_forms = auto_initialize_forms_for_state(
+            initialized_artifacts = provision_artifacts_for_state(
                 test_app, 
                 state_code='CREDIT_PAPER_CREDIT_REVIEW_PENDING'
             )
             
-            self.stdout.write(f"Step 2: Function returned: {list(initialized_forms.keys())}")
+            self.stdout.write(f"Step 2: Function returned: {list(initialized_artifacts.keys())}")
             
-            if 'credit_review_form' in initialized_forms:
-                form_instance = initialized_forms['credit_review_form']
+            if 'credit_review_form' in initialized_artifacts:
+                form_instance = initialized_artifacts['credit_review_form']
                 self.stdout.write(f"Step 3: Credit Review Form instance: ID {form_instance.id}")
                 
                 # Check if it has a workflow instance
@@ -133,7 +134,7 @@ class Command(BaseCommand):
                 self.stdout.write("Step 3: ❌ credit_review_form not in initialized forms")
                 
         except Exception as e:
-            self.stdout.write(f"❌ Auto-initialization failed: {e}")
+            self.stdout.write(f"❌ Artifact provisioning failed: {e}")
             import traceback
             self.stdout.write("Full traceback:")
             self.stdout.write(traceback.format_exc())
@@ -143,9 +144,9 @@ class Command(BaseCommand):
         self.stdout.write("-" * 40)
         
         self.stdout.write("Based on the audit, the parent workflow metadata is correct.")
-        self.stdout.write("If auto-initialization is still failing, the issue is likely:")
-        self.stdout.write("1. In the auto_initialize_forms_for_state function implementation")
+        self.stdout.write("If artifact provisioning is still failing, the issue is likely:")
+        self.stdout.write("1. In the provision_artifacts_for_state function implementation")
         self.stdout.write("2. In the WorkflowInstanceTransitionView not calling it properly")
-        self.stdout.write("3. In the dynamic form model creation process")
+        self.stdout.write("3. In the dynamic artifact model creation process")
         
         self.stdout.write("\n" + "="*60)

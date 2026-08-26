@@ -30,26 +30,16 @@ const RequestTrackingDashboard = () => {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [requests, setRequests] = useState([]);
   const [awaitingApproval, setAwaitingApproval] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [approvalLoading, setApprovalLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchRequests = async () => {
-      setLoading(true);
-      setError(null);
       try {
         const { get } = await import('../services/api');
         const response = await get('/api/credit/credit-applications/');
-        console.log('Fetched credit applications:', response.data);
-        console.log('Total applications fetched:', response.data.length);
-        console.log('Application IDs:', response.data.map(app => ({ id: app.id, ref: app.reference_number, title: app.title })));
         setRequests(response.data);
-      } catch (err) {
-        setError(err.message || 'Failed to fetch requests');
-        console.error('Failed to fetch requests:', err);
-      } finally {
-        setLoading(false);
+      } catch {
+        setRequests([]);
       }
     };
 
@@ -58,10 +48,8 @@ const RequestTrackingDashboard = () => {
       try {
         const { getApplicationsAwaitingMyApproval } = await import('../services/api');
         const approvalApps = await getApplicationsAwaitingMyApproval();
-        console.log('Fetched applications awaiting my approval:', approvalApps);
         setAwaitingApproval(approvalApps);
-      } catch (err) {
-        console.error('Failed to fetch applications awaiting approval:', err);
+      } catch {
         // Don't set error state for approval section - it might not be available for all users
         setAwaitingApproval([]);
       } finally {
@@ -79,7 +67,6 @@ const RequestTrackingDashboard = () => {
     // Add event listener to refetch when the tab becomes visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab is visible, refetching data...');
         fetchAllData();
       }
     };

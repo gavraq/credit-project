@@ -20,7 +20,7 @@ from .models import (
 )
 from .serializers import (
     CreditApplicationSerializer, CounterpartySerializer, LimitRequestSerializer,
-    LimitTypeSerializer, CreditRequestFormSerializer, LegalReviewFormSerializer,
+    LimitTypeSerializer, CreditRequestFormSerializer,
     CreditQuestionnaireFormSerializer, BusinessSponsorshipFormSerializer,
     CreditReviewFormSerializer, ClimateScorecardSerializer
 )
@@ -40,6 +40,14 @@ class LimitRequestViewSet(viewsets.ModelViewSet):
 class CreditApplicationViewSet(viewsets.ModelViewSet):
     queryset = CreditApplication.objects.all()
     serializer_class = CreditApplicationSerializer
+
+    def _get_artifact_serializer_class(self, artifact_key):
+        from credit_workflow.artifacts import get_artifact_serializer_map
+
+        serializer_map = get_artifact_serializer_map()
+        if artifact_key not in serializer_map:
+            raise KeyError(artifact_key)
+        return serializer_map[artifact_key]
     
     def update(self, request, *args, **kwargs):
         import json
@@ -76,11 +84,16 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                 print(f"Created parent workflow instance with ID: {parent_workflow_instance.id}")
                 
                 # Use metadata-driven auto-initialization for initial state
-                from workflow_engine.utils import auto_initialize_forms_for_state
-                initialized_forms = auto_initialize_forms_for_state(
-                    instance, 
+                from workflow_engine.services.artifacts import (
+                    provision_artifacts_for_workflow_instance,
+                    sync_artifacts_for_workflow_instance,
+                )
+
+                initialized_forms = provision_artifacts_for_workflow_instance(
+                    parent_workflow_instance,
                     state_code=initial_state.code
                 )
+                sync_artifacts_for_workflow_instance(parent_workflow_instance)
                 
                 if initialized_forms:
                     print(f"Auto-initialized {len(initialized_forms)} forms: {list(initialized_forms.keys())}")
@@ -206,51 +219,40 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=True, methods=['get', 'post'], url_path='legal-review-form')
-    def legal_review_form_handler(self, request, pk=None):
+    @action(detail=True, methods=['get', 'patch'], url_path=r'artifacts/(?P<artifact_key>[^/.]+)')
+    def artifact_detail(self, request, pk=None, artifact_key=None):
         credit_application = self.get_object()
+
         try:
-            legal_review_instance = LegalReviewForm.objects.get(credit_application=credit_application)
-        except LegalReviewForm.DoesNotExist:
-            if request.method == 'GET':
-                return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-            # If POST and not found, it will be created by the serializer if data is valid
-            legal_review_instance = None 
+            serializer_class = self._get_artifact_serializer_class(artifact_key)
+        except KeyError:
+            return Response(
+                {"detail": f"Artifact '{artifact_key}' is not supported."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from credit_workflow.artifacts import get_or_auto_initialize_artifact
+
+        form_instance = get_or_auto_initialize_artifact(credit_application, artifact_key)
+        if form_instance is None:
+            return Response(
+                {"detail": f"Artifact '{artifact_key}' is not available for this application."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         if request.method == 'GET':
-            serializer = LegalReviewFormSerializer(legal_review_instance, context={'request': request})
+            serializer = serializer_class(form_instance, context={'request': request})
             return Response(serializer.data)
 
-        elif request.method == 'POST':
-            # For POST, we are creating or updating the form_data
-            # The frontend sends the entire form_data blob
-            # We expect the payload to be like: { "form_data": { ... } }
-            # Or directly the form_data content: { "field1": "value1", ... }
-            # The saveLegalReviewForm in frontend sends { legal_review_form: { ... actual form data ... } }
-            # So request.data will be { legal_review_form: { ... } }
-            
-            form_payload = request.data.get('legal_review_form', request.data) # Adapt to actual payload structure
-
-            # We need to ensure the LegalReviewForm model instance exists
-            if legal_review_instance is None:
-                 # Create one if it doesn't exist, associating with the credit_application
-                 # This might also be handled by serializer if 'credit_application' is a writable field
-                 # Or, ensure it's created when CreditApplication is created/specific stage is reached.
-                 # For now, let's assume it should exist or be created here.
-                legal_review_instance = LegalReviewForm.objects.create(credit_application=credit_application, form_data={})
-            
-            # The serializer expects the instance and data for update
-            # The data should primarily be the form_data field
-            serializer = LegalReviewFormSerializer(
-                legal_review_instance, 
-                data={'form_data': form_payload}, # Pass the actual form data to 'form_data' field
-                partial=True, # Allow partial updates to form_data
-                context={'request': request}
-            )
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = serializer_class(
+            form_instance,
+            data=request.data,
+            partial=True,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='bulk-update-ranks')
     def bulk_update_ranks(self, request):
@@ -466,5 +468,3 @@ class CreditApplicationViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'detail': f'Error generating climate scorecard: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-

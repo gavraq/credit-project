@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 
@@ -15,26 +14,13 @@ const WorkflowActions = ({
   handleSubmit, // For new forms
   currentState = '', // Current workflow state name
 }) => {
-  const [comments, setComments] = useState('');
   const [selectedTransition, setSelectedTransition] = useState(null);
   // Use ref to prevent double-clicks (React state updates can be batched)
   const isProcessingRef = useRef(false);
 
-  console.log('WorkflowActions - Props received:', {
-    allowedTransitions,
-    isNewForm,
-    currentState,
-    transitionLoading,
-    transitionError: transitionError ? 'Error present' : 'No error'
-  });
-
   const handleTransitionClick = async (transition) => {
-    console.log('🎯 WorkflowActions handleTransitionClick called with:', transition);
-    console.log('🎯 About to call handleTransition function:', typeof handleTransition);
-
     // Use ref for immediate check (prevents race condition with React state batching)
     if (transitionLoading || isProcessingRef.current) {
-      console.log('🎯 Transition blocked - already processing');
       return;
     }
 
@@ -42,11 +28,9 @@ const WorkflowActions = ({
 
     try {
       setSelectedTransition(transition.code);
-      await handleTransition(transition, comments || `${transition.name} performed`);
-      setComments('');
+      await handleTransition(transition, '');
       setSelectedTransition(null);
     } catch (error) {
-      console.error('Transition failed:', error);
       setSelectedTransition(null);
     } finally {
       isProcessingRef.current = false;
@@ -94,7 +78,7 @@ const WorkflowActions = ({
             gap: 1
           }}
         >
-          📋 Workflow Actions
+          Workflow Actions
         </Typography>
         
         {transitionError && (
@@ -118,7 +102,7 @@ const WorkflowActions = ({
               py: 1
             }}
           >
-            {transitionLoading ? '💾 Saving...' : '💾 Save as Draft'}
+            {transitionLoading ? 'Saving...' : 'Save as Draft'}
           </Button>
           
           <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
@@ -152,7 +136,7 @@ const WorkflowActions = ({
             gap: 1
           }}
         >
-          📋 Workflow Actions
+          Workflow Actions
         </Typography>
         
         {currentState && (
@@ -173,7 +157,7 @@ const WorkflowActions = ({
         )}
         
         <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-          ℹ️ No workflow actions are currently available for your role and the current state.
+          No workflow actions are currently available for your role and the current state.
         </Typography>
       </Box>
     );
@@ -200,8 +184,8 @@ const WorkflowActions = ({
           alignItems: 'center',
           gap: 1
         }}
-      >
-        📋 Workflow Actions
+        >
+        Workflow Actions
       </Typography>
       
       {currentState && (
@@ -221,44 +205,8 @@ const WorkflowActions = ({
         </Alert>
       )}
       
-      {/* Comments input for all transitions */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-          Comments (optional):
-        </Typography>
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          value={comments}
-          onChange={(e) => setComments(e.target.value)}
-          placeholder="Add comments for this action..."
-          variant="outlined"
-          size="small"
-          sx={{
-            backgroundColor: 'white',
-            borderRadius: 1,
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': {
-                borderColor: '#CBD2D9',
-              },
-              '&:hover fieldset': {
-                borderColor: '#9AA5B1',
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: '#0c4da2',
-              },
-            },
-            '& .MuiInputBase-input::placeholder': {
-              color: '#9AA5B1',
-              opacity: 1,
-            },
-          }}
-        />
-      </Box>
-      
       {/* Dynamic buttons based on allowed transitions */}
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
         {allowedTransitions.map((transition) => {
           const buttonColor = getButtonColor(transition);
           const isProcessing = transitionLoading && selectedTransition === transition.code;
@@ -272,11 +220,11 @@ const WorkflowActions = ({
               disabled={transitionLoading}
               title={transition.description}
               sx={{ 
-                minWidth: '140px',
+                minWidth: '132px',
                 fontWeight: 600,
                 textTransform: 'none',
                 borderRadius: 2,
-                px: 3,
+                px: 2.5,
                 py: 1,
                 position: 'relative',
                 '&:hover': {
@@ -287,11 +235,9 @@ const WorkflowActions = ({
               }}
             >
               {isProcessing ? (
-                <>⏳ Processing...</>
+                <>Processing...</>
               ) : (
-                <>
-                  {buttonColor === 'success' ? '✅' : buttonColor === 'error' ? '❌' : '📝'} {transition.name}
-                </>
+                transition.name
               )}
             </Button>
           );
@@ -310,8 +256,7 @@ const WorkflowActions = ({
             lineHeight: '1rem'
           }}
         >
-          💡 Available actions are based on your role and the current workflow state. 
-          Hover over buttons for more details.
+          Available actions are based on your role and the current workflow state.
         </Typography>
       )}
     </Box>

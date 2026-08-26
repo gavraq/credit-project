@@ -1,18 +1,14 @@
 from rest_framework.views import APIView
-from django.contrib.contenttypes.models import ContentType
-from credit_applications.models import (
-    CreditApplication, CreditReviewForm, 
-    BusinessSponsorshipForm, LegalReviewForm, CreditQuestionnaireForm
-)
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from backend.permissions import RolePermission
-from workflow_engine.models import WorkflowInstance, StateLog
+from workflow_engine.models import WorkflowArtifact, WorkflowInstance, StateLog
 from rest_framework_simplejwt.views import TokenObtainPairView as SimpleJWTTokenObtainPairView
 from .serializers import (
     MyTokenObtainPairSerializer,
+    WorkflowArtifactSerializer,
     WorkflowInstanceSerializer,
     StateLogSerializer,
     WorkflowTransitionSerializer,
@@ -54,34 +50,6 @@ class WorkflowInstanceTransitionView(APIView):
             )
             print(f"Transition performed successfully for workflow instance {instance.id} to state {instance.current_state.code}")
 
-            # Check if this workflow instance is for a CreditApplication
-            # and if so, auto-initialize forms based on new state metadata
-            try:
-                credit_app_content_type = ContentType.objects.get_for_model(CreditApplication)
-                if instance.content_type == credit_app_content_type:
-                    credit_application = instance.content_object
-                    if credit_application:
-                        print(f"Workflow instance is for CreditApplication ID: {credit_application.id}. Auto-initializing forms for new state.")
-                        
-                        # Use metadata-driven auto-initialization
-                        from workflow_engine.utils import auto_initialize_forms_for_state
-                        initialized_forms = auto_initialize_forms_for_state(
-                            credit_application, 
-                            state_code=instance.current_state.code
-                        )
-                        
-                        if initialized_forms:
-                            print(f"  Auto-initialized {len(initialized_forms)} forms: {list(initialized_forms.keys())}")
-                        else:
-                            print("  No forms needed for current state or auto-initialization failed")
-                    else:
-                        print("Warning: Workflow instance content_object is None, cannot auto-initialize forms.")
-                else:
-                    print(f"Workflow instance is for {instance.content_type}, not a CreditApplication. Skipping form auto-initialization.")
-            except Exception as e_subform:
-                print(f"Error during automatic form auto-initialization: {e_subform}")
-                # Log the error but continue - the transition itself was successful
-
             return Response({'detail': 'Transition performed successfully.'}, status=status.HTTP_200_OK)
         except (ValueError, PermissionError) as e:
             print(f"Error performing transition: {e}")
@@ -99,6 +67,18 @@ class WorkflowInstanceLogListView(APIView):
         instance = get_object_or_404(WorkflowInstance, pk=pk)
         logs = StateLog.objects.filter(workflow_instance=instance).order_by('-created_at')
         serializer = StateLogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+
+class WorkflowInstanceArtifactListView(APIView):
+    permission_classes = [IsAuthenticated, RolePermission]
+
+    def get(self, request, pk):
+        instance = get_object_or_404(WorkflowInstance, pk=pk)
+        artifacts = WorkflowArtifact.objects.filter(
+            workflow_instance=instance,
+        ).select_related('content_type').order_by('artifact_key')
+        serializer = WorkflowArtifactSerializer(artifacts, many=True)
         return Response(serializer.data)
 
 class WorkflowInstanceListView(APIView):

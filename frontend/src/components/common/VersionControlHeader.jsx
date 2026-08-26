@@ -11,15 +11,9 @@ const versionInfo = {
 };
 
 const VersionControlHeader = ({ version = versionInfo.version, lastSaved = versionInfo.lastSaved }) => {
-  const handleSaveVersion = () => {
-    console.log('Save Version clicked');
-    // Placeholder for future functionality
-  };
+  const handleSaveVersion = () => undefined;
 
-  const handleViewHistory = () => {
-    console.log('View History clicked');
-    // Placeholder for future functionality
-  };
+  const handleViewHistory = () => undefined;
 
   return (
     <Box sx={{

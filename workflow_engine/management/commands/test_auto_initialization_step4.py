@@ -1,11 +1,11 @@
 from django.core.management.base import BaseCommand
 from workflow_engine.models import Workflow, State, WorkflowInstance
 from credit_applications.models import CreditApplication, CreditReviewForm
-from workflow_engine.utils import auto_initialize_forms_for_state, get_relevant_sub_processes_for_state
+from workflow_engine.utils import get_state_relevant_artifacts, provision_artifacts_for_state
 from django.contrib.contenttypes.models import ContentType
 
 class Command(BaseCommand):
-    help = 'Step 4: Test auto-initialization functionality'
+    help = 'Step 4: Test artifact provisioning functionality'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -18,17 +18,19 @@ class Command(BaseCommand):
         test_live = options.get('test_live', False)
         
         self.stdout.write("="*80)
-        self.stdout.write("STEP 4: TESTING AUTO-INITIALIZATION")
+        self.stdout.write("STEP 4: TESTING ARTIFACT PROVISIONING")
         self.stdout.write("="*80)
         
         # 1. TEST METADATA FUNCTIONS
         self.stdout.write("\n🧪 TESTING METADATA FUNCTIONS")
         self.stdout.write("-" * 50)
         
-        # Test get_relevant_sub_processes_for_state
+        # Test canonical relevant_artifacts listing
         try:
-            relevant_forms = get_relevant_sub_processes_for_state('CREDIT_PAPER_CREDIT_REVIEW_PENDING')
-            self.stdout.write(f"✅ get_relevant_sub_processes_for_state('CREDIT_PAPER_CREDIT_REVIEW_PENDING')")
+            relevant_forms = get_state_relevant_artifacts(
+                State.objects.get(workflow=Workflow.objects.get(code='CREDIT_PAPER'), code='CREDIT_PAPER_CREDIT_REVIEW_PENDING')
+            )
+            self.stdout.write("✅ Retrieved relevant_artifacts for CREDIT_PAPER_CREDIT_REVIEW_PENDING")
             self.stdout.write(f"   Returns: {relevant_forms}")
             
             if 'credit_review_form' in relevant_forms:
@@ -37,23 +39,23 @@ class Command(BaseCommand):
                 self.stdout.write("   ❌ credit_review_form is NOT included")
                 
         except Exception as e:
-            self.stdout.write(f"❌ Error testing get_relevant_sub_processes_for_state: {e}")
+            self.stdout.write(f"❌ Error testing relevant_artifacts resolution: {e}")
         
-        # Test dynamic form mapping
+        # Test dynamic artifact mapping
         try:
-            from workflow_engine.utils import get_dynamic_form_model_map
-            form_model_map = get_dynamic_form_model_map()
+            from workflow_engine.utils import get_dynamic_artifact_model_map
+            artifact_model_map = get_dynamic_artifact_model_map()
             
-            self.stdout.write(f"✅ get_dynamic_form_model_map() returns {len(form_model_map)} forms")
+            self.stdout.write(f"✅ get_dynamic_artifact_model_map() returns {len(artifact_model_map)} artifacts")
             
-            if 'credit_review_form' in form_model_map:
-                model_class = form_model_map['credit_review_form']
+            if 'credit_review_form' in artifact_model_map:
+                model_class = artifact_model_map['credit_review_form']
                 self.stdout.write(f"   ✅ credit_review_form maps to {model_class.__name__}")
             else:
                 self.stdout.write("   ❌ credit_review_form not in dynamic mapping")
                 
         except Exception as e:
-            self.stdout.write(f"❌ Error testing dynamic form mapping: {e}")
+            self.stdout.write(f"❌ Error testing dynamic artifact mapping: {e}")
         
         # 2. TEST SUB-WORKFLOW EXISTENCE
         self.stdout.write("\n🧪 TESTING SUB-WORKFLOW SETUP")
@@ -111,8 +113,8 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(f"❌ Error finding test applications: {e}")
         
-        # 4. TEST AUTO-INITIALIZATION (DRY RUN)
-        self.stdout.write("\n🧪 TESTING AUTO-INITIALIZATION (DRY RUN)")
+        # 4. TEST ARTIFACT PROVISIONING (DRY RUN)
+        self.stdout.write("\n🧪 TESTING ARTIFACT PROVISIONING (DRY RUN)")
         self.stdout.write("-" * 50)
         
         if test_apps:
@@ -130,18 +132,18 @@ class Command(BaseCommand):
             else:
                 self.stdout.write("ℹ️  No Credit Review Form exists yet")
             
-            # Test auto-initialization function
+            # Test artifact provisioning function
             try:
-                self.stdout.write("\\nTesting auto_initialize_forms_for_state...")
-                initialized_forms = auto_initialize_forms_for_state(
+                self.stdout.write("\\nTesting provision_artifacts_for_state...")
+                initialized_artifacts = provision_artifacts_for_state(
                     test_app, 
                     state_code='CREDIT_PAPER_CREDIT_REVIEW_PENDING'
                 )
                 
-                self.stdout.write(f"✅ Function returned: {list(initialized_forms.keys())}")
+                self.stdout.write(f"✅ Function returned: {list(initialized_artifacts.keys())}")
                 
-                if 'credit_review_form' in initialized_forms:
-                    form_instance = initialized_forms['credit_review_form']
+                if 'credit_review_form' in initialized_artifacts:
+                    form_instance = initialized_artifacts['credit_review_form']
                     self.stdout.write(f"✅ Credit Review Form: ID {form_instance.id}")
                     if form_instance.workflow_instance:
                         self.stdout.write(f"✅ Workflow instance: {form_instance.workflow_instance.id}")
@@ -152,7 +154,7 @@ class Command(BaseCommand):
                     self.stdout.write("❌ credit_review_form not in returned forms")
                     
             except Exception as e:
-                self.stdout.write(f"❌ Auto-initialization failed: {e}")
+                self.stdout.write(f"❌ Artifact provisioning failed: {e}")
                 import traceback
                 self.stdout.write(traceback.format_exc())
         
@@ -163,15 +165,15 @@ class Command(BaseCommand):
         self.stdout.write("Checking WorkflowInstanceTransitionView integration:")
         
         try:
-            # Read the view file to check if auto-initialization is called
+            # Read the view file to check if artifact provisioning is called
             import inspect
             from backend.users.views import WorkflowInstanceTransitionView
             
             source = inspect.getsource(WorkflowInstanceTransitionView.post)
-            if 'auto_initialize_forms_for_state' in source:
-                self.stdout.write("✅ WorkflowInstanceTransitionView calls auto_initialize_forms_for_state")
+            if 'provision_artifacts_for_state' in source:
+                self.stdout.write("✅ WorkflowInstanceTransitionView calls provision_artifacts_for_state")
             else:
-                self.stdout.write("❌ auto_initialize_forms_for_state not called in transition view")
+                self.stdout.write("❌ provision_artifacts_for_state not called in transition view")
                 
         except Exception as e:
             self.stdout.write(f"⚠️  Could not check transition view integration: {e}")
@@ -185,7 +187,7 @@ class Command(BaseCommand):
             self.stdout.write("To test live workflow transitions:")
             self.stdout.write("1. Create a new Credit Request")
             self.stdout.write("2. Transition it to Credit Review state")
-            self.stdout.write("3. Check if Credit Review Form gets auto-created with workflow instance")
+            self.stdout.write("3. Check if Credit Review Form gets provisioned with workflow instance")
         else:
             self.stdout.write("🔵 DRY RUN MODE")
             self.stdout.write("Use --test-live to test actual workflow transitions")

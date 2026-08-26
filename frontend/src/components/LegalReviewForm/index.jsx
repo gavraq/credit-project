@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { fetchCreditRequest, performWorkflowTransition, saveLegalReviewForm, fetchUsersByRole } from '../../services/api';
+import { fetchCreditRequest, performWorkflowTransition, saveLegalReviewForm } from '../../services/api';
 import FormPageWrapper from '../common/FormPageWrapper';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
 import CreditApplicationDetailsSection from '../common/CreditApplicationDetailsSection';
-import { Box, Typography, Tabs, Tab } from '@mui/material';
+import { Box, Tabs, Tab } from '@mui/material';
+import useCreditArtifactResource from '../../hooks/useCreditArtifactResource';
 
 const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
   const { id } = useParams(); // This is credit_application_id
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [applicationLoading, setApplicationLoading] = useState(true);
   const [transitionLoading, setTransitionLoading] = useState(false);
   const [transitionError, setTransitionError] = useState(null);
-  const [creditApplication, setCreditApplication] = useState(null);
+  const [creditApplication, setCreditApplication] = useState(initialCreditApplication || null);
   const user = useSelector(state => state.auth.user);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
 
@@ -27,8 +28,16 @@ const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
   const [formStartDate, setFormStartDate] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [formData, setFormData] = useState({});
-
-  const [legalReviewers, setLegalReviewers] = useState([]);
+  const {
+    detail: legalReviewForm,
+    loading: artifactLoading,
+    error: artifactError,
+  } = useCreditArtifactResource(
+    id,
+    creditApplication,
+    'legal_review_form',
+    { refreshKey: refetchTrigger }
+  );
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -62,130 +71,117 @@ const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
     neutral900: '#1F2933'
   };
 
-  const populateFormData = (data) => {
-    if (!data) return;
-    setCreditApplication(data); // Store the whole application object
+  const populateFormData = (formDetail) => {
+    if (!formDetail) {
+      setWorkflowInstanceId(null);
+      setCurrentWorkflowState('');
+      setAllowedTransitions([]);
+      setFormStartDate(new Date().toISOString().split('T')[0]);
+      setFormData({});
+      return;
+    }
 
     const initialFormData = {};
 
     // Populate Legal Review Form specific data - Phase 3 pattern
-    if (data.legal_review_form) {
-      console.log('Found legal_review_form, available_transitions:', data.legal_review_form.available_transitions);
-      const lrForm = data.legal_review_form;
-      
-      // Use Legal Review Form sub-process workflow - SAME PATTERN as other Phase 3 forms
-      if (lrForm.workflow_instance) {
-        setWorkflowInstanceId(lrForm.workflow_instance.id);
-        setCurrentWorkflowState(lrForm.workflow_instance.current_state || 'Draft');
-      }
-      
-      // Use available_transitions from Legal Review Form serializer
-      console.log('Available transitions from API:', lrForm.available_transitions);
-      setAllowedTransitions(lrForm.available_transitions || []);
-      console.log('Setting allowedTransitions state to:', lrForm.available_transitions || []);
-
-      // Populate directly from model fields (Phase 3 pattern - explicit database fields)
-      initialFormData.agreement_template = lrForm.agreement_template || '';
-      initialFormData.governing_law = lrForm.governing_law || '';
-      initialFormData.non_standard_provisions = lrForm.non_standard_provisions || '';
-      initialFormData.positive_netting_opinion = lrForm.positive_netting_opinion !== null ? String(lrForm.positive_netting_opinion) : '';
-      initialFormData.positive_collateral_opinion = lrForm.positive_collateral_opinion !== null ? String(lrForm.positive_collateral_opinion) : '';
-      initialFormData.has_csa = lrForm.has_csa !== null ? String(lrForm.has_csa) : '';
-      initialFormData.csa_type = lrForm.csa_type || '';
-      initialFormData.csa_threshold = lrForm.csa_threshold || '';
-      initialFormData.csa_minimum_transfer = lrForm.csa_minimum_transfer || '';
-      initialFormData.csa_independent_amount = lrForm.csa_independent_amount || '';
-      initialFormData.counterparty_events_of_default = lrForm.counterparty_events_of_default || '';
-      initialFormData.grace_period = lrForm.grace_period || '';
-      initialFormData.iosco_compliant = lrForm.iosco_compliant !== null ? String(lrForm.iosco_compliant) : '';
-    } else {
-      // If no form data exists, set defaults
-      setFormStartDate(new Date().toISOString().split('T')[0]);
+    if (formDetail.workflow_instance) {
+      setWorkflowInstanceId(formDetail.workflow_instance.id);
+      setCurrentWorkflowState(formDetail.workflow_instance.current_state || 'Draft');
     }
+
+    setAllowedTransitions(formDetail.available_transitions || []);
+
+    initialFormData.agreement_template = formDetail.agreement_template || '';
+    initialFormData.governing_law = formDetail.governing_law || '';
+    initialFormData.non_standard_provisions = formDetail.non_standard_provisions || '';
+    initialFormData.positive_netting_opinion = formDetail.positive_netting_opinion !== null ? String(formDetail.positive_netting_opinion) : '';
+    initialFormData.positive_collateral_opinion = formDetail.positive_collateral_opinion !== null ? String(formDetail.positive_collateral_opinion) : '';
+    initialFormData.has_csa = formDetail.has_csa !== null ? String(formDetail.has_csa) : '';
+    initialFormData.csa_type = formDetail.csa_type || '';
+    initialFormData.csa_threshold = formDetail.csa_threshold || '';
+    initialFormData.csa_minimum_transfer = formDetail.csa_minimum_transfer || '';
+    initialFormData.csa_independent_amount = formDetail.csa_independent_amount || '';
+    initialFormData.counterparty_events_of_default = formDetail.counterparty_events_of_default || '';
+    initialFormData.grace_period = formDetail.grace_period || '';
+    initialFormData.iosco_compliant = formDetail.iosco_compliant !== null ? String(formDetail.iosco_compliant) : '';
+
     setFormData(initialFormData);
   };
 
   useEffect(() => {
-    const fetchLegalReviewers = async () => {
-      try {
-        const responseData = await fetchUsersByRole('legal_reviewer');
-        if (responseData && Array.isArray(responseData.results)) {
-          setLegalReviewers(responseData.results);
-        } else if (responseData && Array.isArray(responseData)) {
-          setLegalReviewers(responseData);
-        } else {
-          console.error('Fetched legal reviewers is not in expected format:', responseData);
-          setLegalReviewers([]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch legal reviewers:', err);
-        setLegalReviewers([]);
-      }
-    };
-    fetchLegalReviewers();
-  }, []);
-
-
-
-  useEffect(() => {
-    // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
-    // This ensures workflow transitions are always up-to-date
     const fetchData = async () => {
       if (!id) {
-        setLoading(false);
+        setApplicationLoading(false);
         return;
       }
-      setLoading(true);
+      setApplicationLoading(true);
       try {
-        const data = await fetchCreditRequest(id);
-        populateFormData(data);
+        const application = await fetchCreditRequest(id);
+        setCreditApplication(application);
+        setTransitionError(null);
       } catch (error) {
-        console.error('Error fetching credit application:', error);
         setTransitionError('Failed to load credit application data.');
+        setCreditApplication(null);
       } finally {
-        setLoading(false);
+        setApplicationLoading(false);
       }
     };
     fetchData();
   }, [id, user, refetchTrigger]);
 
-  // Save function - returns true/false for success
-  const handleSave = async () => {
-    setLoading(true);
-    setTransitionError(null);
+  useEffect(() => {
+    if (artifactError) {
+      setTransitionError('Failed to load legal review form data.');
+      return;
+    }
 
-    // Use FLAT PREFIXED FIELDS to match backend expectation
-    const payload = {
-      legal_review_form_start_date: formStartDate || new Date().toISOString().split('T')[0],
-      // form_completion_date is set on final submission via workflow
+    populateFormData(legalReviewForm);
+  }, [artifactError, legalReviewForm]);
+
+  const buildPayload = () => {
+    const toBoolean = (value) => {
+      if (value === 'true' || value === true) return true;
+      if (value === 'false' || value === false) return false;
+      return null;
     };
 
-    // Add all form data fields with prefix - MUST match backend metadata
-    Object.keys(formData).forEach(key => {
-      payload[`legal_review_form_${key}`] = formData[key];
-    });
+    const toDecimal = (value) => {
+      if (value === '' || value === null || value === undefined) {
+        return null;
+      }
+      const parsed = parseFloat(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
 
-    if (!workflowInstanceId) {
-      payload.legal_review_create_workflow_instance = true;
-    }
+    const toIsoDateTime = (dateValue) => {
+      if (!dateValue) {
+        return null;
+      }
 
-    try {
-      const response = await saveLegalReviewForm(id, payload);
-      populateFormData(response.data); // Update state with response
-      setLoading(false);
-      return true; // Indicate success
-    } catch (error) {
-      console.error('Error saving Legal Review form:', error);
-      setTransitionError(error.response?.data?.detail || 'Failed to save form.');
-      setLoading(false);
-      return false; // Indicate failure
-    }
+      const normalizedValue = dateValue.includes('T') ? dateValue : `${dateValue}T00:00:00`;
+      return new Date(normalizedValue).toISOString();
+    };
+
+    return {
+      agreement_template: formData.agreement_template || null,
+      governing_law: formData.governing_law,
+      non_standard_provisions: formData.non_standard_provisions,
+      positive_netting_opinion: toBoolean(formData.positive_netting_opinion),
+      positive_collateral_opinion: toBoolean(formData.positive_collateral_opinion),
+      has_csa: toBoolean(formData.has_csa),
+      csa_type: formData.csa_type || null,
+      csa_threshold: toDecimal(formData.csa_threshold),
+      csa_minimum_transfer: toDecimal(formData.csa_minimum_transfer),
+      csa_independent_amount: toDecimal(formData.csa_independent_amount),
+      counterparty_events_of_default: formData.counterparty_events_of_default,
+      grace_period: formData.grace_period,
+      iosco_compliant: toBoolean(formData.iosco_compliant),
+      form_started_at: toIsoDateTime(formStartDate || new Date().toISOString().split('T')[0]),
+    };
   };
 
   // Phase 3 handleTransition pattern - matches other forms exactly
   const handleTransition = async (transition, comments = '') => {
-    console.log('Legal Review Form - handleTransition called with:', { transition, comments });
-    
     if (!workflowInstanceId) {
       setTransitionError('Cannot perform transitions - workflow instance not found.');
       return;
@@ -194,37 +190,16 @@ const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
     setTransitionLoading(true);
     setTransitionError(null);
     
-    // Build payload like other Phase 3 forms
-    const payload = {
-      legal_review_form_start_date: formStartDate || new Date().toISOString().split('T')[0],
-    };
-
-    // Add all form data fields with prefix - MUST match backend metadata
-    Object.keys(formData).forEach(key => {
-      payload[`legal_review_form_${key}`] = formData[key];
-    });
-
-    if (!workflowInstanceId) {
-      payload.legal_review_create_workflow_instance = true;
-    }
+    const payload = buildPayload();
     
     try {
-      console.log('Legal Review Form - Saving form data first...');
-      console.log('Payload:', JSON.stringify(payload, null, 2));
-      
       // First save form data using proper API service
       await saveLegalReviewForm(id, payload);
-      console.log('Legal Review Form - Form data saved successfully');
       
       // Then perform transition with proper Phase 3 payload structure - SAME AS OTHER FORMS
       const transitionPayload = { transition_code: transition.code, comments: comments };
-      
-      console.log('Legal Review Form - Performing transition...');
-      console.log('Transition payload:', JSON.stringify(transitionPayload, null, 2));
-      console.log('Workflow instance ID:', workflowInstanceId);
-      
+
       await performWorkflowTransition(workflowInstanceId, transitionPayload);
-      console.log('Legal Review Form - Transition performed successfully');
       
       // Navigate on success if metadata specifies a path
       const navigatePath = transition.metadata?.ui_behavior?.navigate_on_success;
@@ -242,8 +217,6 @@ const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
       // Use same error handling pattern as BusinessSponsorshipForm
       let detailedError = 'An unexpected error occurred during transition.';
       if (error.response) {
-        console.error('Backend error response data:', error.response.data);
-        console.error('Backend error response status:', error.response.status);
         if (error.response.data) {
           const dataError = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
           detailedError = `Backend Error: ${dataError} (Status: ${error.response.status})`;
@@ -255,7 +228,6 @@ const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
       }
       
       setTransitionError(detailedError);
-      console.error('Legal Review Form - Transition failed:', detailedError);
     } finally {
       setTransitionLoading(false);
     }
@@ -279,6 +251,7 @@ const LegalReviewForm = ({ creditApplication: initialCreditApplication }) => {
     allowedTransitions: allowedTransitions || [],
     colors: colors,
   };
+  const loading = applicationLoading || artifactLoading;
   
   if (loading) return <div style={{ textAlign: 'center', padding: '2rem' }}>Loading Legal Review Form...</div>;
 

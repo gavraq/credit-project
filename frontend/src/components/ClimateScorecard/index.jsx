@@ -5,10 +5,16 @@ import {
   Box, Tabs, Tab, Button, CircularProgress, Alert, Chip, Tooltip, LinearProgress,
   Typography, Paper
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { fetchCreditRequest, performWorkflowTransition, saveClimateScorecard, generateClimateScorecard, fetchUsersByRole } from '../../services/api';
+import {
+  fetchCreditRequest,
+  invokeArtifactAction,
+  performWorkflowTransition,
+  saveClimateScorecard,
+  fetchUsersByRole,
+} from '../../services/api';
+import useCreditArtifactResource from '../../hooks/useCreditArtifactResource';
 import FormPageWrapper from '../common/FormPageWrapper';
 import FormField from '../common/FormField';
 import FormSection from '../common/FormSection';
@@ -43,7 +49,6 @@ const ConfidenceIndicator = ({ confidence, fieldName }) => {
 const ClimateScorecard = ({ creditApplication: initialCreditApplication, currentStep = 4 }) => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const theme = useTheme();
   const user = useSelector(state => state.auth.user);
 
   // Loading states
@@ -56,6 +61,17 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
   // Application state
   const [creditApplication, setCreditApplication] = useState(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
+  const {
+    action: remoteGenerateAction,
+    detail: scorecard,
+    loading: artifactLoading,
+    error: artifactError,
+  } = useCreditArtifactResource(
+    id,
+    creditApplication,
+    'climate_scorecard',
+    { capability: 'remote_generate', refreshKey: refetchTrigger }
+  );
 
   // Workflow state
   const [workflowInstanceId, setWorkflowInstanceId] = useState(null);
@@ -175,7 +191,6 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
 
   // Analysts list
   const [creditAnalysts, setCreditAnalysts] = useState([]);
-  const [loadingAnalysts, setLoadingAnalysts] = useState(false);
 
   // Tab management
   const [activeTab, setActiveTab] = useState(0);
@@ -221,11 +236,10 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
     { value: '5', label: '5 - Excellent/Minimal Risk' },
   ];
 
-  const populateFormData = useCallback((data) => {
-    if (!data) return;
-    setCreditApplication(data);
+  const populateFormData = useCallback((scorecardData) => {
+    if (!scorecardData) return;
 
-    const scorecard = data.climate_scorecard;
+    const scorecard = scorecardData;
     if (!scorecard) return;
 
     // Set workflow information
@@ -346,27 +360,22 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
   }, [user]);
 
   const fetchAndSetAnalysts = useCallback(async () => {
-    setLoadingAnalysts(true);
     try {
       const analysts = await fetchUsersByRole('Credit Analyst');
       setCreditAnalysts(analysts || []);
-    } catch (error) {
-      console.error('Failed to fetch credit analysts:', error);
-    } finally {
-      setLoadingAnalysts(false);
+    } catch {
+      setCreditAnalysts([]);
     }
   }, []);
 
   useEffect(() => {
     const loadData = async () => {
-      // Always fetch fresh data - don't rely on potentially stale initialCreditApplication
-      // This ensures workflow transitions are always up-to-date
       setLoading(true);
       try {
         const data = await fetchCreditRequest(id);
-        populateFormData(data);
-      } catch (error) {
-        console.error('Error fetching credit application:', error);
+        setCreditApplication(data);
+      } catch {
+        setTransitionError('Failed to load climate scorecard data.');
       } finally {
         setLoading(false);
       }
@@ -374,7 +383,19 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
 
     loadData();
     fetchAndSetAnalysts();
-  }, [id, populateFormData, fetchAndSetAnalysts, refetchTrigger]);
+  }, [id, fetchAndSetAnalysts, refetchTrigger]);
+
+  useEffect(() => {
+    if (scorecard) {
+      populateFormData(scorecard);
+    }
+  }, [scorecard, populateFormData]);
+
+  useEffect(() => {
+    if (artifactError) {
+      setTransitionError('Failed to load climate scorecard data.');
+    }
+  }, [artifactError]);
 
   const buildFormData = () => {
     return {
@@ -496,7 +517,6 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
         navigate('/');
       }
     } catch (error) {
-      console.error('Error saving climate scorecard:', error);
       setTransitionError(error.response?.data?.detail || 'Failed to save climate scorecard');
     } finally {
       setTransitionLoading(false);
@@ -508,14 +528,17 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
     setAiError(null);
 
     try {
-      const result = await generateClimateScorecard(id);
+      if (!remoteGenerateAction) {
+        throw new Error('Remote generation is not available for this artifact');
+      }
+
+      const result = await invokeArtifactAction(remoteGenerateAction);
       if (result.success) {
         setRefetchTrigger(prev => prev + 1);
       } else {
         setAiError(result.detail || 'AI generation failed');
       }
     } catch (error) {
-      console.error('Error generating AI scorecard:', error);
       setAiError(error.response?.data?.detail || 'AI generation failed');
     } finally {
       setAiGenerating(false);
@@ -534,7 +557,7 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
     return ratingColors[rating] || colors.neutral400;
   };
 
-  if (loading) {
+  if (loading || artifactLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
         <CircularProgress />
@@ -589,7 +612,7 @@ const ClimateScorecard = ({ creditApplication: initialCreditApplication, current
               variant="contained"
               startIcon={aiGenerated ? <RefreshIcon /> : <AutoAwesomeIcon />}
               onClick={handleGenerateAI}
-              disabled={aiGenerating}
+              disabled={aiGenerating || !remoteGenerateAction}
             >
               {aiGenerating ? 'Generating...' : aiGenerated ? 'Regenerate' : 'Generate with AI'}
             </Button>

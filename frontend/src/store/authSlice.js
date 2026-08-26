@@ -8,16 +8,15 @@ const storedUserDetails = localStorage.getItem('user_details');
 if (storedUserDetails) {
   try {
     user = JSON.parse(storedUserDetails);
-  } catch (e) {
-    console.error('Error parsing stored user details:', e);
+  } catch {
     localStorage.removeItem('user_details'); // Clear corrupted data
   }
 } else if (token) {
   // Fallback to decoding from token if no separate user_details, though this won't have full name
   try {
     user = JSON.parse(atob(token.split('.')[1]));
-  } catch (e) {
-    console.error('Error parsing user from token:', e);
+  } catch {
+    user = null;
   }
 }
 
